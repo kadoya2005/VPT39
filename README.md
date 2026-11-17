@@ -184,7 +184,7 @@ VPT の「四隅変形マッピング」と、VJアプリのような「キュ�
 
 ## テスト用の素材
 
-`media\テスト用` に動作確認用の動画（カウント＋音、60fps のグリッド、カラーバー、横長 3840×1080、左右の音）と動く GIF・透明 PNG、`photos\テスト用` に形の違う写真が入っています。作り直すときは `.venv\Scripts\python.exe tools\make_test_media.py`（ffmpeg の部品 `imageio-ffmpeg` が必要）。
+`media\テスト用` に動作確認用の動画（カウント＋音、60fps のグリッド、カラーバー、横長 3840×1080、左右の音）と動く GIF・透明 PNG、真っ白・真っ黒（一番明るい・暗いの確認）、月（まん丸。比率の確認）、`photos\テスト用` に形の違う写真と月が入っています。作り直すときは `.venv\Scripts\python.exe tools\make_test_media.py`（ffmpeg の部品 `imageio-ffmpeg` が必要）。
 
 ## ほかの人に渡すとき
 

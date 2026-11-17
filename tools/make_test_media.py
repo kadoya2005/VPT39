@@ -274,11 +274,61 @@ def anim_gif():
     print('  動くGIF・透明PNG →', OUT)
 
 
+def moon_image(size, bg_w, bg_h):
+    """月（まん丸）。黒い背景の真ん中に、直径 size の月を描く。丸がつぶれて見えたら比率がずれている"""
+    rng = np.random.default_rng(39)
+    r = size / 2
+    yy, xx = np.mgrid[0:size, 0:size].astype(np.float32)
+    dx, dy = (xx - r + 0.5) / r, (yy - r + 0.5) / r
+    rr = np.sqrt(dx * dx + dy * dy)
+    inside = rr <= 1.0
+    # 地の明るさ（ざらざら）
+    tex = np.zeros((size, size), np.float32)
+    for s, a in ((4, 0.5), (16, 0.3), (64, 0.2)):
+        n = rng.random((size // s + 2, size // s + 2)).astype(np.float32)
+        tex += a * cv2.resize(n, (size, size), interpolation=cv2.INTER_CUBIC)
+    img = 0.72 + 0.12 * (tex - tex.mean())
+    # 海（暗いところ）
+    for _ in range(9):
+        cx, cy = rng.uniform(-0.6, 0.6, 2)
+        rad = rng.uniform(0.15, 0.38)
+        d = np.sqrt((dx - cx) ** 2 + (dy - cy) ** 2) / rad
+        img -= 0.22 * np.clip(1.2 - d, 0, 1) ** 0.7
+    # クレーター
+    for _ in range(90):
+        cx, cy = rng.uniform(-1, 1, 2)
+        rad = rng.uniform(0.006, 0.05) * (1 if rng.random() > 0.08 else 2.0)
+        ex, ey = (dx - cx) / rad, (dy - cy) / rad
+        d = np.sqrt(ex * ex + ey * ey)
+        lit = (ex - ey) / (d + 1e-6) * 0.7  # 左上から光が当たる
+        rim = np.exp(-((d - 1.0) ** 2) / 0.03)
+        bowl = np.clip(1 - d, 0, 1)
+        img += 0.09 * rim * (0.4 + lit) + 0.10 * bowl * lit * 0.8 - 0.03 * bowl
+    # 縁を少し暗く
+    img *= (0.55 + 0.45 * np.sqrt(np.clip(1 - rr * rr, 0, 1)))
+    a = np.clip((1.0 - rr) * r, 0, 1)  # 縁をなめらかに
+    v = np.clip(img, 0, 1) * a
+    moon = (np.stack([v * 245, v * 240, v * 228], -1)).astype(np.uint8)
+    im = Image.new('RGB', (bg_w, bg_h), (0, 0, 0))
+    im.paste(Image.fromarray(moon), ((bg_w - size) // 2, (bg_h - size) // 2))
+    return im
+
+
+def stills():
+    """一番明るい・一番暗いのテスト（真っ白・真っ黒）と、比率テストの月"""
+    Image.new('RGB', (1920, 1080), (255, 255, 255)).save(os.path.join(OUT, '08_真っ白.png'))
+    Image.new('RGB', (1920, 1080), (0, 0, 0)).save(os.path.join(OUT, '09_真っ黒.png'))
+    moon_image(960, 1920, 1080).save(os.path.join(OUT, '10_月_比率テスト.jpg'), quality=92)
+    os.makedirs(PHOTO, exist_ok=True)
+    moon_image(1000, 1200, 1200).save(os.path.join(PHOTO, '写真_05_月.jpg'), quality=92)
+    print('  真っ白・真っ黒・月 →', OUT)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     only = sys.argv[1:]
     jobs = [('count', count_video), ('grid', grid_video), ('bars', bars_video), ('wide', wide_video),
-            ('lr', lr_video), ('photos', photos), ('gif', anim_gif)]
+            ('lr', lr_video), ('photos', photos), ('gif', anim_gif), ('stills', stills)]
     for k, fn in jobs:
         if not only or k in only:
             fn()
