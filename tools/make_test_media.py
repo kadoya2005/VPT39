@@ -314,14 +314,43 @@ def moon_image(size, bg_w, bg_h):
     return im
 
 
+def grid_still(bg, fg, W=1920, H=1080, step=120):
+    """キャリブレーション用：120px ごとの格子（16×9 マス）、中心の十字と円、外周の枠"""
+    im = Image.new('RGB', (W, H), (bg,) * 3)
+    d = ImageDraw.Draw(im)
+    c = (fg,) * 3
+    for x in range(0, W + 1, step):
+        d.line((min(x, W - 1), 0, min(x, W - 1), H), fill=c, width=1)
+    for y in range(0, H + 1, step):
+        d.line((0, min(y, H - 1), W, min(y, H - 1)), fill=c, width=1)
+    d.rectangle((0, 0, W - 1, H - 1), outline=c, width=4)          # 外周（端が切れていないか）
+    d.line((W // 2, 0, W // 2, H), fill=c, width=3)                  # 中心の十字
+    d.line((0, H // 2, W, H // 2), fill=c, width=3)
+    r = H // 2 - step // 2
+    d.ellipse((W // 2 - r, H // 2 - r, W // 2 + r, H // 2 + r), outline=c, width=3)  # まん丸（比率）
+    d.line((0, 0, W, H), fill=c, width=1)                            # 対角線
+    d.line((0, H, W, 0), fill=c, width=1)
+    return im
+
+
+def checker_still(W=1920, H=1080, step=120):
+    """市松模様：120px のマス（16×9）。左上が白"""
+    y, x = np.mgrid[0:H, 0:W]
+    v = (((x // step) + (y // step)) % 2 == 0) * 255
+    return Image.fromarray(np.stack([v] * 3, -1).astype(np.uint8))
+
+
 def stills():
     """一番明るい・一番暗いのテスト（真っ白・真っ黒）と、比率テストの月"""
     Image.new('RGB', (1920, 1080), (255, 255, 255)).save(os.path.join(OUT, '08_真っ白.png'))
     Image.new('RGB', (1920, 1080), (0, 0, 0)).save(os.path.join(OUT, '09_真っ黒.png'))
     moon_image(960, 1920, 1080).save(os.path.join(OUT, '10_月_比率テスト.jpg'), quality=92)
+    grid_still(255, 0).save(os.path.join(OUT, '11_白にグリッド.png'))
+    grid_still(0, 255).save(os.path.join(OUT, '12_黒にグリッド.png'))
+    checker_still().save(os.path.join(OUT, '13_市松模様.png'))
     os.makedirs(PHOTO, exist_ok=True)
     moon_image(1000, 1200, 1200).save(os.path.join(PHOTO, '写真_05_月.jpg'), quality=92)
-    print('  真っ白・真っ黒・月 →', OUT)
+    print('  真っ白・真っ黒・グリッド・市松模様・月 →', OUT)
 
 
 def main():
