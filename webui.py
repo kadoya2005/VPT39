@@ -343,6 +343,15 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 /* ---- 欄を別ウィンドウに切り離す ---- */
 .pop{padding:0 7px;font-size:13px;line-height:1.5}
 .hide{display:none!important}
+/* セッティングの窓（画面の上に重ねて出す）*/
+.dlg{position:fixed;inset:0;z-index:50;background:#000a;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px}
+.dlgbox{width:min(640px,100%);max-height:calc(100vh - 80px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px #000a}
+.setrow{display:flex;gap:6px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#0b0d10}
+.setrow.cur{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
+.setrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.setrow .tm{color:var(--dim);font-size:12px;white-space:nowrap}
+#setbtn b{color:var(--acc)}
+#setbtn.none b{color:var(--dim);font-weight:400}
 .childbar{display:none}
 body.child header,body.child .deck,body.child .tabs,body.child .pop{display:none}
 body.child main{grid-template-columns:minmax(0,1fr)}
@@ -405,9 +414,17 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <button id="edit" class="lock">マッピング編集 (E)</button>
   <span class="grow"></span>
   <span class="msg" id="msg"></span>
+  <button id="setbtn" title="会場・公演ごとの設定ファイル（名前を付けて保存・開く・複製・削除）">セッティング：<b id="setname">（名前なし）</b> ▾</button>
   <button id="save">保存</button>
   <button id="quit">終了</button>
 </header>
+<div id="setdlg" class="dlg hide"><div class="dlgbox">
+  <div class="row"><b style="font-size:15px">セッティング</b><span class="meta grow">会場・公演ごとの設定ファイル（曲順・クリップ・レイヤー・マッピング・音量・出力の設定）</span><button class="sm" id="setclose">閉じる</button></div>
+  <div class="meta" id="setcur"></div>
+  <div class="row" style="flex-wrap:nowrap"><input id="setnew" class="grow" placeholder="新しい名前（例：2026-12 ライブ本番）" maxlength="60" style="min-width:0"><button id="setsaveas">名前を付けて保存</button></div>
+  <div id="setlist"></div>
+  <div class="hint">開いているセッティングには、変えると2秒後に自動で上書き保存されます。ファイルは VPT39\settings フォルダにあり、Dropbox で同期すれば別のPCでも同じ一覧が使えます。別のPCで準備するときは、「出力」タブの「本番の解像度」を本番のプロジェクターに合わせておきます。</div>
+</div></div>
 <div class="childbar" id="childbar"></div>
 <main>
   <section class="deck" id="deck">
@@ -838,9 +855,19 @@ function buildLset(){
 
 // ---- 出力ウィンドウ ----
 let outsKey='';
+// 本番の解像度の選び方（よく使うものと、自由に入れる）
+const RES_LIST=[[1920,1080],[1280,720],[3840,2160],[2560,1440],[1920,1200],[1280,800],[1366,768],[1400,1050],[1024,768]];
+function resSelect(o,k){
+  const cur=o.res?o.res.join('x'):'auto', has=RES_LIST.some(r=>r.join('x')===cur);
+  return `<select data-ores="${k}">
+    <option value="auto" ${cur==='auto'?'selected':''}>自動（ウィンドウの大きさ・いま ${o.win[0]}×${o.win[1]}）</option>
+    ${RES_LIST.map(r=>`<option value="${r.join('x')}" ${cur===r.join('x')?'selected':''}>${r[0]}×${r[1]}</option>`).join('')}
+    ${!has&&cur!=='auto'?`<option value="${cur}" selected>${o.res[0]}×${o.res[1]}</option>`:''}
+    <option value="win">いまの画面の大きさにする</option><option value="custom">自分で入れる…</option></select>`;
+}
 function buildOuts(){
   const box=$('outs'); if(!box)return;
-  const key=JSON.stringify([S.outputs.map(o=>[o.name,o.size,o.fullscreen,o.monitor,o.join,o.overlap,o.gamma,o.host]),S.screens,S.out_warning,
+  const key=JSON.stringify([S.outputs.map(o=>[o.name,o.size,o.win,o.res,o.fullscreen,o.monitor,o.join,o.overlap,o.gamma,o.host]),S.screens,S.out_warning,
     S.layers.map(L=>[L.name,L.places.map(p=>p.output)])]);
   if(key===outsKey||editingIn('#outs')) return; outsKey=key;
   const sc=S.screens||[];
@@ -865,6 +892,7 @@ function buildOuts(){
       <button class="${o.fullscreen?'on':''}" data-ofs="${k}">${o.fullscreen?'フルスクリーン中':'フルスクリーン'}</button>
       <button class="sm" data-oback="${k}" title="ウィンドウに戻してメイン画面の中央へ">手元に戻す</button>
       ${S.outputs.length>1?`<button class="sm" data-orm="${k}" title="この出力を削除">✕</button>`:''}</div>
+      <div class="wide"><span title="本番で使うプロジェクターの解像度。決めておくと、準備用の別のPC（小さいウィンドウ）でも本番と同じ大きさで描くので、四隅や重なりがそのまま使える">本番の解像度</span>${resSelect(o,k)}${o.res&&(o.win[0]!==o.res[0]||o.win[1]!==o.res[1])?`<span class="meta">（いまのウィンドウ ${o.win[0]}×${o.win[1]} に縮小して表示）</span>`:''}</div>
       ${k>0?`<div class="wide"><label title="2台のプロジェクターで1枚の横長の映像にする"><input type="checkbox" data-join="${k}" ${o.join?'checked':''}> 出力${k}の右につなげて横長にする</label>
         ${o.join?`<span>重なり</span><input type="number" min="0" max="2000" step="10" data-ov="${k}" value="${o.overlap}"><span class="meta">px（ぼかしてつなぐ幅）</span>
           <span>ガンマ</span><input type="number" min="1" max="3" step="0.1" data-gm="${k}" value="${o.gamma}" title="出力${k}と出力${k+1}のつなぎ目の明るさがそろわないときに調整（つなぎ目が明るすぎる→大きく、暗すぎる→小さく）"><span class="meta">（このつなぎ目だけ）</span>`:''}</div>`:''}
@@ -877,6 +905,12 @@ function buildOuts(){
     ${scrHtml}
     <div class="hint">出力ウィンドウを投影したい画面へドラッグしてから「フルスクリーン」（出力ウィンドウ上の F キー・ダブルクリックでも）。緑の枠＝出力ウィンドウがある画面。プロジェクターは拡大率 100% が確実。</div>`;
   box.querySelectorAll('[data-ofs]').forEach(b=>b.onclick=()=>cmd({cmd:'out_fullscreen',output:+b.dataset.ofs}));
+  box.querySelectorAll('[data-ores]').forEach(s=>s.onchange=()=>{const k=+s.dataset.ores, v=s.value;
+    if(v==='auto') return cmd({cmd:'out_res',output:k,value:null});
+    if(v==='win') return cmd({cmd:'out_res',output:k,value:S.outputs[k].win});
+    if(v==='custom'){const a=prompt('本番の解像度（幅×高さ）を入れてください。例：1920x1080',(S.outputs[k].res||S.outputs[k].win).join('x'));
+      const m=a&&/^\s*(\d{2,5})\s*[x×*,]\s*(\d{2,5})\s*$/i.exec(a); if(m) return cmd({cmd:'out_res',output:k,value:[+m[1],+m[2]]}); outsKey=''; return buildOuts();}
+    const [w,h]=v.split('x').map(Number); cmd({cmd:'out_res',output:k,value:[w,h]});});
   box.querySelectorAll('[data-oback]').forEach(b=>b.onclick=()=>cmd({cmd:'out_bring_back',output:+b.dataset.oback}));
   box.querySelectorAll('[data-orm]').forEach(b=>b.onclick=()=>{ if(confirm(`${S.outputs[+b.dataset.orm].name} を削除しますか？（その出力のレイヤーは出力1に移ります）`)) cmd({cmd:'out_remove',output:+b.dataset.orm}); });
   box.querySelectorAll('[data-pl]').forEach(c=>c.onchange=()=>cmd({cmd:'place',layer:+c.dataset.pl,output:+c.dataset.po,value:c.checked}));
@@ -1035,6 +1069,48 @@ $('clearall').onclick=()=>cmd({cmd:'clear_all'});
 $('edit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
 $('mapedit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
 $('save').onclick=()=>cmd({cmd:'save'});
+
+// ---- セッティング（会場・公演ごとの設定ファイル）----
+function fmtTime(t){const d=new Date(t*1000), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+let setKey='';
+function buildSettings(){
+  const nm=S.setting_name||'';
+  $('setname').textContent=nm||'（名前なし）'; $('setbtn').classList.toggle('none',!nm);
+  if($('setdlg').classList.contains('hide')) return;
+  const k=JSON.stringify([nm,S.settings]); if(k===setKey) return; setKey=k;
+  $('setcur').innerHTML=nm?`いま開いている：<b style="color:var(--acc)">${esc(nm)}</b>（変えると自動で上書き保存）`:
+    'いまの状態には名前が付いていません。残しておくなら、名前を付けて保存してください。';
+  const L=S.settings||[];
+  $('setlist').innerHTML=L.length?L.map(r=>`<div class="setrow ${r.name===nm?'cur':''}"><span class="nm" title="${esc(r.name)}">${esc(r.name)}</span>
+      <span class="tm">${fmtTime(r.time)}</span>
+      ${r.name===nm?'<span class="tag on">開いている</span>':`<button class="sm" data-sopen="${esc(r.name)}">開く</button>`}
+      <button class="sm" data-sdup="${esc(r.name)}" title="このセッティングを元に、新しい名前で作る">複製</button>
+      <button class="sm" data-sdel="${esc(r.name)}" title="ごみ箱へ移す">✕</button></div>`).join('')
+    :'<div class="meta">まだありません。上で名前を入れて「名前を付けて保存」。</div>';
+  $('setlist').querySelectorAll('[data-sopen]').forEach(b=>b.onclick=()=>{const n=b.dataset.sopen;
+    const note=nm?`いまの「${nm}」は保存されています。`:'いまの状態には名前がないので、開くと置き換わります（残すなら先に名前を付けて保存）。';
+    if(confirm(`セッティング「${n}」を開きますか？\n\n${note}\nレイヤー・クリップ・マッピング・出力ウィンドウが切り替わります。`)){cmd({cmd:'setting_open',name:n}); closeSettings();}});
+  $('setlist').querySelectorAll('[data-sdup]').forEach(b=>b.onclick=()=>{const src=b.dataset.sdup;
+    if(src!==nm){alert('複製は、いま開いているセッティングから作ります。先に「'+src+'」を開いてください。');return;}
+    const n=prompt('新しい名前（いまの内容をこの名前で保存して、こちらを開いた状態にします）',src+' のコピー');
+    if(n) saveAs(n);});
+  $('setlist').querySelectorAll('[data-sdel]').forEach(b=>b.onclick=()=>{const n=b.dataset.sdel;
+    if(confirm(`セッティング「${n}」をごみ箱へ移しますか？（ごみ箱から戻せます）`+(n===nm?'\n\nいま開いているセッティングです。いまの状態は残りますが、名前なしになります。':''))) cmd({cmd:'setting_delete',name:n});});
+}
+function saveAs(n){
+  n=(n||'').trim(); if(!n)return;
+  if(/[\\/:*?"<>|]/.test(n)){alert('\\ / : * ? " < > | は名前に使えません');return;}
+  const exists=(S.settings||[]).some(r=>r.name===n);
+  if(exists&&n!==S.setting_name&&!confirm(`「${n}」はもうあります。いまの状態で上書きしますか？`))return;
+  cmd({cmd:'setting_save_as',name:n,overwrite:exists}); $('setnew').value='';
+}
+function openSettings(){ $('setdlg').classList.remove('hide'); setKey=''; buildSettings(); }
+function closeSettings(){ $('setdlg').classList.add('hide'); }
+$('setbtn').onclick=openSettings;
+$('setclose').onclick=closeSettings;
+$('setdlg').addEventListener('click',e=>{ if(e.target.id==='setdlg') closeSettings(); });
+$('setsaveas').onclick=()=>saveAs($('setnew').value);
+$('setnew').addEventListener('keydown',e=>{ if(e.key==='Enter') saveAs($('setnew').value); });
 $('quit').onclick=()=>{ if(confirm('VPT39 を終了しますか？（設定は保存されます）')) cmd({cmd:'quit'}); };
 $('mfilter').addEventListener('input',()=>{ if(S) buildMedia(); });
 $('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
@@ -1049,6 +1125,7 @@ document.addEventListener('keydown',e=>{
   if(!S)return;
   // 文字を打つ欄と選択欄だけはキーを奪わない。スライダーやボタンを触った直後でも Space / B / E が効く
   const a=document.activeElement, tag=a?a.tagName:'';
+  if(!$('setdlg').classList.contains('hide')){ if(e.key==='Escape') closeSettings(); return; }  // セッティングの窓を開いている間は、本番のキーは効かない
   if(tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&!/^(range|checkbox|button)$/.test(a.type)))return;
   if(e.ctrlKey||e.metaKey||e.altKey) return;  // Ctrl+B などはブラウザの操作に任せる
   const arrow=/^Arrow/.test(e.key);
@@ -1068,7 +1145,7 @@ async function poll(){
   try{
     const r=await fetch('/api/state'); S=await r.json();
     const mkey=S.media.join('\n')+'|'+S.boot+'|'+((S.inputs||{}).mics||[]).join('|');
-    applyDetached(); buildOuts(); buildMixer();
+    applyDetached(); buildOuts(); buildMixer(); buildSettings();
     if(S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない
       const dragNow=dragActive||Date.now()-lastOver<800;

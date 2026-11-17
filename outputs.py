@@ -173,6 +173,29 @@ class OutputWindow:
         self._last_size = (w, h)
         return w, h
 
+    def render_size(self):
+        """描く大きさ。「本番の解像度」を決めていればその大きさ（ウィンドウの大きさに関係なく同じ絵を作る。
+        小さいウィンドウでは縮小して見せる）、決めていなければウィンドウの大きさ"""
+        r = self.cfg.get('res')
+        if isinstance(r, (list, tuple)) and len(r) == 2:
+            try:
+                w, h = int(r[0]), int(r[1])
+                if 16 <= w <= 16384 and 16 <= h <= 16384:
+                    return w, h
+            except (TypeError, ValueError):
+                pass
+        return self.size()
+
+    def view_rect(self, ww, wh):
+        """ウィンドウ（ww×wh）の中で映像を映す範囲 (x, y, 幅, 高さ)。
+        本番の解像度を決めていて、ウィンドウと形が違うときは、伸び縮みさせずに黒い帯を付けて収める"""
+        if not self.cfg.get('res'):
+            return 0, 0, ww, wh
+        rw, rh = self.render_size()
+        k = min(ww / max(1, rw), wh / max(1, rh))
+        vw, vh = max(1, round(rw * k)), max(1, round(rh * k))
+        return (ww - vw) // 2, (wh - vh) // 2, vw, vh
+
     def monitor_index(self):
         x, y = glfw.get_window_pos(self.win)
         w, h = glfw.get_window_size(self.win)
@@ -255,7 +278,11 @@ class OutputWindow:
             self.ext_key = (src.glo, src.size)
         w, h = self.size()
         self.ctx.screen.use()
-        self.ctx.viewport = (0, 0, w, h)
+        x0, y0, vw, vh = self.view_rect(w, h)
+        if (vw, vh) != (w, h):
+            self.ctx.viewport = (0, 0, w, h)
+            self.ctx.clear(0.0, 0.0, 0.0, 1.0)
+        self.ctx.viewport = (x0, h - y0 - vh, vw, vh)
         self.prog['span'].value = tuple(span)
         self.prog['blend'].value = tuple(blend)
         self.prog['gamma'].value = (float(gamma[0]), float(gamma[1]))
@@ -286,7 +313,8 @@ class OutputWindow:
     def _norm(self, x, y):
         """ウィンドウ上の位置 → 映像（キャンバス）上の位置 0〜1"""
         w, h = glfw.get_window_size(self.win)
-        nx, ny = x / max(1, w), y / max(1, h)
+        x0, y0, vw, vh = self.view_rect(w, h)  # 黒い帯の分をのぞく
+        nx, ny = (x - x0) / max(1, vw), (y - y0) / max(1, vh)
         u0, u1 = self.app.span_of(self)
         return u0 + nx * (u1 - u0), ny
 

@@ -55,6 +55,36 @@ def default_project():
     }
 
 
+def normalize_project(p):
+    """足りない項目を補う（古い設定ファイル・手で書いたファイルでも開けるように）"""
+    if not isinstance(p, dict) or not isinstance(p.get('layers', []), list):
+        raise ValueError('VPT39 の設定ファイルではありません')
+    dp = default_project()
+    for k, v in dp.items():
+        if k != 'outputs':
+            p.setdefault(k, v)
+    for L in p['layers']:
+        for k, v in layer_defaults(L.get('kind', 'video')).items():
+            L.setdefault(k, v)
+        L['test'] = False  # 開いたときはテストパターンを必ずオフ
+        if not L.get('id'):
+            L['id'] = new_id()
+    return p
+
+
+SETTING_BAD = set('\\/:*?"<>|')
+
+
+def clean_setting_name(name):
+    """セッティング名（ファイル名になる）を確かめる。使えない名前なら None"""
+    n = str(name or '').strip()
+    if not n or len(n) > 60 or n.startswith('.') or any(ch in SETTING_BAD or ord(ch) < 32 for ch in n):
+        return None
+    if n.upper() in ('CON', 'PRN', 'AUX', 'NUL') or n.lower().endswith('.json'):
+        return None
+    return n
+
+
 def _font(size):
     for name in ('arial.ttf', 'segoeui.ttf', 'DejaVuSans.ttf'):
         try:
@@ -73,16 +103,9 @@ class App:
                 self.proj = json.load(f)
         else:
             self.proj = default_project()
-        dp = default_project()
-        for k, v in dp.items():
-            if k != 'outputs':
-                self.proj.setdefault(k, v)
-        for L in self.proj['layers']:
-            for k, v in layer_defaults(L.get('kind', 'video')).items():
-                L.setdefault(k, v)
-            L['test'] = False  # 起動時はテストパターンを必ずオフ
-            if not L.get('id'):
-                L['id'] = new_id()
+        normalize_project(self.proj)
+        self.settings_dir = os.path.join(self.base, 'settings')
+        self._settings_cache = (0.0, [])
         self.window_override = bool(args.window)
         os.makedirs(self.resolve(self.proj['media_dir']), exist_ok=True)
 
@@ -179,7 +202,7 @@ class App:
             return self._grp
         gs = []
         for k, o in enumerate(self.outs):
-            w, h = o.size()
+            w, h = o.render_size()
             if k > 0 and o.cfg.get('join') and gs:
                 g = gs[-1]
                 ov = max(0, min(int(o.cfg.get('overlap', 0)), min(w, g['ws'][-1]) - 1))
@@ -612,6 +635,24 @@ class App:
             self._grp = None
             self._fix_places()
             self.touch(True)
+        elif cmd == 'setting_save_as':
+            self.setting_save_as(c.get('name'), bool(c.get('overwrite')))
+        elif cmd == 'setting_open':
+            self.setting_open(c.get('name'))
+        elif cmd == 'setting_delete':
+            self.setting_delete(c.get('name'))
+        elif cmd == 'out_res' and O:
+            # 本番の解像度。null で「自動（ウィンドウの大きさ）」
+            v = c.get('value')
+            if v is None:
+                O.cfg.pop('res', None)
+            else:
+                w, h = int(v[0]), int(v[1])
+                if not (16 <= w <= 16384 and 16 <= h <= 16384):
+                    return
+                O.cfg['res'] = [w, h]
+            self._grp = None
+            self.touch(True)
         elif cmd == 'out_blend' and O:
             if 'overlap' in c:
                 O.cfg['overlap'] = max(0, min(2000, int(c['overlap'])))
@@ -709,11 +750,125 @@ class App:
 
     # ---- 保存 ----
     def save(self):
-        tmp = self.project_path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(self.proj, f, ensure_ascii=False, indent=2)
-        os.replace(tmp, self.project_path)
+        """project.json（いまの状態）に保存。セッティングを開いているときは、そのファイルにも保存（上書き保存）"""
+        self._write_json(self.project_path, self.proj)
+        name = self.proj.get('setting_name')
+        if name and clean_setting_name(name):
+            self._write_json(self.setting_path(name), self.proj)
         self.dirty = False
+
+    @staticmethod
+    def _write_json(path, data):
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2, allow_nan=False)
+        os.replace(tmp, path)
+
+    # ---- セッティング（会場・公演ごとの設定ファイル。settings フォルダに1つずつ）----
+    def setting_path(self, name):
+        return os.path.join(self.settings_dir, name + '.json')
+
+    def list_settings(self):
+        """[{name, time}]（新しい順）。Dropbox の中なので、調べるのは2秒に1回まで"""
+        t, cache = self._settings_cache
+        if time.time() - t < 2.0:
+            return cache
+        out = []
+        try:
+            for fn in os.listdir(self.settings_dir):
+                if fn.lower().endswith('.json') and not fn.startswith('.'):
+                    p = os.path.join(self.settings_dir, fn)
+                    out.append({'name': fn[:-5], 'time': os.path.getmtime(p)})
+        except OSError:
+            pass
+        out.sort(key=lambda r: -r['time'])
+        self._settings_cache = (time.time(), out)
+        return out
+
+    def setting_save_as(self, name, overwrite=False):
+        n = clean_setting_name(name)
+        if not n:
+            self.message = 'その名前は使えません（\\ / : * ? " < > | は使えない・60文字まで）'
+            return
+        os.makedirs(self.settings_dir, exist_ok=True)
+        p = self.setting_path(n)
+        if os.path.exists(p) and not overwrite and n != self.proj.get('setting_name'):
+            self.message = f'「{n}」はもうあります（上書きするときは確認のあと保存）'
+            return
+        self.proj['setting_name'] = n
+        self.save()
+        self._settings_cache = (0.0, [])
+        self.message = f'セッティング「{n}」に保存しました'
+        self.touch(True)
+        self.dirty = False
+
+    def setting_open(self, name):
+        n = clean_setting_name(name)
+        p = self.setting_path(n) if n else None
+        if not p or not os.path.isfile(p):
+            self.message = f'セッティングが見つかりません: {name}'
+            return
+        try:
+            with open(p, encoding='utf-8-sig') as f:
+                newp = normalize_project(json.load(f))
+        except Exception as ex:
+            self.message = f'開けませんでした: {n}（{ex}）'
+            return
+        if self.dirty:
+            self._safe_call('保存', self.save)  # 今の状態を先に保存してから切り替える
+        # このPCの設定（操作パネルの番号・スマホからの操作）は、開いたファイルではなく今のまま
+        for k in ('web_port', 'allow_lan'):
+            if k in self.proj:
+                newp[k] = self.proj[k]
+        newp['setting_name'] = n
+        self.apply_project(newp)
+        self.message = f'セッティング「{n}」を開きました' + ('（' + ' ／ '.join(self.warnings) + '）' if self.warnings else '')
+
+    def setting_delete(self, name):
+        n = clean_setting_name(name)
+        p = self.setting_path(n) if n else None
+        if not p or not os.path.isfile(p):
+            return
+        if not webui._to_recycle_bin(p) or os.path.exists(p):
+            self.message = f'ごみ箱へ移せませんでした: {n}'
+            return
+        if self.proj.get('setting_name') == n:
+            self.proj.pop('setting_name', None)
+            self.touch(True)
+        self._settings_cache = (0.0, [])
+        self.message = f'セッティング「{n}」をごみ箱へ移しました'
+
+    def apply_project(self, p):
+        """別のセッティングに切り替える：レイヤーと出力ウィンドウを作り直す"""
+        for L in self.layers:
+            L.release()
+        for tex, fbo in self.layer_fbos.values():
+            fbo.release()
+            tex.release()
+        self.layer_fbos = {}
+        for o in self.outs:
+            o.destroy()
+        self.proj = p
+        self.warnings = []
+        self._migrate_outputs()
+        self.layers = [Layer(c, self) for c in self.proj['layers']]
+        self.outs = []
+        for i, oc in enumerate(self.proj['outputs']):
+            self.outs.append(OutputWindow(self, oc, i))
+        glfw.make_context_current(self.main_win)
+        self.master_eff = 0.0 if self.blackout else self.proj.get('master', 1.0)
+        self.selected, self.map_out, self.sel_corner = 0, 0, 0
+        self.corner_hist = []
+        self.drag = None
+        self._grp = None
+        self.hud_text = None
+        try:
+            os.makedirs(self.resolve(self.proj['media_dir']), exist_ok=True)
+        except OSError:
+            pass
+        self.last_media_scan = 0.0
+        self.touch(True)
+        self.save()
 
     # ---- 素材一覧 ----
     def scan_media(self, wait=False):
@@ -768,7 +923,8 @@ class App:
         sel, _ = self.sel_corners()
         outs = []
         for k, o in enumerate(self.outs):
-            outs.append({'name': o.name(), 'size': list(o.size()), 'fullscreen': o.fullscreen,
+            outs.append({'name': o.name(), 'size': list(o.render_size()), 'win': list(o.size()),
+                         'res': o.cfg.get('res'), 'fullscreen': o.fullscreen,
                          'monitor': o.monitor_index(), 'host': self.host_of(k),
                          'target': self.target_name(k), 'join': bool(o.cfg.get('join')) and k > 0,
                          'overlap': int(o.cfg.get('overlap', 0)), 'gamma': self.seam_gamma(k),
@@ -790,6 +946,8 @@ class App:
             'sel_corner': self.sel_corner,
         }
         st['lan_urls'] = self.lan_urls
+        st['setting_name'] = self.proj.get('setting_name') or ''
+        st['settings'] = self.list_settings()
         data = json.dumps(st, ensure_ascii=False).encode('utf-8')
         # スマホ用：位置合わせに要るものだけ（Wi-Fi でも軽く・速く）
         mst = {

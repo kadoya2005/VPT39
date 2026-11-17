@@ -462,7 +462,7 @@ void main(){
         vec2 e = min(uv, 1.0 - uv) / fwidth(uv);
         float border = 1.0 - clamp(min(e.x, e.y) - 4.0, 0.0, 1.0);
         float diag = 1.0 - clamp(min(abs(uv.x - uv.y), abs(uv.x + uv.y - 1.0)) / fwidth(uv.x) - 0.5, 0.0, 1.0);
-        float r = length((uv - 0.5) * vec2(16.0/9.0, 1.0));
+        float r = length((uv - 0.5) * vec2(res.x / max(res.y, 1.0), 1.0));  // 出力の縦横の比に合わせて丸く
         float circ = 1.0 - clamp(abs(r - 0.3) / fwidth(r) - 0.5, 0.0, 1.0);
         vec3 col = tint * 0.25;
         col = mix(col, vec3(0.85), max(line, max(diag * 0.6, circ)));

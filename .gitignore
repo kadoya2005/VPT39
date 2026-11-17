@@ -7,6 +7,8 @@ __pycache__/
 # 本番の設定・素材（人に見せないもの・大きいもの）
 project.json
 project.json.tmp
+settings/
+*.json.tmp
 snapshot*.png
 media/*
 !media/テスト用/
