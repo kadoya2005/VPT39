@@ -232,8 +232,10 @@ button.bo{background:#3a2a08;border-color:var(--warn);color:#ffd27a;font-weight:
 button.bo.on{background:var(--warn);border-color:var(--warn);color:#241600}
 /* 止めている・固定している状態 */
 button.lock.on,button.held,.lbtns .mut.on,.mbtn.on{background:var(--mag);border-color:var(--mag);color:var(--magtx);font-weight:700}
-/* マウスを乗せたとき（どの状態でも同じ）*/
-button:hover:not(:disabled),button.on:hover,button.bo:hover,button.held:hover,.lbtns .mut.on:hover,.mbtn.on:hover{background:var(--hov);border-color:var(--hov);color:var(--hovtx)}
+/* マウスを乗せたとき：ふつうのボタンは薄い緑。
+   オン・固定中（緑・赤・黄）のボタンは色を変えずに薄い緑の縁だけ付ける（押した直後でも、切り替わったことが見えるように）*/
+button:hover:not(:disabled):not(.on):not(.held){background:var(--hov);border-color:var(--hov);color:var(--hovtx)}
+button.on:hover,button.held:hover{box-shadow:0 0 0 2px var(--hov);filter:brightness(1.08)}
 button:disabled{opacity:.45;cursor:default}
 button.sm{padding:2px 7px;font-size:12px}
 input,select{background:#0c0e11;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font:inherit}
@@ -787,8 +789,9 @@ function build(){
       if(a==='next'||a==='prev'||a==='clear') cmd({cmd:a,layer:i});
       else if(a==='skip') cmd({cmd:'skip_photo',layer:i});
       else if(a==='blank') cmd({cmd:'add_cue',layer:i,file:'@blank'});
-      else if(a==='vis') setv(i,'visible',!S.layers[i].visible);
-      else if(a==='mute') setv(i,'audio',!S.layers[i].audio);
+      // 表示・M は押した瞬間に見た目を切り替える（本体の返事を待つと、一瞬なにも起きないように見えるため）
+      else if(a==='vis'){const v=!S.layers[i].visible; S.layers[i].visible=v; t.classList.toggle('on',v); t.classList.toggle('held',!v); t.textContent=v?'表示':'隠し中'; setv(i,'visible',v);}
+      else if(a==='mute'){const v=!S.layers[i].audio; S.layers[i].audio=v; t.classList.toggle('on',!v); const m=$('mxlm'+i); if(m) m.classList.toggle('on',!v); setv(i,'audio',v);}
       else if(a==='del'){ const lid=S.layers[i].id; if(confirm(`レイヤー「${S.layers[i].name}」を削除しますか？`)) cmd({cmd:'remove_layer',layer:i,lid});}
     });
     const op=d.querySelector('#op'+i); op.addEventListener('input',()=>setv(i,'opacity',parseFloat(op.value)));
@@ -905,11 +908,11 @@ function buildMixer(){
   $('mxm').addEventListener('input',e=>cmd({cmd:'audio_master',value:parseFloat(e.target.value)}));
   S.outputs.forEach((o,k)=>{
     $('mxo'+k).addEventListener('input',e=>cmd({cmd:'out_audio',output:k,volume:parseFloat(e.target.value)}));
-    $('mxom'+k).onclick=()=>cmd({cmd:'out_audio',output:k,mute:!S.outputs[k].mute});
+    $('mxom'+k).onclick=e=>{const v=!S.outputs[k].mute; S.outputs[k].mute=v; e.currentTarget.classList.toggle('on',v); cmd({cmd:'out_audio',output:k,mute:v});};
   });
   S.layers.forEach((L,i)=>{ const f=$('mxl'+i); if(!f)return;
     f.addEventListener('input',e=>setv(i,'volume',parseFloat(e.target.value)));
-    $('mxlm'+i).onclick=()=>setv(i,'audio',!S.layers[i].audio);
+    $('mxlm'+i).onclick=e=>{const v=!S.layers[i].audio; S.layers[i].audio=v; e.currentTarget.classList.toggle('on',!v); const m=$('mut'+i); if(m) m.classList.toggle('on',!v); setv(i,'audio',v);};
   });
 }
 function updateMixer(){
