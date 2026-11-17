@@ -138,6 +138,7 @@ class App:
         self.corner_hist = []      # 四隅の「1つ戻す」用 [(レイヤーid, 出力), 前の四隅, 時刻]
         self.mstate_json = b'{}'
         self.lan_urls = []
+        self.web_port = 8080
         self._grp = None
 
         self._init_gl()
@@ -635,6 +636,10 @@ class App:
             self._grp = None
             self._fix_places()
             self.touch(True)
+        elif cmd == 'lan':
+            self.set_lan(bool(c.get('value')))
+        elif cmd == 'lan_refresh' and self.proj.get('allow_lan'):
+            self.set_lan(True)  # Wi-Fi を変えたときなど、アドレスを調べ直す
         elif cmd == 'setting_save_as':
             self.setting_save_as(c.get('name'), bool(c.get('overwrite')))
         elif cmd == 'setting_open':
@@ -946,6 +951,7 @@ class App:
             'sel_corner': self.sel_corner,
         }
         st['lan_urls'] = self.lan_urls
+        st['allow_lan'] = bool(self.proj.get('allow_lan'))
         st['setting_name'] = self.proj.get('setting_name') or ''
         st['settings'] = self.list_settings()
         data = json.dumps(st, ensure_ascii=False).encode('utf-8')
@@ -966,6 +972,23 @@ class App:
     def get_state(self, mobile=False):
         with self.state_lock:
             return self.mstate_json if mobile else self.state_json
+
+    # ---- スマホから操作（同じ Wi-Fi の機器に受け口を開く）----
+    def set_lan(self, on, save=True):
+        """起動したまま、スマホから開けるようにする／やめる。設定（allow_lan）にも残す"""
+        if on:
+            ips = webui.lan_start(lan_ips())
+            self.lan_urls = [f'http://{ip}:{self.web_port}/m' for ip in ips]
+            for u in self.lan_urls:
+                print('スマホ（セッティング）:', u)
+            if not ips:
+                self.message = 'スマホ用の受け口を開けませんでした（Wi-Fi・有線LAN につながっているか確認）'
+        else:
+            webui.lan_stop()
+            self.lan_urls = []
+        if save:
+            self.proj['allow_lan'] = bool(on)
+            self.touch()
 
     # ---- 四隅の「1つ戻す」----
     def remember_corners(self, L, k, alone=False):
@@ -1140,12 +1163,10 @@ class App:
     # ---- メインループ ----
     def run(self):
         port = int(self.proj.get('web_port', 8080))
-        host = '0.0.0.0' if self.proj.get('allow_lan') else '127.0.0.1'
-        port = webui.start(self, host, port)
+        port = webui.start(self, '127.0.0.1', port)  # このPCの中からはいつでも
+        self.web_port = port
         if self.proj.get('allow_lan'):
-            self.lan_urls = [f'http://{ip}:{port}/m' for ip in lan_ips()]
-            for u in self.lan_urls:
-                print('スマホ（セッティング）:', u)
+            self.set_lan(True, save=False)
         url = f'http://localhost:{port}/'
         print(f'操作パネル: {url}   （出力映像の再生: {backend_name()}、出力 {len(self.outs)}）')
         if not os.environ.get('STAGEMAPPER_NO_BROWSER'):

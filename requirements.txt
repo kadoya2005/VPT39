@@ -8,3 +8,4 @@ sounddevice
 windows-capture
 SpoutGL; python_version < "3.14"
 pygrabber
+qrcode

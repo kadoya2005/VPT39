@@ -17,6 +17,7 @@ VLC メディアプレイヤーも、使う人が公式サイトから自分で�
 | windows-capture | ウィンドウ取り込み | MIT |
 | SpoutGL | Spout の受け取り | BSD-3-Clause |
 | pygrabber / comtypes | カメラの一覧 | MIT |
+| qrcode | スマホで開くアドレスの QR コード | BSD |
 | imageio-ffmpeg（tools のみ） | テスト用素材を作るときだけ | BSD-2-Clause（中の ffmpeg は GPL。VPT39 本体は使わない） |
 
 ## VLC について

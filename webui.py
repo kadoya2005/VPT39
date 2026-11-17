@@ -47,6 +47,14 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE.encode('utf-8'), 'text/html; charset=utf-8')
         elif self.path.startswith('/api/state'):
             self._send(200, _app.get_state(), 'application/json; charset=utf-8')
+        elif self.path.startswith('/api/qr.svg'):  # スマホで開くアドレスの QR コード（このPCの画面に出す）
+            urls = _app.lan_urls if _app else []
+            q = parse_qs(urlparse(self.path).query)
+            k = int((q.get('i') or ['0'])[0] or 0) if (q.get('i') or ['0'])[0].isdigit() else 0
+            svg = qr_svg(urls[k]) if 0 <= k < len(urls) else None
+            if svg is None:
+                return self._send(404, b'no qr', 'text/plain')
+            self._send(200, svg, 'image/svg+xml')
         elif self.path.startswith('/api/mstate'):  # スマホ用の軽い状態
             self._send(200, _app.get_state(mobile=True), 'application/json; charset=utf-8')
         elif urlparse(self.path).path in ('/m', '/m/'):  # スマホ用（セッティングモード）
@@ -183,6 +191,12 @@ def _to_recycle_bin(path):
 
 
 _port = None
+_lan = {}   # スマホ用の受け口 {アドレス: サーバー}
+
+
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+    allow_reuse_address = False  # Windows では True だと2つ目の VPT39 が同じ番号を取れてしまう（作る前に決める必要がある）
 
 
 def running():
@@ -190,24 +204,63 @@ def running():
 
 
 def start(app, host, port):
-    """Webサーバーを起動（2回目以降はアプリを差し替えるだけ）"""
+    """Webサーバーを起動（2回目以降はアプリを差し替えるだけ）。このPCの中だけ（127.0.0.1）で受ける"""
     global _app, _port
     _app = app
     if _port is not None:
         return _port
     for p in range(port, port + 20):  # 使用中なら次の番号を試す
         try:
-            srv = ThreadingHTTPServer((host, p), Handler)
+            srv = Server((host, p), Handler)
             break
         except OSError:
             continue
     else:
         raise RuntimeError('操作パネル用のポートが確保できません')
-    srv.daemon_threads = True
-    srv.allow_reuse_address = False  # Windows では True だと2つ目の VPT39 が同じ番号を取れてしまう
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     _port = p
     return p
+
+
+def lan_start(ips):
+    """スマホなど同じ Wi-Fi の機器から開けるようにする（このPCの LAN のアドレスごとに受け口を開く）。
+    開けたアドレスの一覧を返す。初めてのときは Windows のファイアウォールの確認が出る"""
+    ok = []
+    for ip in ips:
+        if ip in _lan:
+            ok.append(ip)
+            continue
+        try:
+            srv = Server((ip, _port), Handler)
+        except OSError as ex:
+            print('スマホ用の受け口を開けません:', ip, ex)
+            continue
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        _lan[ip] = srv
+        ok.append(ip)
+    for ip in list(_lan):  # もう使っていないアドレス（Wi-Fi を変えたなど）は閉じる
+        if ip not in ips:
+            lan_stop(ip)
+    return ok
+
+
+def lan_stop(ip=None):
+    """スマホ用の受け口を閉じる（ip を省くと全部）"""
+    for k in ([ip] if ip else list(_lan)):
+        srv = _lan.pop(k, None)
+        if srv:
+            threading.Thread(target=lambda s=srv: (s.shutdown(), s.server_close()), daemon=True).start()
+
+
+def qr_svg(text):
+    """text の QR コード（SVG）。部品（qrcode）がなければ None"""
+    try:
+        import qrcode
+        import qrcode.image.svg
+    except Exception:
+        return None
+    img = qrcode.make(text, image_factory=qrcode.image.svg.SvgPathImage, border=2, box_size=10)
+    return img.to_string()
 
 
 PAGE = r"""<!DOCTYPE html>
@@ -414,6 +467,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <button id="edit" class="lock">マッピング編集 (E)</button>
   <span class="grow"></span>
   <span class="msg" id="msg"></span>
+  <button id="lanbtn" title="スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）">スマホ</button>
   <button id="setbtn" title="会場・公演ごとの設定ファイル（名前を付けて保存・開く・複製・削除）">セッティング：<b id="setname">（名前なし）</b> ▾</button>
   <button id="save">保存</button>
   <button id="quit">終了</button>
@@ -424,6 +478,12 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <div class="row" style="flex-wrap:nowrap"><input id="setnew" class="grow" placeholder="新しい名前（例：2026-12 ライブ本番）" maxlength="60" style="min-width:0"><button id="setsaveas">名前を付けて保存</button></div>
   <div id="setlist"></div>
   <div class="hint">開いているセッティングには、変えると2秒後に自動で上書き保存されます。ファイルは VPT39\settings フォルダにあり、Dropbox で同期すれば別のPCでも同じ一覧が使えます。別のPCで準備するときは、「出力」タブの「本番の解像度」を本番のプロジェクターに合わせておきます。</div>
+</div></div>
+<div id="landlg" class="dlg hide"><div class="dlgbox" style="width:min(520px,100%)">
+  <div class="row"><b style="font-size:15px">スマホから操作</b><span class="meta grow">スクリーンの前で四隅を合わせる（セッティング）</span><button class="sm" id="lanclose">閉じる</button></div>
+  <div class="row"><button id="lantoggle" style="min-width:150px"></button><span class="meta grow" id="lanstate"></span></div>
+  <div id="lanqr" style="display:flex;flex-direction:column;align-items:center;gap:8px"></div>
+  <div class="hint" id="lanhint"></div>
 </div></div>
 <div class="childbar" id="childbar"></div>
 <main>
@@ -959,9 +1019,8 @@ function updateMixer(){
 
 function update(){
   updateMixer();
-  $('meta').textContent=`${S.backend} ・ 出力 ${S.outputs.length>1?S.outputs.length+'画面':S.size[0]+'×'+S.size[1]} ・ ${S.fps}fps${S.dirty?' ・ 未保存':''}`+
-    ((S.lan_urls||[]).length?` ・ スマホ: ${S.lan_urls[0]}`:'');
-  $('meta').title=(S.lan_urls||[]).length?'同じ Wi-Fi のスマホでこのアドレスを開くと、四隅の位置合わせができます\n'+S.lan_urls.join('\n'):'';
+  $('meta').textContent=`${S.backend} ・ 出力 ${S.outputs.length>1?S.outputs.length+'画面':S.size[0]+'×'+S.size[1]} ・ ${S.fps}fps${S.dirty?' ・ 未保存':''}`;
+  buildLan();
   if(document.activeElement!==$('master')) $('master').value=S.master;
   $('bo').classList.toggle('on',S.blackout);
   $('edit').classList.toggle('on',S.edit); $('mapedit').classList.toggle('on',S.edit); markCorner();
@@ -1070,6 +1129,31 @@ $('edit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
 $('mapedit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
 $('save').onclick=()=>cmd({cmd:'save'});
 
+// ---- スマホから操作（オン・オフと QR コード）----
+let lanKey='';
+function buildLan(){
+  const on=!!S.allow_lan, urls=S.lan_urls||[];
+  $('lanbtn').classList.toggle('on',on&&urls.length>0);
+  $('lanbtn').textContent=on?(urls.length?'スマホ ON':'スマホ（つながらない）'):'スマホ';
+  if($('landlg').classList.contains('hide')) return;
+  const k=JSON.stringify([on,urls]); if(k===lanKey) return; lanKey=k;
+  $('lantoggle').textContent=on?'スマホからの操作をやめる':'スマホから操作する';
+  $('lantoggle').classList.toggle('on',!on);
+  $('lanstate').textContent=on?(urls.length?'オン：同じ Wi-Fi のスマホから開けます':'オンですが、このPCのアドレスが見つかりません（Wi-Fi を確認）'):'オフ：このPCの中からだけ操作できます';
+  $('lanqr').innerHTML=on&&urls.length?urls.map((u,i)=>`<img src="/api/qr.svg?i=${i}&t=${Date.now()}" alt="QR コード" style="width:220px;height:220px;background:#fff;border-radius:8px;padding:6px">
+      <div style="font-size:15px;font-weight:700;user-select:all">${esc(u)}</div>`).slice(0,2).join('')+
+      `<button class="sm" id="lanrefresh" title="Wi-Fi を変えたときなど">アドレスを調べ直す</button>`:'';
+  if($('lanrefresh')) $('lanrefresh').onclick=()=>{lanKey=''; cmd({cmd:'lan_refresh'});};
+  $('lanhint').innerHTML=on?
+    '① PC とスマホを<b>同じ Wi-Fi</b> につなぐ　② スマホのカメラで QR コードを読み取る（または上のアドレスを入れる）　③ 開いたページで四隅を合わせる。<br>'+
+    '合言葉がないので、同じ Wi-Fi の人なら誰でも操作できます。自分のルーターかスマホのテザリングで使い、終わったら「やめる」を押してください。会場・学校・ホテルの Wi-Fi ではつながらないことがあります。'
+    :'押すと、同じ Wi-Fi のスマホから四隅の位置合わせができるようになります（起動し直す必要はありません）。初めてのときは Windows の「セキュリティの重要な警告」が出るので、「プライベート ネットワーク」にチェックして「アクセスを許可する」を押してください。';
+}
+$('lanbtn').onclick=()=>{ $('landlg').classList.remove('hide'); lanKey=''; buildLan(); };
+$('lanclose').onclick=()=>$('landlg').classList.add('hide');
+$('landlg').addEventListener('click',e=>{ if(e.target.id==='landlg') $('landlg').classList.add('hide'); });
+$('lantoggle').onclick=()=>{ lanKey=''; cmd({cmd:'lan',value:!S.allow_lan}); };
+
 // ---- セッティング（会場・公演ごとの設定ファイル）----
 function fmtTime(t){const d=new Date(t*1000), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
 let setKey='';
@@ -1125,7 +1209,8 @@ document.addEventListener('keydown',e=>{
   if(!S)return;
   // 文字を打つ欄と選択欄だけはキーを奪わない。スライダーやボタンを触った直後でも Space / B / E が効く
   const a=document.activeElement, tag=a?a.tagName:'';
-  if(!$('setdlg').classList.contains('hide')){ if(e.key==='Escape') closeSettings(); return; }  // セッティングの窓を開いている間は、本番のキーは効かない
+  if(!$('setdlg').classList.contains('hide')){ if(e.key==='Escape') closeSettings(); return; }
+  if(!$('landlg').classList.contains('hide')){ if(e.key==='Escape') $('landlg').classList.add('hide'); return; }  // セッティングの窓を開いている間は、本番のキーは効かない
   if(tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&!/^(range|checkbox|button)$/.test(a.type)))return;
   if(e.ctrlKey||e.metaKey||e.altKey) return;  // Ctrl+B などはブラウザの操作に任せる
   const arrow=/^Arrow/.test(e.key);
