@@ -643,7 +643,7 @@ function setupDnD(){
       e.dataTransfer.effectAllowed='copyMove'; dragActive=true;});
     el.addEventListener('dragend',endDrag);
   });
-  document.querySelectorAll('.lrow[data-kind=video]').forEach(row=>{
+  document.querySelectorAll('.lrow').forEach(row=>{
     row.addEventListener('dragover',e=>{
       if(!OURS(e.dataTransfer.types))return;
       e.preventDefault(); clearIns(); row.classList.add('over');
@@ -658,6 +658,7 @@ function setupDnD(){
       const m=e.dataTransfer.getData('text/x-sm-media'), q=e.dataTransfer.getData('text/x-sm-cue');
       endDrag();
       if(m) return addMedia(L,m,at);
+      if(q&&S.layers[L].kind==='photo'){const o=JSON.parse(q); if(!isImg(o.file||'')||String(o.file).startsWith('@')){alert('写真ウォールに入れられるのは画像だけです');return;}}
       if(q){const o=JSON.parse(q);
         if(o.layer===L){const to=at>o.cue?at-1:at; if(to!==o.cue) cmd({cmd:'move_cue_to',layer:L,cue:o.cue,to});}
         else{const c={...o}; delete c.layer; delete c.cue; delete c.mode; cmd({cmd:'add_cue',layer:L,at,...c});}}  // 別レイヤーへはコピー
@@ -701,6 +702,7 @@ function buildFolders(){
 // 素材の追加。m はファイル名か、特別な素材（空白・レイヤー映像・カメラ・ウィンドウ）の JSON
 function addMedia(L,m,at){
   const c=m.startsWith('{')?JSON.parse(m):{file:m};
+  if(S.layers[L].kind==='photo'&&(c.file.startsWith('@')||!isImg(c.file))){alert('写真ウォールに入れられるのは画像だけです（動画・カメラなどは動画レイヤーへ）');return;}
   if(c.file==='@layer:'+S.layers[L].id){alert('自分自身の映像は追加できません（別のレイヤーに追加してください）');return;}
   cmd({cmd:'add_cue',layer:L,at,...c});
 }
@@ -741,7 +743,7 @@ function buildMedia(){
   box.querySelectorAll('.mtile').forEach(el=>{
     el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/x-sm-media',el.dataset.f);e.dataTransfer.effectAllowed='copy';dragActive=true;});
     el.addEventListener('dragend',endDrag);
-    el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; const s=S.layers[S.selected]; if(s&&s.kind==='video') addMedia(S.selected,el.dataset.f);});
+    el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; const s=S.layers[S.selected]; if(s&&(s.kind==='video'||isImg(el.dataset.f))) addMedia(S.selected,el.dataset.f);});
   });
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation(); deleteMedia(b.dataset.del);});
 }
@@ -807,6 +809,13 @@ function cueInfo(c){
   if(f==='@spout') return {cls:'spout',label:'⇄ '+(c.sender||''),name:'Spout'};
   return null;
 }
+// 写真ウォールの行の画像（押すとその画像をすぐ出す・ドラッグで並べ替え）
+function photoTile(i,c,j){
+  return `<div class="clip" id="go${i}_${j}" data-j="${j}">
+    <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（押すとすぐ出す・ドラッグで並べ替え）">${thumbImg(c.file)}<span class="num">${j+1}</span></div>
+    <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span><button class="x" data-rm="${j}" title="この画像を写真ウォールから外す">✕</button></div>
+  </div>`;
+}
 function clipTile(i,c,j){
   const sp=cueInfo(c);
   if(sp){
@@ -838,9 +847,12 @@ function build(){
       track=L.cues.map((c,j)=>clipTile(i,c,j)).join('')+
         `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><button class="addblank" data-a="blank" title="何も映さないクリップを最後に追加（他のレイヤーが映している間、このレイヤーは休ませる）">＋ 空白を追加</button><small>素材は<br>ここへドラッグ</small></div></div>`;
     }else{
-      track=`<div class="photo"><div class="row"><b>写真ウォール</b><span class="meta" id="pc${i}"></span><span class="grow"></span><button class="sm" data-a="skip">次の写真 ▶</button></div>
-        <div class="meta">フォルダ：${esc(L.photo_folder)}　間隔：${L.photo_interval>0?L.photo_interval+'秒':'自動で切り替えない'}${L.photo_newest?'　新着優先':''}</div>
-        <div class="meta">設定は右の「レイヤー設定」で変えられます</div></div>`;
+      const listed=L.cues.length>0;
+      track=L.cues.map((c,j)=>photoTile(i,c,j)).join('')+
+        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><small>画像を<br>ここへドラッグ${listed?'':'<br>（入れないときは<br>フォルダの写真）'}</small></div></div>`
+        +`<div class="photo"><div class="row"><b>写真ウォール</b><span class="meta" id="pc${i}"></span><span class="grow"></span><button class="sm" data-a="skip">次の写真 ▶</button></div>
+        <div class="meta">${listed?(L.cues.length===1?'この行の画像1枚を出し続けます':'この行の画像を左から順に出します（最後まで行ったら最初へ）'):'フォルダ：'+esc(L.photo_folder)+(L.photo_newest?'　新着優先':'')}</div>
+        <div class="meta">間隔：${L.photo_interval>0?L.photo_interval+'秒':'自動で切り替えない'}　列で再生とは別に動きます</div></div>`;
     }
     d.innerHTML=`<div class="lhead">
         <div class="row" style="gap:6px;flex-wrap:nowrap"><span class="lname grow" title="${esc(L.name)}">${esc(L.name)}</span><span class="tag">L${i+1} ${L.kind==='photo'?'写真':'動画'}</span></div>
@@ -1033,7 +1045,7 @@ function update(){
     const mu=$('mut'+i); if(mu) mu.classList.toggle('on',!L.audio);
     $('now'+i).textContent=L.label?(`▶ ${L.label}`+(L.dur>0?`  ${fmt(L.pos)} / ${fmt(L.dur)}`:'')):'— 停止中';
     $('bar'+i).style.width=(L.dur>0?Math.min(100,L.pos/L.dur*100):0)+'%';
-    $('err'+i).textContent=L.error||(L.kind==='photo'&&!L.photo_dir_ok?'フォルダが見つかりません':'');
+    $('err'+i).textContent=L.error||(L.kind==='photo'&&!L.cues.length&&!L.photo_dir_ok?'フォルダが見つかりません':'');
     const op=$('op'+i); if(document.activeElement!==op) op.value=L.opacity;
     if(L.kind==='video') L.cues.forEach((c,j)=>{
       const b=$(`go${i}_${j}`); if(!b)return;
@@ -1043,10 +1055,11 @@ function update(){
       $(`tt${i}_${j}`).textContent=on&&L.dur>0?`${fmt(L.pos)}/${fmt(L.dur)}`:'';
       $(`tg${i}_${j}`).textContent=on&&!L.paused?'⏸':'▶';
     });
-    if(L.kind==='photo'){const p=$('pc'+i); if(p) p.textContent=`${L.photo_count}枚`;}
+    if(L.kind==='photo'){const p=$('pc'+i); if(p) p.textContent=`${L.photo_count}枚`;
+      L.cues.forEach((c,j)=>{const b=$(`go${i}_${j}`); if(b) b.classList.toggle('on',L.playing===j);});}
   });
   const sel=S.layers[S.selected];
-  $('mtarget').textContent=sel&&sel.kind==='video'?`クリックで「L${S.selected+1} ${sel.name}」に追加`:'動画レイヤーを選ぶと、クリックで追加できます';
+  $('mtarget').textContent=sel?(sel.kind==='video'?`クリックで「L${S.selected+1} ${sel.name}」に追加`:`画像をクリックで写真ウォール「L${S.selected+1} ${sel.name}」に追加`):'レイヤーを選ぶと、クリックで追加できます';
   const tname=(S.targets.find(t=>t.output===S.map_out)||{}).name||'';
   $('mapsel').textContent=sel?`L${S.selected+1} ${sel.name}`+(S.outputs.length>1?`（${tname}・${S.size[0]}×${S.size[1]}）`:''):'';
   // マッピング：複数の出力に映しているレイヤーは、どの出力の四隅を直すか選ぶ

@@ -6,7 +6,7 @@ import copy
 import numpy as np
 import moderngl
 
-from sources import make_source, ImageSource, PhotoFeeder
+from sources import make_source, ImageSource, PhotoFeeder, is_image
 
 DEFAULT_CORNERS = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]  # 左上,右上,右下,左下
 BLENDS = ['normal', 'add', 'screen', 'multiply']
@@ -131,6 +131,12 @@ class Layer:
     def go(self, i):
         cues = self.cfg['cues']
         if not (0 <= i < len(cues)):
+            return
+        if self.cfg['kind'] == 'photo':
+            # 写真ウォール：行の i 番目の画像を、すぐ次に出す（そこから順番に続く）
+            if self.feeder is not None:
+                self.feeder.jump(i)
+            self.skip_photo()
             return
         cue = cues[i]
         f = cue.get('file', '')
@@ -384,6 +390,12 @@ class Layer:
             self.feeder = PhotoFeeder(folder, c['res'][0], c['res'][1], c.get('photo_border', 0))
             self.feeder_key = key
         f = self.feeder
+        # 行に画像を並べていれば、フォルダの代わりにその順で出す（なければフォルダの写真）
+        listed = [self.app.media_path(q.get('file', '')) for q in c.get('cues', [])
+                  if not is_special(q.get('file', '')) and is_image(q.get('file', ''))]
+        if f.set_list(listed or None):
+            self.next_photo_at = 0.0  # 行の画像を変えたら、すぐ新しい並びで出し直す
+            self.photo_stopped = False
         # 投影する四角形の縦横比に合わせて写真キャンバスを作る（写真が歪まないように）
         ow, oh = self.app.out_size(self)
         (x0, y0), (x1, y1), (x2, y2), (x3, y3) = c['corners']
@@ -410,9 +422,17 @@ class Layer:
         interval = c.get('photo_interval', 6.0)
         due = (interval > 0 and now >= self.next_photo_at) or self.next_photo_at == 0.0
         urgent = newest and getattr(f, 'ready_new', False) and now - self.last_switch >= 3.0
+        # 行の画像が1枚だけで、もうそれを出しているなら、出し続ける（同じ写真へ切り替え直さない）
+        top = self.top_deck()
+        if f.fixed is not None and len(f.order) == 1 and top is not None and getattr(top, 'path', None) == f.order[0]:
+            if due:
+                self.next_photo_at = now + interval if interval > 0 else float('inf')
+            return
         if due or urgent:
             path, data, w, h = f.take()
-            d = Deck(ImageSource(path, w, h, data=data), os.path.basename(path))
+            d = Deck(ImageSource(path, w, h, data=data), os.path.basename(path),
+                     cue=f.cur_idx if f.fixed is not None else -1)
+            d.path = path
             if c['fade'] <= 0 or c.get('photo_trans') == 'cut':
                 d.alpha = 1.0
             self.decks.append(d)

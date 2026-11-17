@@ -526,6 +526,9 @@ class App:
                 self.touch(True)
         elif cmd == 'add_cue' and L:
             f = c.get('file', '')
+            if f and L.cfg['kind'] == 'photo' and (f.startswith('@') or not is_image(f)):
+                self.message = '写真ウォールに入れられるのは画像だけです（動画・カメラなどは動画レイヤーへ）'
+                f = ''
             if f:
                 cues = L.cfg['cues']
                 at = c.get('at')

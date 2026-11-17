@@ -1053,11 +1053,43 @@ class PhotoFeeder:
         self.bad = {}            # 読み込めなかった写真 -> 次に試してよい時刻
         self.scanned = False     # 1回目の確認が終わったか
         self.sizes = {}          # 写真 -> 前回見たファイルの大きさ（コピー中かどうかの判断用）
+        self.fixed = None        # 行に並べた画像のリスト（あればフォルダの代わりにこの順で出す）
+        self.gen = 0             # 先読みのやり直し用の番号（リストを変えた・番号を選んだとき）
+        self.ready_idx = -1
+        self.cur_idx = -1        # いま出しているのがリストの何番目か
+
+    # ---- 行に並べた画像のリストで出す ----
+    def set_list(self, paths):
+        """行に並べた画像（フルパス）の順で出す。None ならフォルダの写真を出す（今までどおり）"""
+        paths = None if not paths else list(paths)
+        if paths == self.fixed:
+            return False
+        self.fixed = paths
+        self.new_queue = []
+        self.ready, self.ready_idx = None, -1
+        self.gen += 1
+        if paths is None:
+            self.known, self.order, self.scanned = {}, [], False
+            self.last_scan = 0.0
+        else:
+            self.order = [p for p in paths if os.path.isfile(p)]
+            self.pos = -1  # 新しい並びの最初から
+        return True
+
+    def jump(self, i):
+        """リストの i 番目を次に出す"""
+        if self.fixed:
+            self.pos = (i - 1) % len(self.fixed)
+            self.ready, self.ready_idx = None, -1
+            self.gen += 1
 
     def scan(self):
         """フォルダを調べるのは裏のスレッドで（写真が多い・Dropbox の中だと時間がかかり、映像が止まるため）。
         結果を反映するのは呼んだ側（描画のスレッド）で、次に呼ばれたとき"""
         self.last_scan = time.time()
+        if self.fixed is not None:  # リストのときは、ファイルがあるかだけ確かめる（数が少ないのですぐ終わる）
+            self.order = [p for p in self.fixed if os.path.isfile(p)]
+            return
         res = getattr(self, '_scan_result', None)
         if res is not None:
             self._scan_result = None
@@ -1116,6 +1148,16 @@ class PhotoFeeder:
         return len(self.order)
 
     def _pick_next(self, newest_first=True):
+        if self.fixed is not None:  # 行のリスト：同じ画像を2回並べてもよいように、番号で進める
+            n = len(self.fixed)
+            for _ in range(n):
+                self.pos = (self.pos + 1) % n
+                p = self.fixed[self.pos]
+                if os.path.isfile(p):
+                    self._pick_idx = self.pos
+                    return p, False
+            return None, False
+        self._pick_idx = -1
         if newest_first and self.new_queue:
             return self.new_queue.pop(0), True
         if not self.order:
@@ -1146,11 +1188,15 @@ class PhotoFeeder:
         self.loading = True
 
         w, h = self.w, self.h
+        gen, idx = self.gen, getattr(self, '_pick_idx', -1)
 
         def work():
             try:
                 data = load_fitted(path, w, h, self.border)
+                if gen != self.gen:
+                    return  # 読み込み中にリストが変わった・別の番号を選んだ → 捨てる
                 self.ready_new = is_new
+                self.ready_idx = idx
                 self.ready = (path, data, w, h)
             except Exception as e:
                 print('写真の読み込み失敗:', path, e)
@@ -1164,6 +1210,7 @@ class PhotoFeeder:
         self.ready = None
         if r:
             self.current = r[0]
+            self.cur_idx = self.ready_idx
         return r
 
     def has_new(self):
