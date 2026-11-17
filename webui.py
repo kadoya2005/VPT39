@@ -257,7 +257,7 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 @media(max-width:1000px){body{overflow:auto;display:block}main{display:block}.deck{overflow:visible}aside{border-left:0}.side-scroll{overflow:visible}}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
 
-/* ---- レイヤーの行（Resolume 風：左に名前と基本操作、右にクリップ）---- */
+/* ---- レイヤーの行（VJアプリ風：左に名前と基本操作、右にクリップ）---- */
 .grid{display:inline-flex;flex-direction:column;min-width:100%}
 .colhead{position:sticky;top:0;z-index:6;display:flex;align-items:center;background:var(--bg);border-bottom:1px solid var(--line)}
 .colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--bg);padding:8px 10px;font-size:12px;color:var(--dim);border-right:1px solid var(--line);align-self:stretch;display:flex;align-items:center}
@@ -642,7 +642,7 @@ function buildMedia(){
       ((I.cams||[]).map(n=>specialTile({file:'@camera',vdev:n,adev:''},'📷 '+camName(n),camName(n),'camera')).join('')||'<div class="meta" style="grid-column:1/-1">見つかりません（つないでから「一覧を更新」）</div>');
     h+=`<div class="mh">ウィンドウ（映像のみ。最小化すると止まることがあります）</div>`+
       ((I.windows||[]).map(n=>specialTile({file:'@window',title:n},'🗔 '+n,n,'window')).join('')||'<div class="meta" style="grid-column:1/-1">ありません</div>');
-    h+=`<div class="mh">Spout（TouchDesigner・OBS・Resolume などから。遅れなし・透明あり）</div>`+
+    h+=`<div class="mh">Spout（TouchDesigner・OBS・VJアプリなどから。遅れなし・透明あり）</div>`+
       ((I.spout||[]).map(n=>specialTile({file:'@spout',sender:n},'⇄ '+n,n,'spout')).join('')||'<div class="meta" style="grid-column:1/-1">送られていません（送る側で Spout 出力をオンにしてから「一覧を更新」）</div>');
     $('mcount').textContent='';
     const k=JSON.stringify([S.layers.map(L=>[L.id,L.name]),I]);

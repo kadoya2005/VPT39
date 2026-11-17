@@ -111,7 +111,7 @@ var DATA = {
         note: '最小化すると止まることがあるので、出したまま（ほかのウィンドウの後ろでもよい）にする。動画配信サービスなど保護された映像は黒くなることがある',
         pub: null, adm: { img: 'panel_special', r: 'swins' } },
       { no: '24', name: 'Spout（ほかの映像アプリから）', where: '「素材」タブ ＞ 空白・レイヤー・入力 ＞ Spout',
-        lim: 'TouchDesigner・Processing・OBS・Resolume などが Spout で送っている映像が並ぶ。遅れがほとんどなく、透明な部分もそのまま重なる',
+        lim: 'TouchDesigner・Processing・OBS・VJアプリなどが Spout で送っている映像が並ぶ。遅れがほとんどなく、透明な部分もそのまま重なる',
         note: '送る側で Spout 出力をオンにしてから「一覧を更新」。送る側が止まると最後の映像のまま赤字で知らせ、同じ名前で送り直すと続きが映る。Processing のやり方は詳細ガイド8章。Python 3.14 以降の PC では使えない（3.13 を入れる）',
         pub: null, adm: { img: 'panel_special', r: 'sspout' } },
       { no: '25', name: '行に並んだ特別なクリップ', where: 'レイヤーの行 ＞ 色つきのクリップ',
