@@ -1,0 +1,10 @@
+glfw>=2.7
+moderngl>=5.8
+numpy
+pillow
+opencv-python
+python-vlc
+sounddevice
+windows-capture
+SpoutGL; python_version < "3.14"
+pygrabber

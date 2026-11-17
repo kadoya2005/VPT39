@@ -1,0 +1,21 @@
+# 環境（setup.bat で作り直せる）
+.venv/
+__pycache__/
+*.pyc
+.thumbs/
+
+# 本番の設定・素材（人に見せないもの・大きいもの）
+project.json
+project.json.tmp
+snapshot*.png
+media/*
+!media/テスト用/
+!media/*.txt
+photos/*
+!photos/テスト用/
+!photos/*.txt
+
+# 作業中のファイル
+*.uploading
+*.making.mp4
+*.zip
