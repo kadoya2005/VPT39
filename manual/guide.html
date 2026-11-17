@@ -381,11 +381,11 @@ ERROR: No matching distribution found for …</span>
   <h2><span class="c">3</span>起動と画面の見方</h2>
   <p><b>run.bat</b> をダブルクリックすると、黒い<b>出力ウィンドウ</b>と、ブラウザの<b>操作パネル</b>が開きます。操作パネルが開かないときは、ブラウザで <b>http://localhost:8080/</b> を開きます。</p>
   <figure>
-    <div class="shot" data-img="panel" data-crop="0,0,1440,900" data-b="0,0,1440,59,1;232,61,584,36,2;2,99,1026,592,3;0,694,1028,54,4;1033,61,405,40,5;1041,111,389,779,6"></div>
+    <div class="shot" data-img="panel" data-crop="0,0,1440,900" data-b="0,0,1440,59,1;232,61,584,36,2;2,99,1026,604,3;0,706,1028,54,4;1033,61,405,40,5;1041,111,389,779,6"></div>
     <figcaption>操作パネルの全体（デモの状態）</figcaption>
   </figure>
   <ul class="legend">
-    <li><i>1</i><span><b>上の帯</b>：明るさ・BLACKOUT・マッピング編集・保存・終了（12章）</span></li>
+    <li><i>1</i><span><b>上の帯</b>：明るさ・BLACKOUT・マッピング編集・スマホ・セッティング・保存・終了（12章・13章）</span></li>
     <li><i>2</i><span><b>列で再生</b>：真下の列のクリップを全レイヤーで一斉に再生（7章）</span></li>
     <li><i>3</i><span><b>レイヤーの行</b>：1行が1つのレイヤー。左に名前と基本操作、右にクリップ。下の行ほど手前に重なる（6章）。多いときはこの欄だけスクロール</span></li>
     <li><i>4</i><span><b>レイヤー追加</b>（6章）</span></li>
@@ -397,18 +397,20 @@ ERROR: No matching distribution found for …</span>
 <section class="chap">
   <h3 style="margin-top:0">上の帯</h3>
   <figure>
-    <div class="shot" data-img="panel" data-crop="0,0,1192,59" data-b="12,12,574,34,1;592,16,196,26,2;798,8,134,42,3;942,10,108,38,4;1060,10,125,38,5"></div>
+    <div class="shot" data-img="panel" data-crop="0,0,950,59" data-b="12,12,335,34,1;353,16,196,26,2;559,8,134,42,3;703,10,108,38,4;821,10,125,38,5"></div>
   </figure>
-  <figure style="width:30mm;margin-left:auto;margin-top:-1mm">
-    <div class="shot" data-img="panel" data-crop="1296,0,144,59" data-b="1308,10,118,38,6"></div>
+  <figure style="width:66mm;margin-left:auto;margin-top:-1mm">
+    <div class="shot" data-img="panel" data-crop="1008,0,432,59" data-b="1015,10,85,38,6;1110,10,188,38,7;1308,10,118,38,8"></div>
   </figure>
   <ul class="legend">
-    <li><i>1</i><span><b>VPT39 と状態の表示</b>：再生のしくみ（VLC（音声あり）なら正常）、出力の数、描画の速さ（fps）、「未保存」の有無。スマホから操作できる設定のときは、スマホで開くアドレスも出る（9章）</span></li>
+    <li><i>1</i><span><b>VPT39 と状態の表示</b>：再生のしくみ（VLC（音声あり）なら正常）、出力の数、描画の速さ（fps）、「未保存」の有無</span></li>
     <li><i>2</i><span><b>明るさ</b>：全部の出力の明るさ。音量には関係しません</span></li>
     <li><i>3</i><span><b>BLACKOUT (B)</b>：0.5秒で全部の映像を暗くします（暗い間はボタンが黄色く光る）。もう一度押すと戻ります。<b>音は止まりません</b></span></li>
     <li><i>4</i><span><b>全レイヤー消去</b>：全部のレイヤーをフェードアウトして消します</span></li>
     <li><i>5</i><span><b>マッピング編集 (E)</b>：四隅を調整するモード（オンの間は赤）。本番中は必ずオフ</span></li>
-    <li><i>6</i><span><b>保存</b>（すぐ保存）・<b>終了</b>（確認のあと、保存してアプリを閉じる）</span></li>
+    <li><i>6</i><span><b>スマホ</b>：スマホから四隅を合わせる（オン・オフと QR コード。9章）。オンの間は緑の「スマホ ON」</span></li>
+    <li><i>7</i><span><b>セッティング：（名前）</b>：会場・公演ごとの設定ファイル（13章）</span></li>
+    <li><i>8</i><span><b>保存</b>（すぐ保存）・<b>終了</b>（確認のあと、保存してアプリを閉じる）</span></li>
   </ul>
   <h3>右側のタブと別ウィンドウ</h3>
   <p>右側は4つのタブで切り替えます。<b>素材</b>（5章・8章）／<b>レイヤー設定</b>（6章・9章）／<b>ミキサー</b>（11章）／<b>出力</b>（4章）。</p>
@@ -423,7 +425,7 @@ ERROR: No matching distribution found for …</span>
   <table>
     <tr><th style="width:44mm">色</th><th>意味</th><th style="width:60mm">例</th></tr>
     <tr><td><span class="sw g">表示</span> 緑</td><td>ふつうに動いている・選んでいる</td><td>表示、フルスクリーン中、再生中のクリップの枠、選んでいるタブ</td></tr>
-    <tr><td><span class="sw h">消す</span> 薄い緑</td><td>マウスを乗せている所（押すとこれが動く）</td><td>すべてのボタン</td></tr>
+    <tr><td><span class="sw h">消す</span> 薄い緑</td><td>マウスを乗せている所（押すとこれが動く）。緑・赤のボタンは色はそのままで、薄い緑の縁が付く</td><td>すべてのボタン</td></tr>
     <tr><td><span class="sw r">M</span> 赤</td><td>止めている・固定している状態。赤い文字はエラー</td><td>ミュート、隠し中、マッピング編集中、テスト表示中</td></tr>
     <tr><td><span class="sw y">BLACKOUT (B)</span> 黄色</td><td>BLACKOUT だけの色（非常ボタン）。暗転中は黄色く光る</td><td>BLACKOUT</td></tr>
   </table>
@@ -453,7 +455,7 @@ ERROR: No matching distribution found for …</span>
   </ol>
   <div class="side" style="grid-template-columns:56mm 1fr">
     <figure style="margin-top:0">
-      <div class="shot" data-img="panel_outs" data-crop="1041,111,389,740" data-b="1330,122,89,27,1;1052,156,160,43,2;1213,159,97,38,3;1312,165,75,27,4;1389,165,30,27,5;1052,207,367,73,6;1052,366,367,29,7;1052,526,367,64,8;1267,600,152,27,9;1074,633,324,204,10"></div>
+      <div class="shot" data-img="panel_outs" data-crop="1041,111,389,789" data-b="1330,122,89,27,1;1052,156,160,43,2;1213,159,97,38,3;1312,165,75,27,4;1389,165,30,27,5;1052,268,367,73,6;1052,457,367,24,7;1052,663,367,64,8;1267,737,152,27,9;1074,770,324,128,10;1052,207,367,55,11"></div>
       <figcaption>「出力」タブ（出力2と出力3を横長につないだ例）</figcaption>
     </figure>
     <ul class="legend">
@@ -467,6 +469,7 @@ ERROR: No matching distribution found for …</span>
       <li><i>8</i><span><b>横長にする</b>チェック、<b>重なり</b>、そのつなぎ目の<b>ガンマ</b>（下）</span></li>
       <li><i>9</i><span><b>識別</b>／<b>ディスプレイ設定…</b>（Windows の設定を開く）</span></li>
       <li><i>10</i><span><b>画面の配置図</b>：つながっている画面の並び・解像度・拡大率。緑の枠＝出力ウィンドウがある画面</span></li>
+      <li><i>11</i><span><b>本番の解像度</b>：本番のプロジェクターの解像度（下）</span></li>
     </ul>
   </div>
 </section>
@@ -489,13 +492,13 @@ ERROR: No matching distribution found for …</span>
     <li>重なりが周りより明るい・暗いときは、その出力の行の「<b>ガンマ</b>」（⑧）を調整する（明るすぎる→大きく、暗すぎる→小さく。ふつうは 2.2）。ガンマは<b>つなぎ目ごと</b>なので、3台以上つないだときは、つなぎ目ごとに合わせられる</li>
   </ol>
   <figure>
-    <div class="shot" data-img="out_wide" data-crop="0,0,2560,709" data-b="1150,0,250,709,1"></div>
+    <div class="shot" data-img="out_wide" data-crop="0,40,2560,600" data-b="1150,40,250,600,1"></div>
     <figcaption>出力2（左）と出力3（右）を横長につないだところ。① が重なり部分（左右で同じ映像が、ぼかしてつながる）</figcaption>
   </figure>
   <div class="note"><b class="h">ポイント</b>左右のプロジェクターは同じ解像度にします。3台以上もつなげられます（出力4を「出力3の右につなげる」）。つないだ右側の出力には「映すレイヤー」は出ません（横長の画面にまとめて映すため）。</div>
-  <div class="note"><b class="h">覚えている</b>フルスクリーンにした画面は保存されます。次に run.bat で起動すると、同じ画面にフルスクリーンで開きます。「同じ画面」とは、Windows の画面の配置での<b>位置と解像度が同じ</b>こと。つながっていない・解像度や並びが変わったときは、ウィンドウで開いて警告を出すので、もう一度この手順でフルスクリーンにします。</div>
-  <div class="warn"><b class="h">× では閉じない</b>本番中の事故を防ぐため、出力ウィンドウ右上の × では閉じません。減らすときは「出力」タブの ✕ を使います。</div>
-  <div class="tip"><b class="h">拡大率は 100%</b>プロジェクターの画面は、Windows の「拡大縮小」を 100% にしておくと確実です。拡大率や画面の並びを変えるのは、リハの前に済ませてください。</div>
+  <div class="note"><b class="h">覚えている</b>フルスクリーンにした画面は保存されます。次の起動でも、<b>位置と解像度が同じ</b>画面にフルスクリーンで開きます。画面がない・並びが変わったときは、ウィンドウで開いて警告を出します。</div>
+  <div class="tip"><b class="h">本番の解像度（⑪）</b>本番で使うプロジェクターの解像度（1920×1080 など）を選んでおくと、<b>ウィンドウの大きさに関係なく、いつもその大きさで描きます</b>。別のPCで小さいウィンドウのまま合わせても、本番でそのまま使えます（形が違うときは黒い帯付きで縮小表示）。「自動」はウィンドウの大きさで描きます。</div>
+  <div class="warn"><b class="h">× では閉じない・拡大率は 100%</b>出力ウィンドウは右上の × では閉じません（減らすときは「出力」タブの ✕）。プロジェクターの画面は Windows の「拡大縮小」を 100% にし、画面の並びの変更はリハの前に。</div>
 </section>
 
 <!-- ===================== 5 ===================== -->
@@ -802,13 +805,18 @@ void draw() {
       <li><i>7</i><span><b>不透明度</b>・<b>ぼかし</b></span></li>
     </ul>
   </div>
-  <h3>使えるようにする（最初の1回）</h3>
-  <ol class="steps">
-    <li><b>VPT39 を終了し、project.json の <code>"allow_lan": false</code> を <code>true</code> に書き換える</b>（メモ帳で。13章）</li>
-    <li><b>run.bat で起動</b>。初めてのときに「Windows セキュリティの重要な警告」が出たら、「<b>プライベート ネットワーク</b>」にチェックして「許可」</li>
-    <li>操作パネルの上の帯（VPT39 の右）に「<b>スマホ: http://192.168.…:8080/m</b>」と出る。<b>PC とスマホを同じ Wi-Fi</b> につなぎ、スマホのブラウザでそのアドレスを開く（ホーム画面に追加しておくと次から1回で開ける）</li>
-  </ol>
-  <div class="warn"><b class="h">気をつけること</b>合言葉がないので、<b>同じ Wi-Fi の人なら誰でも操作できます</b>。自分のルーターか、スマホのテザリングで使います。会場やホテルの Wi-Fi は、機器どうしの通信を止めていることが多く、つながらないことがあります。使わないときは <code>allow_lan</code> を <code>false</code> に戻します。</div>
+  <h3>つなぎ方（QR コード）</h3>
+  <div class="side" style="grid-template-columns:62mm 1fr">
+    <figure style="margin-top:0">
+      <div class="shot" data-img="panel_lan" data-crop="460,60,520,463" data-b="473,106,164,38,1;606,147,228,228,2;664,406,112,27,3"></div>
+    </figure>
+    <ol class="steps">
+      <li><b>上の帯の「スマホ」を押し、「スマホから操作する」（①）</b>。起動し直す必要はありません。初めてのときに「Windows セキュリティの重要な警告」が出たら、「<b>プライベート ネットワーク</b>」にチェックして「アクセスを許可する」</li>
+      <li><b>PC とスマホを同じ Wi-Fi につなぎ、スマホのカメラで QR コード（②）を読み取る</b>。位置合わせの画面が開く（下にアドレスも出るので、入力してもよい）</li>
+      <li><b>終わったら「スマホからの操作をやめる」</b>。オン・オフは保存され、次の起動でも同じ。Wi-Fi を変えたときは「アドレスを調べ直す」（③）</li>
+    </ol>
+  </div>
+  <div class="warn"><b class="h">気をつけること</b>合言葉がないので、<b>同じ Wi-Fi の人なら誰でも操作できます</b>。自分のルーターか、スマホのテザリングで使います。会場やホテルの Wi-Fi は、機器どうしの通信を止めていることが多く、つながらないことがあります。使わないときは「スマホからの操作をやめる」を押します。</div>
   <div class="tip"><b class="h">画面が消えないように</b>スマホの「自動ロック」を長め（5分など）にしておきます。つながらなくなると、スマホの上に赤く「PCとつながっていません」と出て、ボタンが押せなくなります（つながると自動で戻る）。</div>
 </section>
 
@@ -817,16 +825,25 @@ void draw() {
   <h2><span class="c">10</span>写真ウォール</h2>
   <p>指定したフォルダに入った写真を、順番に表示するレイヤーです。会場で撮った写真や、来場者から集めた写真を流すのに使います。</p>
   <figure style="max-width:110mm">
-    <div class="shot" data-img="panel" data-crop="0,567,620,125" data-b="8,573,215,27,1;238,573,364,94,2"></div>
+    <div class="shot" data-img="panel" data-crop="0,567,1184,137" data-b="8,573,215,27,1;238,573,428,104,2;670,573,140,124,3;814,573,364,94,4"></div>
   </figure>
   <ul class="legend">
     <li><i>1</i><span>写真ウォールの行（名前と「表示」など。音はないので M はない）</span></li>
-    <li><i>2</i><span>写真の枚数・フォルダ・間隔と、<b>次の写真 ▶</b>（すぐ次へ）</span></li>
+    <li><i>2</i><span><b>並べた画像</b>：押すとその画像をすぐ出す（緑の枠＝いま出している）。ドラッグで並べ替え、✕ で外す</span></li>
+    <li><i>3</i><span>素材の画像を<b>ここへドラッグ</b>して並べる</span></li>
+    <li><i>4</i><span>写真の枚数・間隔と、<b>次の写真 ▶</b>（すぐ次へ）</span></li>
   </ul>
+  <h3>出す写真の決め方（2とおり）</h3>
+  <table>
+    <tr><th style="width:44mm">やり方</th><th>出し方</th></tr>
+    <tr><td class="k">行に画像を並べる</td><td>「素材」タブの画像を、写真ウォールの行へドラッグ（写真ウォールを選んでいるときは、素材の画像をクリックでも）。<b>並べた順に</b>出し、最後まで行ったら最初へ。<b>1枚だけなら、その画像を出し続ける</b>。画像を押すと、その画像をすぐ出す</td></tr>
+    <tr><td class="k">フォルダの写真（行が空のとき）</td><td>「フォルダ」に入っている写真を順番に出す（今までどおり）。新しく入った写真を優先できる</td></tr>
+  </table>
+  <p>どちらも<b>列で再生とは別に</b>、「間隔」と「切り替え方」に合わせて動きます。写真ウォールに入れられるのは画像だけです（動画・カメラなどは動画レイヤーへ）。</p>
   <h3>設定（写真ウォールの行を選んで「レイヤー設定」タブ）</h3>
   <table>
     <tr><th style="width:36mm">設定</th><th>内容</th></tr>
-    <tr><td class="k">フォルダ</td><td>写真を読むフォルダ。「photos」のように書くと VPT39 フォルダの中、フルパスでほかの場所も指定できる。<b>名前を間違えると空のフォルダが新しく作られ「0枚」</b>になるので、枚数を確認</td></tr>
+    <tr><td class="k">フォルダ</td><td>行に画像を並べていないときに、写真を読むフォルダ。「photos」のように書くと VPT39 フォルダの中、フルパスでほかの場所も指定できる。<b>名前を間違えると空のフォルダが新しく作られ「0枚」</b>になるので、枚数を確認</td></tr>
     <tr><td class="k">間隔(秒)</td><td>次の写真に切り替えるまでの秒数。0 なら自動では切り替えない</td></tr>
     <tr><td class="k">切り替え方</td><td>フェード（じわっと）／静止（効果なし・パッと切り替え）／スライド（右から左・左から右・下から上・上から下）／ワイプ（左から順に）／ズーム（少し寄りから）。かける時間は「フェード」の秒数。スライドは前の写真を押し出す。<b>切り替えの途中は次の写真を出さない</b>（間隔より切り替え時間が長いと、そのぶん間隔が延びる）</td></tr>
     <tr><td class="k">白フチ</td><td>写真のまわりの白い枠の太さ</td></tr>
@@ -911,22 +928,42 @@ void draw() {
 <section class="chap">
   <h2><span class="c">13</span>保存と設定ファイル</h2>
   <ul>
-    <li>設定は<b>変更から2秒後に自動で</b> project.json に保存されます。すぐ保存したいときは <span class="btn">保存</span></li>
+    <li>設定は<b>変更から2秒後に自動で</b> project.json に保存されます（セッティングを開いていれば、そのファイルにも）。すぐ保存したいときは <span class="btn">保存</span></li>
     <li><span class="btn">終了</span> を押すと、確認のあと保存して閉じます</li>
     <li>保存されるもの：レイヤーとクリップの並び、四隅の形、音量、出力ウィンドウの位置とフルスクリーンの画面など</li>
     <li>保存されないもの：その時の再生位置、BLACKOUT の状態（起動時はいつもオフ）、テスト表示（起動時はいつもオフ）</li>
+  </ul>
+  <h3>セッティング（会場・公演ごとの設定ファイル）</h3>
+  <p>会場や公演ごとに、<b>曲順・クリップ・レイヤー・マッピング・音量・出力の設定</b>をまとめて、名前を付けて保存しておけます。上の帯の「<b>セッティング：（名前）</b>」を押すと、窓が開きます。</p>
+  <div class="side" style="grid-template-columns:66mm 1fr">
+    <figure style="margin-top:0">
+      <div class="shot" data-img="panel_set" data-crop="400,60,640,304" data-b="413,133,614,38,1;413,176,614,41,2;901,220,39,27,3;942,183,44,27,4;988,183,30,27,5"></div>
+    </figure>
+    <ul class="legend">
+      <li><i>1</i><span><b>名前を付けて保存</b>：名前を入れて保存（Enter でも）。同じ名前があれば、上書きしてよいか確認</span></li>
+      <li><i>2</i><span><b>いま開いているセッティング</b>（緑の枠）。変えると2秒後に自動で上書き保存</span></li>
+      <li><i>3</i><span><b>開く</b>：確認のあと、そのセッティングに切り替わる</span></li>
+      <li><i>4</i><span><b>複製</b>：いま開いているものを元に、新しい名前で保存（会場違いの版を作るとき）</span></li>
+      <li><i>5</i><span><b>✕</b>：ごみ箱へ（確認あり・ごみ箱から戻せる）</span></li>
+    </ul>
+  </div>
+  <ul>
+    <li>ファイルは <b>VPT39\settings</b> フォルダに「名前.json」で入ります。Dropbox で同期すれば、別のPCでも同じ一覧が使えます（人に渡すときは、そのファイルを相手の settings に入れてもらう）</li>
+    <li><b>開くと、出力ウィンドウも作り直します</b>。保存した画面がないPCでは、その出力はウィンドウで開くので、投影する画面へ移してフルスクリーンにします。<b>本番中は開かない</b>でください（映像が一瞬切れます）</li>
+    <li>開く前に、いまのセッティングは保存されます（「（名前なし）」は置き換わるので、残すなら先に名前を付けて保存）。操作パネルの番号とスマホのオン・オフは PC ごとなので変わりません</li>
+    <li><b>別のPCで準備するとき</b>は、出力ごとの「本番の解像度」（4章）を本番のプロジェクターに合わせておくと、四隅や重なりがそのまま本番で使えます</li>
   </ul>
   <h3>project.json の主な項目</h3>
   <table>
     <tr><th style="width:36mm">項目</th><th>意味</th></tr>
     <tr><td class="k">media_dir</td><td>素材フォルダ（ふつうは "media"）</td></tr>
     <tr><td class="k">web_port</td><td>操作パネルの番号（ふつうは 8080 → http://localhost:8080/）</td></tr>
-    <tr><td class="k">allow_lan</td><td>true にすると同じ Wi-Fi のスマホから操作できる（スマホ用の位置合わせ画面は http://PCのアドレス:8080/m、PC と同じ操作パネルは …:8080/。アドレスは操作パネルの上の帯に出る。変えたら起動し直す。ファイアウォールの確認には「許可」。9章）。ただし<b>同じネットワークの誰でも操作できてしまう</b>ので、会場の共用 Wi-Fi では false のまま</td></tr>
+    <tr><td class="k">allow_lan</td><td>スマホから操作するか（「スマホ」ボタンで切り替わる。9章）</td></tr>
     <tr><td class="k">outputs</td><td>出力ウィンドウごとの位置・フルスクリーンの画面・音量</td></tr>
     <tr><td class="k">layers</td><td>レイヤーとクリップ、四隅、音量など</td></tr>
+    <tr><td class="k">setting_name</td><td>いま開いているセッティングの名前（なければ名前なし）</td></tr>
   </table>
-  <div class="warn"><b class="h">手で直すとき</b>アプリを終了してから、メモ帳などで開きます。壊すと起動できなくなるので、先にコピーを取っておきます。ふつうは操作パネルから変えれば十分です。</div>
-  <div class="tip"><b class="h">本番の設定を控えておく</b>リハで形や音量が決まったら、project.json を別の名前でコピーしておくと、万一のときに戻せます。</div>
+  <div class="warn"><b class="h">手で直すとき</b>アプリを終了し、コピーを取ってから開きます（壊すと起動できません）。</div>
 </section>
 
 <!-- ===================== 14 ===================== -->
@@ -956,7 +993,9 @@ void draw() {
     <tr><td class="k">横長のつなぎ目が目立つ</td><td>「重なり」の幅を、実際に重なっている幅に合わせる → 明るさの違いは「ガンマ」→ 左右のプロジェクターの明るさ・色の設定をそろえる</td></tr>
     <tr><td class="k">赤字「映像が止まっています」</td><td>カメラ：ケーブル・電源を確認（5秒ごとに自動でつなぎ直す）。Spout：送る側のアプリが動いているか（同じ名前で送り直すと戻る）。ウィンドウ：閉じられていないか。どれも最後の映像のまま映り続ける</td></tr>
     <tr><td class="k">Spout の欄が空</td><td>送る側で Spout 出力がオンか →「一覧を更新」→ setup.bat に「Spout が使えません」と出ていたら Python 3.13 を入れて setup.bat をやり直す（8章）</td></tr>
-    <tr><td class="k">スマホでつながらない</td><td>allow_lan が true か・起動し直したか → PC とスマホが同じ Wi-Fi か → アドレス（上の帯）の打ち間違い → ファイアウォールで「許可」したか → 会場の Wi-Fi ならテザリングに変える（9章）</td></tr>
+    <tr><td class="k">スマホでつながらない</td><td>上の帯の「スマホ」が緑の「スマホ ON」か → PC とスマホが同じ Wi-Fi か（スマホがモバイル回線になっていないか）→ Wi-Fi を変えたなら「アドレスを調べ直す」→ ファイアウォールで「許可」したか → 会場の Wi-Fi ならテザリングに変える（9章）</td></tr>
+    <tr><td class="k">セッティングを開いたら出力がウィンドウになった</td><td>保存した画面がこのPCにない（並び・解像度が違う）。出力ウィンドウを投影する画面へ移してフルスクリーン（4章）</td></tr>
+    <tr><td class="k">写真ウォールが同じ写真のまま</td><td>行に画像を1枚だけ並べている（1枚なら出し続ける）か、「間隔」が 0。フォルダの写真を出すなら、行の画像を ✕ で外す</td></tr>
     <tr><td class="k">素材をドロップしても入らない</td><td>「素材」タブの欄の上で離したか（緑の点線）。動画・画像でないファイルは入らない。大きな動画はコピーに時間がかかる（「取り込み中 ○%」）</td></tr>
     <tr><td class="k">setup.bat が「失敗」</td><td>2章「setup.bat がうまくいかないとき」</td></tr>
     <tr><td class="k">アプリが落ちた</td><td>12章「アプリが落ちたとき」</td></tr>
@@ -1028,7 +1067,7 @@ void draw() {
 <script>
 // 画面写真の切り抜きと、番号つきの赤い枠を描く
 (function(){
-  var IMG={panel:{src:'img/panel.jpg',w:1440,h:900},panel_special:{src:'img/panel_special.jpg',w:1440,h:900},panel_insp:{src:'img/panel_insp.jpg',w:1440,h:900},panel_mixer:{src:'img/panel_mixer.jpg',w:1440,h:900},panel_photo:{src:'img/panel_photo.jpg',w:1440,h:900},mobile:{src:'img/mobile.jpg',w:390,h:844},panel_outs:{src:'img/panel_outs.jpg',w:1440,h:900},out1:{src:'img/out1.jpg',w:1280,h:720},out1_edit:{src:'img/out1_edit.jpg',w:1280,h:720},out1_black:{src:'img/out1_black.jpg',w:1280,h:720},out_wide:{src:'img/out_wide.jpg',w:2560,h:709}};
+  var IMG={panel:{src:'img/panel.jpg',w:1440,h:900},panel_special:{src:'img/panel_special.jpg',w:1440,h:900},panel_insp:{src:'img/panel_insp.jpg',w:1440,h:900},panel_mixer:{src:'img/panel_mixer.jpg',w:1440,h:900},panel_photo:{src:'img/panel_photo.jpg',w:1440,h:900},panel_set:{src:'img/panel_set.jpg',w:1440,h:900},panel_lan:{src:'img/panel_lan.jpg',w:1440,h:900},mobile:{src:'img/mobile.jpg',w:390,h:844},panel_outs:{src:'img/panel_outs.jpg',w:1440,h:900},out1:{src:'img/out1.jpg',w:1280,h:720},out1_edit:{src:'img/out1_edit.jpg',w:1280,h:720},out1_black:{src:'img/out1_black.jpg',w:1280,h:720},out_wide:{src:'img/out_wide.jpg',w:2560,h:709}};
   [].forEach.call(document.querySelectorAll('.shot'),function(el){
     var im=IMG[el.dataset.img], c=el.dataset.crop.split(',').map(Number);
     el.style.aspectRatio=c[2]+' / '+c[3];
