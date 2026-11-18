@@ -1,201 +1,205 @@
-# VPT39 — ライブ用 映像再生＋プロジェクションマッピング
+**日本語版：[README.ja.md](README.ja.md)**
 
-**このアプリは：** プロジェクションマッピングに特化した映像プレイヤー。
-プロジェクタをつかったメディア/インタラクションアート作品、ライブ等で使いやすいように工夫してます。
+# VPT39 — Live video playback + projection mapping
 
-VPT の「四隅変形マッピング」と、VJアプリのような「キュー再生・レイヤー合成」を合わせた、ライブ用の小さなアプリです。
+**What this app is:** a video player made especially for projection mapping.
+It is designed to be easy to use for media and interactive art works that use projectors, live shows and similar events.
 
-**VPT（[VPT 8](https://hcgilje.wordpress.com/vpt/)・HC Gilje 作）から発想を得て作りました。** 名前の「39」は、日本語で「サンキュー（Thx）」の意味です。VPT の名前を使うことは、作者の HC Gilje さんから許可をいただいています。
+It is a small app for live use that combines VPT's "four-corner mapping" with the "cue playback and layer compositing" of a VJ app.
 
-> VPT39は、HC Gilje氏によるVPT（VideoProjectionTool）にインスパイアされた非公式ツールです。VPTとは一切関係ありません。
+The control panel can be switched between Japanese and English with the 日本語 / English button in the top bar (the choice is remembered).
 
-- **出力**：VPT と同じく、出力ウィンドウを投影したい画面へドラッグして「フルスクリーン」
-- **操作**：ノートPCのブラウザに出る操作パネル（`http://localhost:8080/`）
-- **マニュアル**（`manual` フォルダ）
-  - `quickstart.pdf`：A4 両面のクイックスタート（表＝準備、裏＝本番中）。本番は機材の横に置く
-  - `concept.pdf`：A4・2枚のしくみの説明（図解）
-  - `guide.pdf`：使い方ガイド（詳細版、A4・32ページ）。準備から本番・トラブル・チェックリストまで、画面写真に番号つき
-  - `index.html`：画面対応マニュアル。プロジェクターに映る画面と操作パネルの対応を、番号つきで確認できる
-  - PDF の元は同じ名前の .html。直したら Edge で開いて「PDF に保存」（余白なし・背景のグラフィックをオン）
+**VPT39 was inspired by VPT ([VPT 8](https://hcgilje.wordpress.com/vpt/), by HC Gilje).** The "39" in the name is read "san-kyu" in Japanese, which sounds like "thank you". HC Gilje has given permission to use the name VPT.
 
-## VPT39 の特徴（VPT8 からの改良点）
+> VPT39 is an unofficial tool inspired by VPT (VideoProjectionTool) by HC Gilje. It is not affiliated with VPT in any way.
 
-※ Windows 11 で動作確認済み
+- **Output**: as in VPT, drag the output window to the display you want to project on, then press "Fullscreen"
+- **Control**: the control panel that opens in the browser on your laptop (`http://localhost:8080/`)
+- **Manuals** (`manual/en` folder)
+  - `quickstart.pdf`: a double-sided A4 quick start (front = preparation, back = during the show). Keep it next to your equipment during the show
+  - `concept.pdf`: two A4 pages explaining how it works (with diagrams)
+  - `guide.pdf`: user guide (detailed version, A4). From preparation to the show, troubleshooting and checklists, with numbered screenshots
+  - `index.html`: screen-by-screen manual. Shows, with numbers, how the picture on the projector matches the control panel
+  - The PDFs are made from the .html files with the same names. After editing one, open it in Edge and use "Save as PDF" (no margins, background graphics on)
 
-1. **出力はいくつでも**
-   出力ウィンドウをいくつでも増やせる。グラフィックボードがつなげる限り、モニターやプロジェクターを何台でも使え、出力ごとに別の映像や別の位置合わせができる。
-2. **スマホから位置合わせ**
-   投影した映像の位置合わせ（四隅のマッピング）を、スクリーンの前でスマホから操作できる。アプリのインストールは不要で、QR コードを読むだけ。
-3. **複数出力の同期再生**
-   1つの映像を複数の出力に、ずれなく同時に映せる。曲やシーンごとにそろえたクリップを、ボタン1つで全レイヤー一斉に頭から再生できる（列で再生）。
-4. **ウィンドウ取り込み**
-   Spout に対応していないアプリ（Zoom・ブラウザなど）でも、同じPCの好きなウィンドウをそのまま素材として映せる。Spout（TouchDesigner・Processing など）からの受け取りにも対応。
-   ※ウィンドウの音声は、現在は取り込めません（映像のみ）。
-5. **横長の画面（疑似ビッグモニター）**
-   プロジェクターやモニター2台以上をつないで、1枚の横長の画面にできる（例：1920×2 ＝ 3840×1080）。重なり部分はなめらかにぼかしてつなぎ、つなぎ目ごとに明るさを合わせられる。分配器などの機材は不要。
+## Features of VPT39 (improvements over VPT8)
 
-### ほかの特徴
+Note: tested on Windows 11.
 
-- **音声ミキサー**：全レイヤーの動画の音を同時に鳴らし、レイヤーごと・出力ごとに音量とミュートを操作できる。切り替えのときは音もクロスフェードする。
-- **キャプチャーボード入力**：別のPCの画面と音声を、低い遅延で取り込める。同じ機種を何台つないでも区別できる。
-- **写真ウォール**：フォルダに入った写真を自動で表示し、新しい写真を優先する。素材の画像を並べて、決めた順番で出すこともできる。
-- **写真の位置をリアルタイムに動かせる**：本番中でも、写真や映像の位置を矢印キーやスマホで動かして調整できる。
-- **別のPCで準備できる**：出力ごとに「本番の解像度」を決めておけば、小さいウィンドウのまま合わせた形がそのまま本番で使える。
-- **セッティングファイル**：会場・公演ごとに、曲順・マッピング・音量・出力をまとめて保存し、切り替えられる。
-- **本番の事故を防ぐ工夫**：自動保存、出力ウィンドウは × で閉じない、次の起動で同じ画面にフルスクリーンで開く、BLACKOUT ボタン。
-- **ブラウザの操作パネル**：タブを別ウィンドウに分けられ、画面に番号付きで対応した日本語のマニュアルが付いている。
-- **素材の形式**：動く GIF・APNG・WebP、透明な PNG をそのまま使える。
-- **無料・MIT ライセンス**：Python で作っているので、誰でも改造できる。
+1. **Any number of outputs**
+   You can add as many output windows as you like. You can use as many monitors and projectors as your graphics card can connect, with a different picture and different mapping for each output.
+2. **Mapping from a phone**
+   You can adjust the position of the projected picture (four-corner mapping) from a phone while standing in front of the screen. No app to install: just scan a QR code.
+3. **Synchronized playback on several outputs**
+   One video can be shown on several outputs at the same time, perfectly in sync. Clips lined up for each song or scene can be started from the beginning on all layers at once with one button ("Play column").
+4. **Window capture**
+   Any window on the same PC can be used directly as media, even from apps that do not support Spout (Zoom, a browser and so on). Receiving from Spout (TouchDesigner, Processing and so on) is also supported.
+   Note: window audio cannot be captured at the moment (picture only).
+5. **Wide picture (virtual big monitor)**
+   Connect two or more projectors or monitors to make one wide picture (e.g. 1920×2 = 3840×1080). Overlapping areas are blended smoothly, and the brightness can be matched at each seam. No splitter or other extra hardware is needed.
 
-### VPT8 と比べて、まだできないこと
+### Other features
 
-- メッシュ変形（曲面などの細かいゆがみ補正）はできない。位置合わせは四隅だけ。
-- マスク（映像の一部を切り抜く）はない。
-- OSC・MIDI のコントローラ、LFO、Arduino のセンサーなど、外部の機材からは操作できない。
-- Spout・Syphon で、ほかのアプリへ映像を送り出すことはできない。
-- Windows だけで、Mac・Linux では動かない。
-- ウィンドウ取り込みの音声は取り込めない。
+- **Audio mixer**: plays the sound of the videos on all layers at the same time, with volume and mute per layer and per output. The sound also crossfades when you switch clips.
+- **Capture board input**: brings in the picture and sound of another PC with low latency. Several units of the same model can be told apart.
+- **Photo wall**: shows the photos in a folder automatically, newest first. You can also line up images from your media and show them in a fixed order.
+- **Move photos in real time**: even during the show, you can move photos and videos with the arrow keys or a phone to adjust their position.
+- **Prepare on another PC**: if you set the "Show resolution" for each output, the shapes you adjust in a small window can be used as they are in the show.
+- **Setup files**: for each venue or show, save the running order, mapping, volume and outputs together and switch between them.
+- **Safeguards for the show**: auto-save, output windows do not close with ×, outputs open fullscreen on the same display at the next start, BLACKOUT button.
+- **Browser control panel**: tabs can be split into separate windows, and it comes with a manual whose numbers match the screen.
+- **Media formats**: animated GIF, APNG and WebP, and transparent PNG can be used as they are.
+- **Free, MIT license**: written in Python, so anyone can modify it.
 
-## できること
+### What it cannot do yet, compared with VPT8
 
-| 機能 | 内容 |
+- No mesh warping (fine correction for curved surfaces and so on). Mapping uses the four corners only.
+- No masks (cutting out part of the picture).
+- Cannot be controlled from external hardware such as OSC or MIDI controllers, LFOs or Arduino sensors.
+- Cannot send video to other apps with Spout or Syphon.
+- Windows only; does not run on Mac or Linux.
+- Cannot capture audio from window capture.
+
+## What it can do
+
+| Feature | Description |
 |---|---|
-| キュー再生 | レイヤーごとに曲順で動画や静止画を並べ、クリックかスペースキーで切り替え。クロスフェード（秒数指定）付き |
-| クリップ一覧 | VJアプリのように、各レイヤーのクリップをサムネイル付きのタイルで並べる。ドラッグで追加・並べ替え、「列で再生」で同じ番号のクリップを全レイヤー一斉に再生 |
-| ミニ操作 | サムネイルの下で、一時停止・頭出し・停止と、再生位置バーのドラッグ（シーク）ができる |
-| 複数出力 | 出力ウィンドウをいくつでも追加でき、それぞれ好きな画面でフルスクリーンにできる。1つのレイヤーを複数の出力に同時に映せる（位置合わせは出力ごと） |
-| 横長（ビッグモニター） | 2台以上のプロジェクターをつないで1枚の横長の映像にする。重なり部分はぼかしてつなぐ（エッジブレンド） |
-| 空白クリップ | 何も映さない・音も止めるクリップ。他のレイヤーが映している間、そのレイヤーを休ませる |
-| レイヤー映像 | 別のレイヤーの映像を素材として使う。同じ映像・同じタイミングで別の場所や出力に映せる |
-| カメラ入力 | カメラ・キャプチャーボード（別PCの画面と音声）を低遅延で取り込む。OBS 仮想カメラも使える |
-| ウィンドウ取り込み | 同じPC上の好きなウィンドウ（Zoom・Discord・ブラウザなど）の映像を取り込む（音声はなし） |
-| Spout | TouchDesigner・Processing・OBS・VJアプリなどから、遅れなし・透明ありで映像を受け取る |
-| スマホで位置合わせ | 上の帯の「スマホ」ボタンでオンにし、出てきた QR コードをスマホで読むと、同じ Wi-Fi のスマホから四隅を十字ボタンで合わせられる（長押し・1つ戻すつき） |
-| 素材の取り込み・削除 | パソコンのファイルを素材の欄へドロップすると media に入る。✕ でごみ箱へ |
-| 動く画像 | 動くGIF・APNG・WebP、透明なPNG |
-| 終了時の動き | キューごとに「ループ／最後で停止／終了で消える／次へ進む（プレイリスト）」を選択 |
-| レイヤー合成 | レイヤー数は自由。合成方法は通常・加算・スクリーン・乗算。不透明度、表示切替、重なり順を変更可 |
-| 四隅マッピング | レイヤーごとに四隅を動かして台形やスクリーン形状に合わせる。エッジぼかしとテストパターン付き |
-| 写真ウォール | 指定フォルダに入った写真を順番に表示。新着写真は優先して表示。素材の画像を行に並べればその順で表示（1枚なら出し続ける）。縦長・横長の写真も歪まない。切り替え方8種類（フェード・静止・スライド・ワイプ・ズーム） |
-| 音声ミキサー | 全レイヤー・全出力の音を同時に鳴らす。音声マスター → 出力ごと → レイヤーごとのフェーダーとミュート、鳴っている量の表示つき。切り替え時は音もクロスフェードして途切れない |
-| 画面の配置・識別 | 接続中の画面の並び・解像度・拡大率を図で表示。「識別」で各画面に番号を表示、「ディスプレイ設定…」で Windows の設定を開く |
-| 保存 | 設定は `project.json` に自動保存（変更から2秒後） |
-| セッティング | 会場・公演ごとに、曲順・クリップ・マッピング・音量・出力の設定を名前を付けて保存・開く・複製・削除（`settings` フォルダ） |
-| 本番の解像度 | 出力ごとに本番のプロジェクターの解像度を決めておける。別のPCで小さいウィンドウのまま準備しても、そのまま本番で使える |
+| Cue playback | Line up videos and still images per layer in running order, and switch with a click or the Space key. With crossfade (time in seconds) |
+| Clip list | Like a VJ app, each layer's clips are shown as tiles with thumbnails. Drag to add and reorder; "Play column" plays the clips with the same number on all layers at once |
+| Mini controls | Under each thumbnail: pause, restart, stop, and drag the playback position bar (seek) |
+| Multiple outputs | Add as many output windows as you like, each fullscreen on any display. One layer can be shown on several outputs at the same time (mapping is set per output) |
+| Wide (big monitor) | Connect two or more projectors to make one wide picture. Overlapping areas are blended softly (edge blend) |
+| Blank clip | A clip that shows nothing and also stops the sound. Lets a layer rest while other layers play |
+| Layer picture | Uses another layer's picture as media. Shows the same picture at the same time in another place or on another output |
+| Camera input | Brings in cameras and capture boards (picture and sound of another PC) with low latency. OBS Virtual Camera also works |
+| Window capture | Brings in the picture of any window on the same PC (Zoom, Discord, a browser and so on) (no audio) |
+| Spout | Receives video from TouchDesigner, Processing, OBS, VJ apps and so on, with no delay and with transparency |
+| Mapping from a phone | Turn it on with the "Phone" button in the top bar and scan the QR code that appears; a phone on the same Wi-Fi can then adjust the four corners with an arrow pad (with hold-to-repeat and undo) |
+| Adding and removing media | Drop files from your PC onto the media area to copy them into media. ✕ moves them to the Recycle Bin |
+| Animated images | Animated GIF, APNG and WebP, transparent PNG |
+| At the end | For each cue, choose "Loop / Hold last frame / Clear at end / Go to next (playlist)" |
+| Layer compositing | Any number of layers. Blend modes: Normal, Add, Screen, Multiply. Opacity, show/hide and stacking order can be changed |
+| Four-corner mapping | Move the four corners of each layer to fit a trapezoid or the shape of the screen. With edge feather and a test pattern |
+| Photo wall | Shows the photos in a chosen folder one after another. New photos are shown first. If you line up images from your media in the row, they are shown in that order (if there is only one, it stays on). Portrait and landscape photos are not distorted. 8 transitions (fade, cut, slide, wipe, zoom) |
+| Audio mixer | Plays the sound of all layers and all outputs at the same time. Faders and mute for the audio master → each output → each layer, with level meters. The sound also crossfades when you switch, so it does not cut out |
+| Display layout and identify | Shows a diagram of the connected displays with their arrangement, resolution and scale. "Identify" shows a number on each display; "Display settings…" opens the Windows settings |
+| Saving | Settings are saved automatically to `project.json` (2 seconds after a change) |
+| Setup | For each venue or show, save, open, duplicate and delete named setups with the running order, clips, mapping, volume and output settings (`settings` folder) |
+| Show resolution | Set the resolution of the show projector for each output. Even if you prepare on another PC in a small window, it can be used as it is in the show |
 
-## セットアップ（Windows、最初の1回だけ）
+## Setup (Windows, first time only)
 
-1. **Python 3.13（64bit）** をインストールします。インストール時に「Add python.exe to PATH」にチェックを入れてください（3.14 以降では Spout が使えません。図解は manual\guide.pdf の2章）。
-2. **VLC メディアプレイヤー（64bit）** をインストールします。音声付きで再生するために必要です。入れていない場合は映像だけ再生されます。
-3. このフォルダの **`setup.bat`** をダブルクリックします。必要なライブラリが自動で入ります。
+1. Install **Python 3.13 (64-bit)**. During installation, check "Add python.exe to PATH" (Spout does not work with 3.14 or later. See chapter 2 of manual\en\guide.pdf for illustrations).
+2. Install **VLC media player (64-bit)**. It is needed to play videos with sound. Without it, only the picture is played.
+3. Double-click **`setup.bat`** in this folder. The required libraries are installed automatically.
 
-## 起動
+## Starting
 
-- **`run.bat`**：ふだんはこれで起動します。前回フルスクリーンにした出力は、同じ画面にフルスクリーンで開きます（その画面がつながっていなければウィンドウで開きます）。
-- **`run_window.bat`**：その回だけ、全部の出力をウィンドウで開きます。準備やリハで使います（設定は書き換えません）。
+- **`run.bat`**: use this normally. Outputs that were fullscreen last time open fullscreen on the same display (if that display is not connected, they open as windows).
+- **`run_window.bat`**: opens all outputs as windows, for this run only. Use it for preparation and rehearsals (it does not change the settings).
 
-どちらも、足りないライブラリがあれば起動前に自動で入れます。起動するとブラウザで操作パネルが開きます。開かない場合は、ブラウザで `http://localhost:8080/` を開いてください。
+Both install any missing libraries automatically before starting. When VPT39 starts, the control panel opens in the browser. If it does not open, open `http://localhost:8080/` in your browser.
 
-## 素材の置き場所
+## Where to put media
 
-- `media` フォルダ：曲ごとの動画（mp4・mov など）や画像（png・jpg）。サブフォルダに分けてもOKです。
-- `photos` フォルダ：写真ウォールに表示する写真。人の目でチェックして OK になった写真をここに入れる運用にしてください。
+- `media` folder: videos for each song (mp4, mov and so on) and images (png, jpg). Subfolders are fine.
+- `photos` folder: photos for the photo wall. We recommend putting only photos here that a person has checked and approved.
 
-## 右側のタブ（素材・レイヤー設定・ミキサー・出力）
+## Tabs on the right (Media, Layer settings, Mixer, Outputs)
 
-- 右側は「**素材**」「**レイヤー設定**」「**ミキサー**」「**出力**」のタブで切り替えます。
-- タブの **⧉** を押すか、タブを**ブラウザのウィンドウの外へドラッグして離す**と、その欄が別ウィンドウになります（離した場所に開きます）。別ウィンドウを閉じるとタブに戻ります。
-- 素材が多いときは、素材を別ウィンドウにして大きく広げると便利です。
+- On the right, switch between the "**Media**", "**Layer settings**", "**Mixer**" and "**Outputs**" tabs.
+- Press **⧉** on a tab, or **drag the tab out of the browser window and release it**, to open that panel in a separate window (it opens where you release it). Close the separate window to put it back as a tab.
+- When you have a lot of media, it is handy to open Media in a separate window and make it large.
 
-## クリップの登録（サムネイル一覧）
+## Adding clips (thumbnail list)
 
-- 「**素材**」タブの「**ファイル**」に、media の中の動画・画像がサムネイル付きで並びます（入れてから数秒で表示されます）。
-- 「**空白・レイヤー・入力**」に切り替えると、次の特別な素材が並びます。ファイルと同じようにクリックやドラッグで追加します。
-  - **空白**：何も映さず、音も止めます（今の映像と音はフェードアウト）。
-  - **レイヤーの映像**（L1, L2…）：そのレイヤーの今の映像を、同じタイミングでもう一度映します。元のレイヤーを「表示」オフにしても使えます（音は元のレイヤーで鳴るので二重になりません）。自分自身の映像は使えません。
-  - **カメラ・キャプチャーボード**：つないだ機器の一覧です。追加したクリップの「音声なし」の欄で、一緒に流す音声入力（キャプチャーボードの音声など）を選べます。つないだあとは「一覧を更新」を押します。
-  - **ウィンドウ**：いま開いているウィンドウの一覧です。映像だけを取り込みます。最小化すると止まることがあるので、出したままにしてください。
-- レイヤーのクリップ欄の最後の「**＋ 空白を追加**」でも、空白クリップを追加できます。
-- 素材を**クリック**すると、選択中のレイヤーの最後に追加されます。
-- 素材をレイヤーのクリップ欄へ**ドラッグ**すると、好きなレイヤーの好きな位置に追加できます。
-- クリップ同士もドラッグで並べ替えられます。別のレイヤーへドラッグするとコピーになります。
-- サムネイルは `.thumbs` フォルダに保存されます（消しても自動で作り直されます）。
+- In "**Files**" on the "**Media**" tab, the videos and images in media are listed with thumbnails (they appear a few seconds after you add them).
+- Switch to "**Blank, layers, inputs**" to see the following special media. Add them by clicking or dragging, just like files.
+  - **Blank**: shows nothing and stops the sound (the current picture and sound fade out).
+  - **Layer picture** (L1, L2…): shows the current picture of that layer again, at the same time. It also works when the source layer's "Show" is off (the sound plays on the source layer, so it is not doubled). A layer cannot show its own picture.
+  - **Cameras and capture boards**: a list of connected devices. In the "No audio" field of the added clip, you can choose an audio input to play with it (such as the capture board audio). After connecting a device, press "Refresh list".
+  - **Window**: a list of the windows open now. Only the picture is captured. It may stop when minimized, so keep the window open.
+- You can also add a blank clip with "**+ Add blank**" at the end of a layer's clip row.
+- **Click** a media item to add it at the end of the selected layer.
+- **Drag** a media item onto a layer's clip row to add it to any layer at any position.
+- Clips can also be reordered by dragging. Dragging to another layer makes a copy.
+- Thumbnails are saved in the `.thumbs` folder (if you delete it, it is rebuilt automatically).
 
-## 本番での操作
+## Controls during the show
 
-- **クリップのサムネイル**をクリックすると、その素材にクロスフェードで切り替わります。
-- **列で再生 1, 2, 3…**：同じ番号のクリップを、全部の動画レイヤーで一斉に再生します（曲ごとに列をそろえておくと便利です）。
-- **サムネイルの下のミニ操作**（動画のクリップだけ）
-  - 再生位置バー：再生中は緑、一時停止中はオレンジで進み具合を表示。**ドラッグすると再生位置を移動**できます
-  - ⏮：頭出し（先頭に戻って再生）　▶／⏸：再生・一時停止　⏹：停止（そのレイヤーを消す）
-  - 再生していないクリップのバーをドラッグしたり ⏮ を押したりすると、そのクリップを再生し始めます
-- **次へ ▶**／**Space キー**：レイヤー1を次のキューへ進めます。
-- **BLACKOUT（B キー）**：0.5秒で全体を暗転します。もう一度押すと元に戻ります。
-- **明るさ**（上の帯）：映像全体の明るさです。音量は「音声ミキサー」で調整します。
+- Click a **clip thumbnail** to switch to that media with a crossfade.
+- **Play column 1, 2, 3…**: plays the clips with the same number on all video layers at once (handy if you line up a column for each song).
+- **Mini controls under the thumbnail** (video clips only)
+  - Playback position bar: shows progress in green while playing and orange while paused. **Drag it to move the playback position**
+  - ⏮: restart (go back to the beginning and play)　▶ / ⏸: play / pause　⏹: stop (clear that layer)
+  - Dragging the bar or pressing ⏮ on a clip that is not playing starts playing that clip
+- **Next ▶** / **Space key**: moves layer 1 to the next cue.
+- **BLACKOUT (B key)**: fades everything to black in 0.5 seconds. Press it again to bring it back.
+- **Brightness** (top bar): brightness of the whole picture. Volume is adjusted in the "Audio mixer".
 
-## 音声ミキサー
+## Audio mixer
 
-- 動画レイヤーの音は、どの出力（画面）に映していても**全部同時に鳴ります**。
-- **音声マスター** → **出力ごと**（出力1, 出力2…）→ **レイヤーごと**の順に音量が掛け合わされます。
-  - それぞれのフェーダーで音量、**M** ボタンでミュート（赤＝ミュート中）。
-  - レイヤーの下の緑のバーは、いま実際に鳴っている音量です（クロスフェード中は上下します）。
-- 映像の「表示」オフやブラックアウトでは**音は止まりません**（ライブ中に音が切れないように）。音を止めたいときは M ボタンを使います。
-- クリップを切り替えると、映像と同じ秒数で音もクロスフェードします。新しい動画の最初の映像が出るまでは前の動画を流し続けるので、フェード 0 秒でも音と映像が途切れません。
-- 音声は Windows の DirectSound で出しています（レイヤーごとに別々の音量にするため）。
+- The sound of all video layers **plays at the same time**, whichever output (display) they are shown on.
+- Volume is multiplied in this order: **Audio master** → **each output** (Output 1, Output 2…) → **each layer**.
+  - Each fader sets the volume, and the **M** button mutes (red = muted).
+  - The green bar under each layer shows the volume actually playing now (it moves up and down during a crossfade).
+- Turning a picture's "Show" off or blackout **does not stop the sound** (so the sound does not cut out during a live show). To stop the sound, use the M button.
+- When you switch clips, the sound crossfades over the same time as the picture. The previous video keeps playing until the first frame of the new video appears, so picture and sound do not cut out even with a 0-second fade.
+- Audio is output with Windows DirectSound (to allow a separate volume for each layer).
 
-## マッピング（四隅の調整）
+## Mapping (adjusting the four corners)
 
-1. 「マッピング編集（E）」をオンにします。
-2. 操作パネル右の図で、選択中のレイヤーの角をドラッグします。内側をドラッグすると全体が移動します。
-3. 最後の微調整は、**出力ウィンドウ上**で行うと正確です。
-   - マウスで角をドラッグ
-   - `1`〜`9`：レイヤーを選ぶ　`Tab`：角を選ぶ
-   - 矢印キー：1pxずつ移動（`Shift` を押しながらだと10px）
-   - `T`：テストパターン　`R`：四隅リセット　`E`：編集を終了
-4. 「テスト表示」では格子・対角線・円が表示されるので、歪みの確認に使えます。
+1. Turn on "Edit mapping (E)".
+2. In the diagram on the right of the control panel, drag the corners of the selected layer. Drag inside to move the whole picture.
+3. For final fine-tuning, working **on the output window** is the most accurate.
+   - Drag a corner with the mouse
+   - `1`–`9`: select a layer　`Tab`: select a corner
+   - Arrow keys: move 1 px at a time (10 px with `Shift`)
+   - `T`: test pattern　`R`: reset corners　`E`: finish editing
+4. "Test pattern" shows a grid, diagonals and circles, which you can use to check for distortion.
 
-## 出力ウィンドウ（VPT と同じ使い方）
+## Output windows (used the same way as in VPT)
 
-1. Windows の「ディスプレイ設定」で「表示画面を拡張する」にしておきます。
-2. 起動すると「VPT39 出力1」という小さなウィンドウが開きます。これを**投影したい画面（プロジェクター）へドラッグ**します。
-3. 操作パネル右下「**出力ウィンドウ**」の「**フルスクリーン**」を押すと、そのウィンドウがある画面いっぱいに広がります。出力ウィンドウ上で **F キー**か**ダブルクリック**でも切り替えられます。もう一度押すと元の小さなウィンドウに戻ります。
-4. 画面を増やすときは「**＋出力を追加**」で出力2, 出力3…を開き、同じように好きな画面へ移してフルスクリーンにします。
-5. どの出力に映すかは、「**出力**」タブの「映すレイヤー」か、「レイヤー設定」の「**映す出力**」のチェックで選びます。複数の出力にチェックすると、同じ映像を同時に映します。
-6. マッピングの図と四隅の調整は出力ごとです。複数の出力に映しているレイヤーは、図の上の「位置合わせする出力」で切り替えます（出力ウィンドウ上で角をつかむと、その出力に切り替わります）。
+1. In Windows "Display settings", choose "Extend these displays".
+2. When VPT39 starts, a small window called "VPT39 Output 1" opens. **Drag it to the display (projector) you want to project on.**
+3. Press "**Fullscreen**" under "**Output windows**" at the bottom right of the control panel, and the window fills the display it is on. You can also switch with the **F key** or a **double-click** on the output window. Press it again to go back to the small window.
+4. To add displays, open Output 2, Output 3… with "**+ Add output**", then move each one to the display you want and make it fullscreen in the same way.
+5. Choose which output a layer is shown on with "Layers shown" in the "**Outputs**" tab, or with the "**Outputs**" checkboxes in "Layer settings". If you check more than one output, the same picture is shown on each at the same time.
+6. The mapping diagram and the four-corner adjustment are per output. For a layer shown on several outputs, switch with "Output to adjust" above the diagram (grabbing a corner on an output window also switches to that output).
 
-### 横長の画面（2台のプロジェクターで1枚の映像）
+### Wide picture (one picture with two projectors)
 
-1. 出力を2つ用意し、それぞれ左右のプロジェクターの画面でフルスクリーンにします。
-2. 「出力」タブで、出力2の「**出力1の右につなげて横長にする**」にチェックを入れます。出力1と出力2が1枚の横長の画面（例：1920+1920）になり、レイヤーはこの横長の画面に映します。
-3. プロジェクターの映像を少し重ねて設置するときは、「**重なり**」に重なっている幅（px）を入れます。重なり部分は両方の出力で同じ映像になり、なめらかにぼかしてつながります。
-4. 重なりが明るすぎる・暗すぎるときは、「**ガンマ**」を調整します（明るすぎる→大きく、暗すぎる→小さく。ふつうは 2.2）。
-- 3台以上もつなげられます（出力3を「出力2の右につなげる」）。左右のプロジェクターは同じ解像度にしてください。
+1. Prepare two outputs and make each one fullscreen on the left and right projector.
+2. In the "Outputs" tab, check "**Join to the right of Output 1 (wide)**" for Output 2. Output 1 and Output 2 become one wide picture (e.g. 1920+1920), and layers are shown on this wide picture.
+3. If the projector pictures overlap a little, enter the overlap width (px) in "**Overlap**". The overlapping area shows the same picture on both outputs and is blended smoothly.
+4. If the overlap is too bright or too dark, adjust "**Gamma**" (too bright → larger, too dark → smaller; usually 2.2).
+- Three or more can also be joined (set Output 3 to "join to the right of Output 2"). Use the same resolution for the left and right projectors.
 
-- 出力の解像度は、ふつうはそのウィンドウの大きさです（フルスクリーンならその画面の解像度）。「出力」タブの「**本番の解像度**」を選ぶと、ウィンドウの大きさに関係なくその大きさで描きます（形が違うときは黒い帯を付けて縮小表示）。四隅の位置は割合で覚えているので、ウィンドウの大きさを変えても形はそのままです。
-- フルスクリーンにした画面は記憶されるので、次に `run.bat` で起動すると同じ画面にフルスクリーンで開きます。
-- 「**手元に戻す**」：出力ウィンドウを、ウィンドウに戻してメイン画面の中央に持ってきます（見えない場所に行ってしまったとき用）。
-- 出力ウィンドウは × では閉じません（本番中の事故防止）。減らすときは操作パネルの ✕ から削除します。
-- 出力はいくつでも追加できます。映像は1回だけ読み込んで各出力に配るので、出力を増やしても動画の読み込みは増えません。
+- The output resolution is normally the size of its window (the display's resolution when fullscreen). If you choose a "**Show resolution**" in the "Outputs" tab, it draws at that size regardless of the window size (if the shape differs, it is shown scaled down with black bars). The four corner positions are stored as proportions, so the shape stays the same when you change the window size.
+- The display used for fullscreen is remembered, so the next time you start with `run.bat`, it opens fullscreen on the same display.
+- "**Bring back**": turns the output back into a window and brings it to the middle of the main display (for when it has ended up somewhere you cannot see).
+- Output windows do not close with × (to prevent accidents during the show). To remove one, delete it with ✕ in the control panel.
+- You can add as many outputs as you like. Each video is loaded only once and shared with all outputs, so adding outputs does not increase video loading.
 
-### 画面の配置・識別
+### Display layout and identify
 
-- 「出力ウィンドウ」欄の下に、つながっている画面の並び（Windows のディスプレイ設定と同じ配置）、解像度、拡大率が図で出ます。緑の枠は出力ウィンドウがある画面です。
-- 「**識別**」：各画面の真ん中に、操作パネルでの番号（画面1, 2…）を4秒間大きく表示します。Windows での番号も一緒に出ます（クリックで消えます）。
-- 「**ディスプレイ設定…**」：Windows の「ディスプレイ」設定を開きます。拡大縮小・解像度・画面の並びはここで変えます（本番中に変えると出力がずれるので、リハの前に済ませてください）。
-- プロジェクターの画面は拡大率 100% にしておくと確実です。
+- Below the "Output windows" section, a diagram shows the connected displays in their arrangement (the same as in Windows display settings), with resolution and scale. A green frame marks a display with an output window.
+- "**Identify**": shows the control panel's number (display 1, 2…) large in the middle of each display for 4 seconds. The Windows number is shown too (click to hide).
+- "**Display settings…**": opens the Windows "Display" settings. Change scale, resolution and display arrangement there (changing them during the show shifts the outputs, so do it before the rehearsal).
+- Setting projector displays to 100% scale is the safest.
 
-## 出力キーボード一覧（出力ウィンドウにフォーカスがあるとき）
+## Output window keys (when the output window has focus)
 
-| キー | 動作 |
+| Key | Action |
 |---|---|
-| F / F11 / ダブルクリック | その出力ウィンドウのフルスクリーン切り替え |
-| Space | レイヤー1を次のキューへ |
-| B | ブラックアウト |
-| E / Esc | マッピング編集のオン／オフ |
-| Ctrl+S | 保存 |
-| Ctrl+Q | 終了 |
+| F / F11 / double-click | Toggle fullscreen for that output window |
+| Space | Move layer 1 to the next cue |
+| B | Blackout |
+| E / Esc | Mapping edit on / off |
+| Ctrl+S | Save |
+| Ctrl+Q | Quit |
 
-## project.json の主な設定
+## Main settings in project.json
 
 ```json
 "outputs": [{"rect": [80, 80, 960, 540], "fullscreen": true, "fs_rect": [1920, 0, 1920, 1080], "volume": 1.0, "mute": false}],
@@ -205,39 +209,39 @@ VPT の「四隅変形マッピング」と、VJアプリのような「キュ�
 "media_dir": "media"
 ```
 
-- `outputs`：出力ウィンドウごとの設定です。`rect` はウィンドウのときの位置と大きさ、`fullscreen` と `fs_rect` はフルスクリーンにした画面です。操作パネルとウィンドウの操作で自動的に書き換わるので、手で直す必要はありません。
-- 古い形式（`"output": {"display": 1}` など）は、最初の起動時に自動で変換されます（その画面でフルスクリーン）。
-- `allow_lan`：スマホやタブレットから操作するか。操作パネルの上の帯の「**スマホ**」ボタンで切り替えると、ここに保存されます（起動し直す必要はありません）。オンにすると QR コードが出るので、スマホのカメラで読み取ります。合言葉がなく、同じネットワークの誰でも操作できてしまうので、会場の共用 Wi-Fi では使わず、終わったらオフにしてください。
-- 出力の「本番の解像度」（`res`）と、開いているセッティングの名前（`setting_name`）もここに入ります。
+- `outputs`: settings for each output window. `rect` is the position and size as a window; `fullscreen` and `fs_rect` are the display it was made fullscreen on. These are updated automatically by the control panel and by moving the windows, so you do not need to edit them by hand.
+- The old format (`"output": {"display": 1}` and so on) is converted automatically at the first start (fullscreen on that display).
+- `allow_lan`: whether to allow control from a phone or tablet. Switching it with the "**Phone**" button in the top bar of the control panel saves it here (no restart needed). When it is on, a QR code appears; scan it with the phone camera. There is no password, and anyone on the same network can control it, so do not use it on a venue's shared Wi-Fi, and turn it off when you are done.
+- The "Show resolution" of each output (`res`) and the name of the open setup (`setting_name`) are also stored here.
 
-## 写真ウォールとの連携
+## Using with a photo wall
 
-写真レイヤーの「フォルダ」に、確認済みの写真が入るフォルダを指定します（例：Dropbox の「承認済み」フォルダ）。新しい写真が入ると、数秒以内に優先して表示されます。書き込み途中のファイルを避けるため、保存されてから1秒待ってから読み込みます。
+In the "Folder" of the photo layer, choose a folder that receives approved photos (for example, an "approved" folder in Dropbox). When a new photo arrives, it is shown first within a few seconds. To avoid files that are still being written, it waits 1 second after a file is saved before loading it.
 
-素材の画像を写真ウォールの行へドラッグすると、フォルダの代わりにその画像を左から順に表示します（列で再生とは別に動きます。1枚だけなら出し続けます。画像を押すとすぐその画像に）。行を空にすると、フォルダの写真に戻ります。
+If you drag images from your media onto the photo wall row, those images are shown from left to right instead of the folder (this runs separately from "Play column". If there is only one, it stays on. Click an image to show it immediately). Empty the row to go back to the photos in the folder.
 
-## 注意・制限
+## Notes and limitations
 
-- 動画はレイヤーの解像度（標準 1920×1080）に引き伸ばされます。16:9 以外の素材は事前に書き出しておいてください。
-- 本番前に、**同じPC・同じプロジェクターで必ず通しリハ**をしてください。最初の起動時は Windows のファイアウォール確認が出ることがあります。
-- 動作が重い場合は、動画を H.264・1080p・30fps に書き出すと安定します。
-- カメラ入力：同じカメラを2つのクリップで同時に開くことはできません（同じカメラを別の場所にも映したいときは「レイヤーの映像」を使います）。音声は Windows の「既定のスピーカー」から出ます。
-- ウィンドウ取り込み：音声は取り込みません。著作権で保護された映像（動画配信サービスなど）は黒くなることがあります。
+- Videos are stretched to the layer resolution (1920×1080 by default). Export media that is not 16:9 beforehand.
+- Before the show, **always do a full rehearsal on the same PC with the same projectors**. At the first start, a Windows Firewall prompt may appear.
+- If playback is heavy, exporting videos as H.264, 1080p, 30fps makes it stable.
+- Camera input: the same camera cannot be opened by two clips at the same time (to show the same camera in another place too, use "Layer picture"). The sound comes from the Windows "default speaker".
+- Window capture: audio is not captured. Copy-protected video (such as streaming services) may appear black.
 
-## テスト用の素材
+## Test media
 
-`media\テスト用` に動作確認用の動画（カウント＋音、60fps のグリッド、カラーバー、横長 3840×1080、左右の音）と動く GIF・透明 PNG、真っ白・真っ黒（一番明るい・暗いの確認）、白・黒にグリッドと市松模様（キャリブレーション用）、月（まん丸。比率の確認）、`photos\テスト用` に形の違う写真と月が入っています。作り直すときは `.venv\Scripts\python.exe tools\make_test_media.py`（ffmpeg の部品 `imageio-ffmpeg` が必要）。
+`media\テスト用` contains videos for testing (count + sound, a 60fps grid, color bars, wide 3840×1080, left/right sound), an animated GIF and a transparent PNG, pure white and pure black (to check the brightest and darkest), white and black with grids and checkerboards (for calibration), and a moon (perfectly round, to check the aspect ratio). `photos\テスト用` contains photos of different shapes and the moon. To rebuild them, run `.venv\Scripts\python.exe tools\make_test_media.py` (requires the ffmpeg component `imageio-ffmpeg`).
 
-## ほかの人に渡すとき
+## Giving it to other people
 
-`VPT39_配布用.zip` を渡します。受け取った人は、ZIP を展開して「セットアップ（Windows、最初の1回だけ）」の手順を行います（`.venv` などの環境は含まれていないので、`setup.bat` で作り直します）。
+Give them `VPT39_配布用.zip`. The recipient extracts the ZIP and follows the steps in "Setup (Windows, first time only)" (environments such as `.venv` are not included, so they are rebuilt with `setup.bat`).
 
-## ライセンス
+## License
 
-VPT39 は **MIT ライセンス** で配布しています（全文は [LICENSE](LICENSE)）。
+VPT39 is distributed under the **MIT License** (full text in [LICENSE](LICENSE)).
 
-- 誰でも自由に使えます：使う・コピーする・改造する・配る・作品やイベント（有料のものも）で使う。
-- 条件は、コピーや改造版を配るときに、著作権表示と LICENSE の文を残すことだけです。
-- 作者は動作を保証せず、使ったことで起きた問題の責任を負いません。本番の前には必ずリハで確かめてください。
+- Anyone can use it freely: use, copy, modify, distribute, and use it in works and events (including paid ones).
+- The only condition is that when you distribute copies or modified versions, you keep the copyright notice and the LICENSE text.
+- The author does not guarantee that it works and is not responsible for problems caused by using it. Always check it in a rehearsal before the show.
 
-使っている部品（VLC など）のライセンスは [THIRD_PARTY.md](THIRD_PARTY.md) にあります。
+The licenses of the components it uses (VLC and others) are in [THIRD_PARTY.md](THIRD_PARTY.md).
