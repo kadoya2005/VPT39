@@ -5,6 +5,7 @@
 - 映像は見えないメインの OpenGL 環境で出力ごとのフレームバッファに描き、
   各ウィンドウはそれを貼り付けるだけ（テクスチャを共有）。
 """
+from i18n import tr
 import time
 import ctypes
 
@@ -164,7 +165,7 @@ class OutputWindow:
         return f'出力{self.index + 1}'
 
     def title(self):
-        return f'VPT39 {self.name()}（投影したい画面へ移動して「フルスクリーン」／F キー／ダブルクリック）'
+        return tr(f'VPT39 {self.name()}（投影したい画面へ移動して「フルスクリーン」／F キー／ダブルクリック）')
 
     def size(self):
         w, h = glfw.get_framebuffer_size(self.win)

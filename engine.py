@@ -1,4 +1,5 @@
 """レイヤー・合成・四隅変形（ホモグラフィ）描画"""
+from i18n import tr
 import os
 import time
 import copy
@@ -18,7 +19,7 @@ XF0, WIPE0 = (0.0, 0.0, 1.0), (0.0, 0.0)
 
 def layer_defaults(kind='video', name=None):
     d = {
-        'name': name or ('写真ウォール' if kind == 'photo' else '動画レイヤー'),
+        'name': name or tr('写真ウォール' if kind == 'photo' else '動画レイヤー'),
         'kind': kind,
         'visible': True,
         'opacity': 1.0,

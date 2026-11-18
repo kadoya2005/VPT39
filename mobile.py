@@ -6,6 +6,7 @@ PAGE = r"""<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#0a0b0d">
 <title>VPT39 セッティング</title>
+<!--I18N-->
 <style>
 :root{--bg:#0e1013;--panel:#171a1f;--panel2:#1f232a;--line:#2b3038;--text:#e6e8eb;--dim:#8a919c;
 --acc:#3dd68c;--warn:#ffb020;--red:#ff4d4f;--hov:#a9ecc9;--hovtx:#06291a}
@@ -91,7 +92,7 @@ async function poll(){
   try{
     const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),2500);
     const r=await fetch('/api/mstate',{cache:'no-store',signal:ctl.signal}); clearTimeout(t);
-    S=await r.json(); lastOk=Date.now(); render();
+    S=await r.json(); setLang(S.lang); lastOk=Date.now(); render();
   }catch(e){}
 }
 function loop(){poll(); setTimeout(loop,Date.now()<fast?120:300);}

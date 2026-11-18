@@ -13,5 +13,6 @@ exit /b
 
 :nosetup
 echo VPT39 の準備がまだか、別のPCで準備した状態です。先に setup.bat をダブルクリックしてください。
+echo VPT39 is not set up on this PC yet. Double-click setup.bat first.
 pause
 exit /b 1

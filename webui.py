@@ -6,6 +6,7 @@ from urllib.parse import urlparse, parse_qs
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 import thumbs
+import i18n
 
 _app = None
 
@@ -26,6 +27,16 @@ def _thumb_path(rel):
     return path if os.path.isfile(path) else None
 
 
+_pages = {}
+
+
+def page(src):
+    """ページに言語の切り替え（i18n.SCRIPT）を入れる"""
+    if src not in _pages:
+        _pages[src] = src.replace('<!--I18N-->', i18n.script()).encode('utf-8')
+    return _pages[src]
+
+
 def _no_nan(s):
     raise ValueError('NaN / Infinity は受け付けない')  # 1つでも入ると操作パネルの JSON が壊れるため
 
@@ -44,7 +55,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if urlparse(self.path).path in ('/', '/index.html'):  # /?view=media など（別ウィンドウの欄）も同じページ
-            self._send(200, PAGE.encode('utf-8'), 'text/html; charset=utf-8')
+            self._send(200, page(PAGE), 'text/html; charset=utf-8')
         elif self.path.startswith('/api/state'):
             self._send(200, _app.get_state(), 'application/json; charset=utf-8')
         elif self.path.startswith('/api/qr.svg'):  # スマホで開くアドレスの QR コード（このPCの画面に出す）
@@ -59,7 +70,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, _app.get_state(mobile=True), 'application/json; charset=utf-8')
         elif urlparse(self.path).path in ('/m', '/m/'):  # スマホ用（セッティングモード）
             import mobile
-            self._send(200, mobile.PAGE.encode('utf-8'), 'text/html; charset=utf-8')
+            self._send(200, page(mobile.PAGE), 'text/html; charset=utf-8')
         elif self.path.startswith('/thumb?'):
             self._thumb()
         else:
@@ -267,6 +278,7 @@ PAGE = r"""<!DOCTYPE html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>VPT39 操作パネル</title>
+<!--I18N-->
 <style>
 :root{--bg:#0e1013;--panel:#171a1f;--panel2:#1f232a;--line:#2b3038;--text:#e6e8eb;--dim:#8a919c;
 --acc:#3dd68c;--warn:#ffb020;--red:#ff4d4f;--blue:#4da3ff;
@@ -276,7 +288,7 @@ PAGE = r"""<!DOCTYPE html>
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif;
 display:flex;flex-direction:column;overflow:hidden}
-header{flex:none;display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:#0a0b0d;border-bottom:1px solid var(--line)}
+header{flex:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:#0a0b0d;border-bottom:1px solid var(--line)}
 h1{font-size:24px;margin:0;letter-spacing:.06em;color:var(--acc);font-weight:800;line-height:1}
 h1 small{color:var(--dim);font-weight:400;margin-left:8px;font-size:12px}
 button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
@@ -469,6 +481,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <span class="msg" id="msg"></span>
   <button id="lanbtn" title="スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）">スマホ</button>
   <button id="setbtn" title="会場・公演ごとの設定ファイル（名前を付けて保存・開く・複製・削除）">セッティング：<b id="setname">（名前なし）</b> ▾</button>
+  <button id="langbtn" class="sm" title="言語 / Language">EN</button>
   <button id="save">保存</button>
   <button id="quit">終了</button>
 </header>
@@ -1158,7 +1171,7 @@ function buildLan(){
       `<button class="sm" id="lanrefresh" title="Wi-Fi を変えたときなど">アドレスを調べ直す</button>`:'';
   if($('lanrefresh')) $('lanrefresh').onclick=()=>{lanKey=''; cmd({cmd:'lan_refresh'});};
   $('lanhint').innerHTML=on?
-    '① PC とスマホを<b>同じ Wi-Fi</b> につなぐ　② スマホのカメラで QR コードを読み取る（または上のアドレスを入れる）　③ 開いたページで四隅を合わせる。<br>'+
+    T('① PC とスマホを<b>同じ Wi-Fi</b> につなぐ　② スマホのカメラで QR コードを読み取る（または上のアドレスを入れる）　③ 開いたページで四隅を合わせる。<br>')+
     '合言葉がないので、同じ Wi-Fi の人なら誰でも操作できます。自分のルーターかスマホのテザリングで使い、終わったら「やめる」を押してください。会場・学校・ホテルの Wi-Fi ではつながらないことがあります。'
     :'押すと、同じ Wi-Fi のスマホから四隅の位置合わせができるようになります（起動し直す必要はありません）。初めてのときは Windows の「セキュリティの重要な警告」が出るので、「プライベート ネットワーク」にチェックして「アクセスを許可する」を押してください。';
 }
@@ -1175,7 +1188,7 @@ function buildSettings(){
   $('setname').textContent=nm||'（名前なし）'; $('setbtn').classList.toggle('none',!nm);
   if($('setdlg').classList.contains('hide')) return;
   const k=JSON.stringify([nm,S.settings]); if(k===setKey) return; setKey=k;
-  $('setcur').innerHTML=nm?`いま開いている：<b style="color:var(--acc)">${esc(nm)}</b>（変えると自動で上書き保存）`:
+  $('setcur').innerHTML=nm?T(`いま開いている：<b style="color:var(--acc)">${esc(nm)}</b>（変えると自動で上書き保存）`):
     'いまの状態には名前が付いていません。残しておくなら、名前を付けて保存してください。';
   const L=S.settings||[];
   $('setlist').innerHTML=L.length?L.map(r=>`<div class="setrow ${r.name===nm?'cur':''}"><span class="nm" title="${esc(r.name)}">${esc(r.name)}</span>
@@ -1189,7 +1202,7 @@ function buildSettings(){
     if(confirm(`セッティング「${n}」を開きますか？\n\n${note}\nレイヤー・クリップ・マッピング・出力ウィンドウが切り替わります。`)){cmd({cmd:'setting_open',name:n}); closeSettings();}});
   $('setlist').querySelectorAll('[data-sdup]').forEach(b=>b.onclick=()=>{const src=b.dataset.sdup;
     if(src!==nm){alert('複製は、いま開いているセッティングから作ります。先に「'+src+'」を開いてください。');return;}
-    const n=prompt('新しい名前（いまの内容をこの名前で保存して、こちらを開いた状態にします）',src+' のコピー');
+    const n=prompt('新しい名前（いまの内容をこの名前で保存して、こちらを開いた状態にします）',T(src+' のコピー'));
     if(n) saveAs(n);});
   $('setlist').querySelectorAll('[data-sdel]').forEach(b=>b.onclick=()=>{const n=b.dataset.sdel;
     if(confirm(`セッティング「${n}」をごみ箱へ移しますか？（ごみ箱から戻せます）`+(n===nm?'\n\nいま開いているセッティングです。いまの状態は残りますが、名前なしになります。':''))) cmd({cmd:'setting_delete',name:n});});
@@ -1208,6 +1221,7 @@ $('setclose').onclick=closeSettings;
 $('setdlg').addEventListener('click',e=>{ if(e.target.id==='setdlg') closeSettings(); });
 $('setsaveas').onclick=()=>saveAs($('setnew').value);
 $('setnew').addEventListener('keydown',e=>{ if(e.key==='Enter') saveAs($('setnew').value); });
+$('langbtn').onclick=()=>cmd({cmd:'lang',value:LANG==='en'?'ja':'en'});
 $('quit').onclick=()=>{ if(confirm('VPT39 を終了しますか？（設定は保存されます）')) cmd({cmd:'quit'}); };
 $('mfilter').addEventListener('input',()=>{ if(S) buildMedia(); });
 $('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
@@ -1241,7 +1255,7 @@ document.querySelectorAll('#cornsel [data-c]').forEach(b=>b.onclick=()=>{S.sel_c
 
 async function poll(){
   try{
-    const r=await fetch('/api/state'); S=await r.json();
+    const r=await fetch('/api/state'); S=await r.json(); setLang(S.lang);
     const mkey=S.media.join('\n')+'|'+S.boot+'|'+((S.inputs||{}).mics||[]).join('|');
     applyDetached(); buildOuts(); buildMixer(); buildSettings();
     if(S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){

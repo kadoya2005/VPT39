@@ -26,6 +26,8 @@ from engine import Layer, Renderer, layer_defaults, DEFAULT_CORNERS, BLENDS, CUE
 from sources import backend_name, is_video, is_image, list_cameras, list_mics, list_windows, list_spout
 from outputs import OutputWindow, gl_hints, monitors, monitor_info
 import webui
+import i18n
+from i18n import tr
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -36,11 +38,11 @@ def new_id():
 
 
 def default_project():
-    bg = layer_defaults('video', '背景動画')
-    ov = layer_defaults('video', 'オーバーレイ')
+    bg = layer_defaults('video', tr('背景動画'))
+    ov = layer_defaults('video', tr('オーバーレイ'))
     ov['blend'] = 'screen'
     ov['audio'] = False
-    ph = layer_defaults('photo', '写真ウォール')
+    ph = layer_defaults('photo', tr('写真ウォール'))
     ph['corners'] = [[0.62, 0.08], [0.95, 0.08], [0.95, 0.52], [0.62, 0.52]]
     ph['visible'] = False
     return {
@@ -691,6 +693,11 @@ class App:
             self._grp = None
             self._fix_places()
             self.touch(True)
+        elif cmd == 'lang':
+            i18n.set_lang(c.get('value'))
+            for o in self.outs:
+                glfw.set_window_title(o.win, o.title())
+            self.rev += 1
         elif cmd == 'save':
             self.save()
             self.message = '保存しました'
@@ -721,7 +728,7 @@ class App:
                 sub += '（メイン）'
             if m['outputs']:
                 sub += '\n' + '、'.join(m['outputs'])
-            items.append({'rect': m['rect'], 'label': str(k + 1), 'sub': sub})
+            items.append({'rect': m['rect'], 'label': str(k + 1), 'sub': '\n'.join(tr(x) for x in sub.split('\n'))})
         exe = sys.executable
         if exe.lower().endswith('python.exe'):
             w = exe[:-len('python.exe')] + 'pythonw.exe'
@@ -957,13 +964,14 @@ class App:
         st['allow_lan'] = bool(self.proj.get('allow_lan'))
         st['setting_name'] = self.proj.get('setting_name') or ''
         st['settings'] = self.list_settings()
+        st['lang'] = i18n.get_lang()
         data = json.dumps(st, ensure_ascii=False).encode('utf-8')
         # スマホ用：位置合わせに要るものだけ（Wi-Fi でも軽く・速く）
         mst = {
             'rev': self.rev, 'boot': self.boot, 'edit': self.edit, 'selected': self.selected,
             'map_out': self.map_out, 'sel_corner': self.sel_corner, 'targets': targets,
             'size': st['size'], 'blackout': self.blackout, 'undo': len(self.corner_hist),
-            'message': self.message,
+            'message': self.message, 'lang': st['lang'],
             'layers': [{k: x[k] for k in ('id', 'name', 'kind', 'visible', 'test', 'opacity', 'feather', 'places')}
                        for x in ls],
         }
@@ -1171,7 +1179,7 @@ class App:
         if self.proj.get('allow_lan'):
             self.set_lan(True, save=False)
         url = f'http://localhost:{port}/'
-        print(f'操作パネル: {url}   （出力映像の再生: {backend_name()}、出力 {len(self.outs)}）')
+        print(tr(f'操作パネル: {url}   （出力映像の再生: {backend_name()}、出力 {len(self.outs)}）'))
         if not os.environ.get('STAGEMAPPER_NO_BROWSER'):
             threading.Timer(0.8, lambda: webbrowser.open(url)).start()
 
