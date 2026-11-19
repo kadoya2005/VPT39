@@ -258,6 +258,7 @@ class CvVideoSource(Source):
         self.seekable = n > 0
         self._seek = None
         self._born = time.time()
+        self.failed = False  # 先頭から1枚も読めない（壊れたファイル・対応していない形式）
         self.th = threading.Thread(target=self._run, daemon=True)
         self.th.start()
 
@@ -276,6 +277,7 @@ class CvVideoSource(Source):
     def _run(self):
         start = time.perf_counter()
         idx = 0
+        fails = 0  # 頭から読もうとして続けて失敗した回数
         while self.running:
             if self._seek is not None:
                 idx = int(self._seek * self.n)
@@ -292,6 +294,14 @@ class CvVideoSource(Source):
                 continue
             ok, img = self.cap.read()
             if not ok:
+                if idx == 0:
+                    # 頭から1枚も読めない：待たずにくり返すと CPU を使い続けるので、少し待って数回であきらめる
+                    fails += 1
+                    time.sleep(0.05)
+                    if fails >= 3:
+                        self.failed = True
+                        self.ended = True
+                        continue
                 if self.mode == 'loop':
                     self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     start = time.perf_counter()
@@ -299,6 +309,7 @@ class CvVideoSource(Source):
                     continue
                 self.ended = True  # 最後で待つ（シークされたら再開）
                 continue
+            fails = 0
             with self.lock:
                 self._frame = img
                 self._fid += 1
