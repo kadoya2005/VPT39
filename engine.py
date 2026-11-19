@@ -356,11 +356,14 @@ class Layer:
             if d.target > 0:
                 top = d
                 break
+        # 次々に切り替えたとき、まだ一度も映っていない途中の素材（一番上より下で alpha が 0）もすぐ解放する
+        # （準備中の動画が何本もたまらないように。途中の素材が一瞬映るのも防ぐ）
         keep = []
-        for d in self.decks:
+        ti = self.decks.index(top) if top is not None else -1
+        for i, d in enumerate(self.decks):
             dead = (d.target <= 0 and d.alpha <= 0) or \
-                   (top is not None and d is not top and top.alpha >= 1.0 and
-                    self.decks.index(d) < self.decks.index(top))
+                   (top is not None and d is not top and i < ti and
+                    (top.alpha >= 1.0 or d.alpha <= 0))
             if dead:
                 d.release()
             else:
