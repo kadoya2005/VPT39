@@ -110,6 +110,9 @@ class VlcVideoSource(Source):
         self._latest = None
         self._fid = 0
         self.fid = 0
+        # 裏で行う stop()／play()／release() を1つずつ順番に（同じプレイヤーへの操作が重ならないように）
+        self._op_lock = threading.Lock()
+        self.closing = False  # release() を呼んだあと：もう操作しない
 
         # VLC が映像を書き込む場所を教えるだけ（ここではロックしない）
         @vlc.CallbackDecorators.VideoLockCb
@@ -173,6 +176,8 @@ class VlcVideoSource(Source):
 
     def set_paused(self, p):
         self.paused = bool(p)
+        if self.closing:
+            return
         st = self.player.get_state()
         if not p and st in (vlc.State.Ended, vlc.State.Stopped) and self._pending is None:
             self.seek(0.0)  # 終わったものを再生 → 頭から
@@ -181,6 +186,8 @@ class VlcVideoSource(Source):
 
     def seek(self, frac):
         frac = max(0.0, min(0.999, float(frac)))
+        if self.closing:
+            return
         st = self.player.get_state()
         if st in (vlc.State.Playing, vlc.State.Paused):
             self.player.set_position(frac)
@@ -189,11 +196,14 @@ class VlcVideoSource(Source):
                 p = self.player
 
                 def work():  # stop() は時間がかかることがあるので、映像を止めないよう裏で
-                    try:
-                        p.stop()
-                        p.play()
-                    except Exception:
-                        pass
+                    with self._op_lock:
+                        if self.closing:  # 待っている間に解放が決まった
+                            return
+                        try:
+                            p.stop()
+                            p.play()
+                        except Exception:
+                            pass
                 threading.Thread(target=work, daemon=True).start()
             self._pending = frac
         self.ended = False
@@ -229,12 +239,18 @@ class VlcVideoSource(Source):
 
     def release(self):
         # stop() は少し時間がかかるので、映像が止まらないよう裏で実行
+        # 頭出し（stop→play）の途中なら、それが終わってから解放する
+        if self.closing:
+            return  # 2回目は何もしない
+        self.closing = True
+
         def work():
-            try:
-                self.player.stop()
-                self.player.release()
-            except Exception:
-                pass
+            with self._op_lock:
+                try:
+                    self.player.stop()
+                    self.player.release()
+                except Exception:
+                    pass
         threading.Thread(target=work, daemon=True).start()
 
 
