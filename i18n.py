@@ -109,9 +109,11 @@ EN = {
     '① PC とスマホを<b>同じ Wi-Fi</b> につなぐ　② スマホのカメラで QR コードを読み取る（または上のアドレスを入れる）　③ 開いたページで四隅を合わせる。<br>':
         '① Connect the PC and the phone to <b>the same Wi-Fi</b>&nbsp; ② Scan the QR code with the phone camera '
         '(or type the address above)&nbsp; ③ Adjust the corners on the page that opens.<br>',
-    '合言葉がないので、同じ Wi-Fi の人なら誰でも操作できます。自分のルーターかスマホのテザリングで使い、終わったら「やめる」を押してください。会場・学校・ホテルの Wi-Fi ではつながらないことがあります。':
-        'There is no password, so anyone on the same Wi-Fi can control it. Use your own router or phone tethering, '
-        'and press "Stop" when you are done. Venue, school or hotel Wi-Fi may not connect.',
+    'QR コードのアドレスには合言葉が入っていて、それを読み取ったスマホだけが操作できます（スマホの画面の操作だけ。素材の削除などは PC からだけ）。合言葉は、オンにし直したときと VPT39 を起動し直したときに変わります（スマホで QR を読み直す）。自分のルーターかスマホのテザリングで使い、終わったら「やめる」を押してください。会場・学校・ホテルの Wi-Fi ではつながらないことがあります。':
+        'The QR code address contains a key, so only phones that scanned it can control VPT39 (only what the phone page does; '
+        'deleting media and so on works only from the PC). The key changes when you turn this on again or restart VPT39 '
+        '(scan the QR code again). Use your own router or phone tethering, and press "Stop" when you are done. '
+        'Venue, school or hotel Wi-Fi may not connect.',
     '押すと、同じ Wi-Fi のスマホから四隅の位置合わせができるようになります（起動し直す必要はありません）。初めてのときは Windows の「セキュリティの重要な警告」が出るので、「プライベート ネットワーク」にチェックして「アクセスを許可する」を押してください。':
         'Press it to adjust the corners from a phone on the same Wi-Fi (no restart needed). The first time, Windows shows '
         'a "Windows Security Alert": check "Private networks" and press "Allow access".',

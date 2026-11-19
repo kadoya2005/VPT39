@@ -1017,8 +1017,10 @@ class App:
     def set_lan(self, on, save=True):
         """起動したまま、スマホから開けるようにする／やめる。設定（allow_lan）にも残す"""
         if on:
+            if not self.lan_urls or not webui.lan_key():
+                webui.new_lan_key()  # オンにするたびに新しい合言葉（「アドレスを調べ直す」では変えない）
             ips = webui.lan_start(lan_ips())
-            self.lan_urls = [f'http://{ip}:{self.web_port}/m' for ip in ips]
+            self.lan_urls = [f'http://{ip}:{self.web_port}/m?k={webui.lan_key()}' for ip in ips]
             for u in self.lan_urls:
                 print('スマホ（セッティング）:', u)
             if not ips:

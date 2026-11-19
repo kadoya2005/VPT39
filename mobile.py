@@ -92,6 +92,7 @@ async function poll(){
   try{
     const ctl=new AbortController(), t=setTimeout(()=>ctl.abort(),2500);
     const r=await fetch('/api/mstate',{cache:'no-store',signal:ctl.signal}); clearTimeout(t);
+    if(r.status===403){location.reload(); return;}  // 合言葉が変わった → 「QR を読み直して」の案内を出す
     S=await r.json(); setLang(S.lang); lastOk=Date.now(); render();
   }catch(e){}
 }

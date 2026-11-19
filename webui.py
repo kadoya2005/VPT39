@@ -1,14 +1,47 @@
 """ブラウザ操作パネル（標準ライブラリだけで動く小さなWebサーバー）"""
 import os
+import hmac
 import json
+import secrets
 import threading
 from urllib.parse import urlparse, parse_qs
+from http.cookies import SimpleCookie
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
 import thumbs
 import i18n
 
 _app = None
+
+# ---- スマホ用の受け口（LAN）の合言葉と、スマホから許す操作 ----
+# 合言葉は QR コードのアドレス（/m?k=…）に入れて渡し、スマホではクッキーに覚える。
+# スマホからは四隅合わせの画面で使う操作だけ許す（素材の削除・アップロード、PC の操作パネルは PC からだけ）。
+_lan_key = ''
+LAN_GET = {'/m', '/m/', '/api/mstate'}
+LAN_CMDS = {'corners', 'edit', 'map_out', 'nudge', 'reset_corners', 'sel_corner', 'select', 'set', 'undo_corners'}
+LAN_SET_KEYS = {'test', 'opacity', 'feather'}
+LAN_DENY = ('<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width">'
+            '<body style="font:18px sans-serif;padding:24px;background:#111;color:#eee">'
+            '<p>QR コードを読み取り直してください（PC の操作パネルの「スマホ」ボタン）。</p>'
+            '<p>Please scan the QR code again (the "Phone" button on the PC control panel).</p>').encode('utf-8')
+
+
+def new_lan_key():
+    """スマホ用の合言葉を作り直す（前の合言葉のスマホは操作できなくなる）"""
+    global _lan_key
+    abc = 'abcdefghjkmnpqrstuvwxyz23456789'  # 見まちがえやすい文字（0 o 1 l i）は使わない
+    _lan_key = ''.join(secrets.choice(abc) for _ in range(8))
+    return _lan_key
+
+
+def lan_key():
+    return _lan_key
+
+
+def lan_allowed(c):
+    """スマホから送ってよい操作か"""
+    cmd = c.get('cmd')
+    return cmd in LAN_CMDS and (cmd != 'set' or c.get('key') in LAN_SET_KEYS)
 
 
 def _thumb_path(rel):
@@ -45,15 +78,42 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a):
         pass
 
-    def _send(self, code, body, ctype, cache='no-store'):
+    def _send(self, code, body, ctype, cache='no-store', headers=None):
         self.send_response(code)
         self.send_header('Content-Type', ctype)
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', cache)
+        for k, v in (headers or {}).items():
+            self.send_header(k, v)
         self.end_headers()
         self.wfile.write(body)
 
+    def _via_lan(self):
+        """スマホ用の受け口（LAN）から来たか（このPCの中＝127.0.0.1 の受け口なら False）"""
+        return self.server in _lan.values()
+
+    def _lan_auth(self):
+        """合言葉（アドレスの k= か、クッキー）が合っているか"""
+        if not _lan_key:
+            return False
+        q = (parse_qs(urlparse(self.path).query).get('k') or [''])[0]
+        try:
+            c = SimpleCookie(self.headers.get('Cookie') or '')
+            ck = c['vptk'].value if 'vptk' in c else ''
+        except Exception:
+            ck = ''
+        key = _lan_key.encode('utf-8')
+        return any(hmac.compare_digest(x.encode('utf-8'), key) for x in (q, ck) if x)
+
     def do_GET(self):
+        if self._via_lan():
+            p = urlparse(self.path).path
+            if p not in LAN_GET or not self._lan_auth():
+                return self._send(403, LAN_DENY, 'text/html; charset=utf-8')
+            if p in ('/m', '/m/'):  # 合言葉をクッキーに覚えてもらう（ページ内の通信で自動で送られる）
+                import mobile
+                return self._send(200, page(mobile.PAGE), 'text/html; charset=utf-8',
+                                  headers={'Set-Cookie': f'vptk={_lan_key}; Path=/; HttpOnly; SameSite=Strict'})
         if urlparse(self.path).path in ('/', '/index.html'):  # /?view=media など（別ウィンドウの欄）も同じページ
             self._send(200, page(PAGE), 'text/html; charset=utf-8')
         elif self.path.startswith('/api/state'):
@@ -94,6 +154,9 @@ class Handler(BaseHTTPRequestHandler):
         if origin and urlparse(origin).netloc.lower() != (self.headers.get('Host') or '').lower():
             return self._send(403, b'{"ok":false}', 'application/json')
         p = urlparse(self.path).path
+        lan = self._via_lan()
+        if lan and (p != '/api/cmd' or not self._lan_auth()):
+            return self._send(403, b'{"ok":false}', 'application/json')
         if p == '/api/upload':
             return self._upload()
         if p == '/api/media_delete':
@@ -108,7 +171,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, b'{"ok":false}', 'application/json')
         for c in (data if isinstance(data, list) else [data]):
-            if isinstance(c, dict):
+            if isinstance(c, dict) and (not lan or lan_allowed(c)):
                 _app.cmd_q.put(c)
         self._send(200, b'{"ok":true}', 'application/json')
 
@@ -1172,7 +1235,7 @@ function buildLan(){
   if($('lanrefresh')) $('lanrefresh').onclick=()=>{lanKey=''; cmd({cmd:'lan_refresh'});};
   $('lanhint').innerHTML=on?
     T('① PC とスマホを<b>同じ Wi-Fi</b> につなぐ　② スマホのカメラで QR コードを読み取る（または上のアドレスを入れる）　③ 開いたページで四隅を合わせる。<br>')+
-    '合言葉がないので、同じ Wi-Fi の人なら誰でも操作できます。自分のルーターかスマホのテザリングで使い、終わったら「やめる」を押してください。会場・学校・ホテルの Wi-Fi ではつながらないことがあります。'
+    'QR コードのアドレスには合言葉が入っていて、それを読み取ったスマホだけが操作できます（スマホの画面の操作だけ。素材の削除などは PC からだけ）。合言葉は、オンにし直したときと VPT39 を起動し直したときに変わります（スマホで QR を読み直す）。自分のルーターかスマホのテザリングで使い、終わったら「やめる」を押してください。会場・学校・ホテルの Wi-Fi ではつながらないことがあります。'
     :'押すと、同じ Wi-Fi のスマホから四隅の位置合わせができるようになります（起動し直す必要はありません）。初めてのときは Windows の「セキュリティの重要な警告」が出るので、「プライベート ネットワーク」にチェックして「アクセスを許可する」を押してください。';
 }
 $('lanbtn').onclick=()=>{ $('landlg').classList.remove('hide'); lanKey=''; buildLan(); };
