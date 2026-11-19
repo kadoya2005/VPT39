@@ -400,7 +400,9 @@ EN = {
         'Cannot be used because the two layers would show each other (the source layer shows this layer)',
     '再生できません（ファイルが壊れているか、対応していない形式）: {0}':
         'Cannot play (the file is broken or the format is not supported): {0}',
-    '元のレイヤーが削除されたため、レイヤー映像を映せません': 'The source layer was deleted, so the layer picture cannot be shown',
+    '15秒たっても映像が出ないので、切り替えをやめました（読み込みが遅い・ファイルが壊れているなど）':
+        'No picture after 15 seconds, so the switch was cancelled (slow loading or a broken file)',
+    '元のレイヤーが削除されたため、レイヤー映像を映せません':'The source layer was deleted, so the layer picture cannot be shown',
     '画像を読み込めません: {0}': 'Cannot load the image: {0}',
     'カメラの映像が来ません: {0}（ケーブル・電源、または他のアプリやレイヤーが使用中）':
         'No picture from the camera: {0} (check the cable and power, or another app or layer may be using it)',

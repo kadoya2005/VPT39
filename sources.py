@@ -147,17 +147,21 @@ class VlcVideoSource(Source):
 
     @property
     def ready(self):
-        # 最初のフレームが届いたら準備完了（読み込めない・音声だけの素材でも3秒で先へ進む）
-        # ライブ入力は映像が来るまで待つ（開くのに時間がかかるカメラで、黒い画面に切り替わらないように）
+        # 最初のフレームが届いたら準備完了。それまでは前の素材を流し続ける
+        # （読み込みに時間がかかる動画・まだダウンロードされていない Dropbox のファイルなどで、黒い画面に切り替わらないように）
+        # 映像が出ないまま一定時間たったら failed になり、前の素材のまま赤字で知らせる
         if self.live:
             return self._fid > 0
-        return self._fid > 0 or (self.ended and not self.failed) or time.time() - self._born > 3.0
+        return self._fid > 0 or (self.ended and not self.failed)
 
     @property
     def failed(self):
         # 一度も映像が出ないまま終わった・エラーになった（壊れたファイル、映像の入っていないファイルなど）
         if self._fid > 0 or self._pending is not None:
             return False
+        if not self.live and time.time() - self._born > 15.0:
+            self.fail_msg = '15秒たっても映像が出ないので、切り替えをやめました（読み込みが遅い・ファイルが壊れているなど）'
+            return True
         if self.live and time.time() - self._born > 12.0:
             return True  # 12秒たっても映像が来ないカメラ
         st = self.player.get_state()
