@@ -13,6 +13,7 @@ import json
 import math
 import time
 import queue
+import shutil
 import argparse
 import threading
 import subprocess
@@ -769,8 +770,36 @@ class App:
         self._write_json(self.project_path, self.proj)
         name = self.proj.get('setting_name')
         if name and clean_setting_name(name):
+            self.backup_setting(name)
             self._write_json(self.setting_path(name), self.proj)
         self.dirty = False
+
+    BACKUP_EVERY = 600   # 同じセッティングのバックアップは10分に1回まで
+    BACKUP_KEEP = 10     # セッティングごとに残す数（古いものから消す）
+
+    def backup_setting(self, name):
+        """上書きする前のセッティングを settings\\_backup に残す（自動保存で本番用の設定を変えてしまっても戻せるように）"""
+        p = self.setting_path(name)
+        if not os.path.isfile(p):
+            return
+        last = getattr(self, '_backup_at', {})
+        self._backup_at = last
+        now = time.time()
+        if now - last.get(name, 0.0) < self.BACKUP_EVERY:
+            return
+        last[name] = now
+        try:
+            d = os.path.join(self.settings_dir, '_backup')
+            os.makedirs(d, exist_ok=True)
+            stamp = time.strftime('%Y%m%d-%H%M%S', time.localtime(os.path.getmtime(p)))
+            shutil.copy2(p, os.path.join(d, f'{name}_{stamp}.json'))
+            mine = sorted(fn for fn in os.listdir(d)
+                          if fn.startswith(name + '_') and fn.endswith('.json')
+                          and len(fn) == len(name) + 21)  # 名前_YYYYMMDD-HHMMSS.json
+            for fn in mine[:-self.BACKUP_KEEP]:
+                os.remove(os.path.join(d, fn))
+        except OSError as ex:
+            print('セッティングのバックアップを作れません:', ex)
 
     @staticmethod
     def _write_json(path, data):
