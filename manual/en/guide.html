@@ -358,15 +358,15 @@ ERROR: No matching distribution found for …</span>
     <li><b>Double-click run.bat</b><br>If a black output window and the control panel in the browser open, it works (Chapter 3).</li>
     <li><b>The first time only, if a "Windows Security Alert" appears, allow it</b><br>It is a check for the connection used to control VPT39 from a phone or tablet.</li>
   </ol>
-  <div class="tip"><b class="h">Normally</b>just double-click run.bat. If any component is missing, it is installed automatically before starting.</div>
+  <div class="tip"><b class="h">Normally</b>just double-click run.bat. Use setup.bat to install components.</div>
 </section>
 
 <section class="chap">
   <h3 style="margin-top:0">What is in the folder</h3>
   <table>
     <tr><th style="width:42mm">Name</th><th>What it is for</th></tr>
-    <tr><td class="k">run.bat</td><td>Normal start. Outputs that were fullscreen last time open fullscreen on the same display</td></tr>
-    <tr><td class="k">run_window.bat</td><td>Opens all outputs as windows, for this run only (for preparation and rehearsal; settings are not changed)</td></tr>
+    <tr><td class="k">run.bat</td><td>Double-click to open all outputs as windows</td></tr>
+    <tr><td class="k">.\run.bat --fullscreen</td><td>Run in PowerShell to restore the saved fullscreen layout</td></tr>
     <tr><td class="k">setup.bat</td><td>First-time setup (④ above)</td></tr>
     <tr><td class="k">.venv</td><td>VPT39's own component folder, made by setup.bat (if deleted, run setup.bat again)</td></tr>
     <tr><td class="k">media</td><td>Folder for videos and images (subfolders are OK)</td></tr>
@@ -917,7 +917,7 @@ void draw() {
   <h3>If the app crashes</h3>
   <ol class="steps">
     <li>Use <b>AV mute</b> (picture mute) on the projector's remote so the audience does not see the desktop</li>
-    <li>Double-click <b>run.bat</b></li>
+    <li>Run <b>.\run.bat --fullscreen</b> in PowerShell</li>
     <li>Wait until <b>all outputs</b> open fullscreen on their displays (for any that do not, follow Chapter 4)</li>
     <li>Press the clips again (order, shape and volume are saved; <b>the playback position is not</b>)</li>
     <li>Check the picture and sound, then turn off AV mute</li>

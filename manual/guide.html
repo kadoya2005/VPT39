@@ -358,15 +358,15 @@ ERROR: No matching distribution found for …</span>
     <li><b>run.bat をダブルクリック</b><br>黒い出力ウィンドウと、ブラウザの操作パネルが開けば成功です（3章）。</li>
     <li><b>初回だけ「Windows セキュリティの重要な警告」が出たら「許可」</b><br>スマホやタブレットから操作するための通信の確認です。</li>
   </ol>
-  <div class="tip"><b class="h">ふだんは</b>run.bat をダブルクリックするだけです。足りない部品があれば、起動の前に自動で入れます。</div>
+  <div class="tip"><b class="h">ふだんは</b>run.bat をダブルクリックするだけです。部品のインストールには setup.bat を使います。</div>
 </section>
 
 <section class="chap">
   <h3 style="margin-top:0">フォルダの中身</h3>
   <table>
     <tr><th style="width:42mm">名前</th><th>何のためのもの</th></tr>
-    <tr><td class="k">run.bat</td><td>ふだんの起動。前回フルスクリーンにした出力は、同じ画面にフルスクリーンで開く</td></tr>
-    <tr><td class="k">run_window.bat</td><td>その回だけ、全部の出力をウィンドウで開く（準備・リハ用。設定は書き換えない）</td></tr>
+    <tr><td class="k">run.bat</td><td>ダブルクリックすると、全部の出力をウィンドウで開く</td></tr>
+    <tr><td class="k">.\run.bat --fullscreen</td><td>PowerShell から実行すると、保存した全画面配置で開く</td></tr>
     <tr><td class="k">setup.bat</td><td>はじめての準備（上の④）</td></tr>
     <tr><td class="k">.venv</td><td>setup.bat が作る、VPT39 専用の部品置き場（消すと setup.bat のやり直しが必要）</td></tr>
     <tr><td class="k">media</td><td>動画・画像を入れるフォルダ（サブフォルダに分けてもよい）</td></tr>
@@ -916,7 +916,7 @@ void draw() {
   <h3>アプリが落ちたとき</h3>
   <ol class="steps">
     <li>プロジェクターのリモコンの <b>AV ミュート</b>（映像ミュート）で、客席にデスクトップが映らないようにする</li>
-    <li><b>run.bat</b> をダブルクリック</li>
+    <li>PowerShell で <b>.\run.bat --fullscreen</b> を実行</li>
     <li><b>全部の出力</b>が元の画面にフルスクリーンで出るのを待つ（出ないものは4章の手順で）</li>
     <li>クリップを押し直す（並び・形・音量は保存されている。<b>再生位置は戻らない</b>）</li>
     <li>映像と音を確かめてから、AV ミュートを解除</li>

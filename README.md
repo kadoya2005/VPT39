@@ -95,10 +95,10 @@ Note: tested on Windows 11.
 
 ## Starting
 
-- **`run.bat`**: use this normally. Outputs that were fullscreen last time open fullscreen on the same display (if that display is not connected, they open as windows).
-- **`run_window.bat`**: opens all outputs as windows, for this run only. Use it for preparation and rehearsals (it does not change the settings).
+- **Double-click `run.bat`** to open all outputs as windows.
+- To restore the saved fullscreen layout for a show, run `.\run.bat --fullscreen` in PowerShell.
 
-Both install any missing libraries automatically before starting. When VPT39 starts, the control panel opens in the browser. If it does not open, open `http://localhost:8080/` in your browser.
+Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens in the browser. If it does not open, open `http://localhost:8080/` in your browser.
 
 ## Where to put media
 
@@ -176,7 +176,7 @@ Both install any missing libraries automatically before starting. When VPT39 sta
 - Three or more can also be joined (set Output 3 to "join to the right of Output 2"). Use the same resolution for the left and right projectors.
 
 - The output resolution is normally the size of its window (the display's resolution when fullscreen). If you choose a "**Show resolution**" in the "Outputs" tab, it draws at that size regardless of the window size (if the shape differs, it is shown scaled down with black bars). The four corner positions are stored as proportions, so the shape stays the same when you change the window size.
-- The display used for fullscreen is remembered, so the next time you start with `run.bat`, it opens fullscreen on the same display.
+- The display used for fullscreen is remembered, so the next time you start with `run.bat --fullscreen`, it opens fullscreen on the same display.
 - "**Bring back**": turns the output back into a window and brings it to the middle of the main display (for when it has ended up somewhere you cannot see).
 - Output windows do not close with × (to prevent accidents during the show). To remove one, delete it with ✕ in the control panel.
 - You can add as many outputs as you like. Each video is loaded only once and shared with all outputs, so adding outputs does not increase video loading.
