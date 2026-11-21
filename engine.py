@@ -83,6 +83,7 @@ class Deck:
 
 # 特別なクリップ（ファイルではないもの）
 BLANK = '@blank'      # 空白：何も映さない・音も出さない
+GAP = '@gap'          # 空き枠：この列を再生してもレイヤーの再生を変えない
 LAYER = '@layer:'     # @layer:<id> 別レイヤーの映像
 CAMERA = '@camera'    # カメラ・キャプチャーボード（vdev, adev）
 WINDOW = '@window'    # ウィンドウ取り込み（title）
@@ -141,6 +142,8 @@ class Layer:
             return
         cue = cues[i]
         f = cue.get('file', '')
+        if f == GAP:
+            return
         w, h = self.cfg['res']
         if is_special(f):
             try:
@@ -233,14 +236,20 @@ class Layer:
         return False
 
     def next(self):
-        n = len(self.cfg['cues'])
-        if n:
-            self.go((self.current_cue + 1) % n)
+        self._step_cue(1)
 
     def prev(self):
-        n = len(self.cfg['cues'])
-        if n:
-            self.go((self.current_cue - 1) % n)
+        self._step_cue(-1)
+
+    def _step_cue(self, direction):
+        cues = self.cfg['cues']
+        n = len(cues)
+        current = self.current_cue
+        for step in range(1, n + 1):
+            i = (current + direction * step) % n
+            if cues[i].get('file') != GAP:
+                self.go(i)
+                return
 
     def clear(self):
         # 写真ウォールは「次の写真 ▶」を押すまで新しい写真を出さない（消したのに次の写真が出てこないように）
@@ -266,6 +275,9 @@ class Layer:
             if current:
                 self.clear()
             return
+        if current and 0 <= cue < len(self.cfg['cues']):
+            file = self.cfg['cues'][cue].get('file', '')
+            current = is_special(file) or d.label == file
         if not current:
             # まだ再生していないクリップ → 再生を始めてから操作
             self.go(cue)

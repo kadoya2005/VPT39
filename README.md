@@ -122,6 +122,9 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - You can also add a blank clip with "**+ Add blank**" at the end of a layer's clip row.
 - **Click** a media item to add it at the end of the selected layer.
 - **Drag** a media item onto a layer's clip row to add it to any layer at any position.
+- Drop a video or image from the media panel onto the **center** of an existing clip to replace it. A yellow outline indicates replacement, and a yellow line near an edge or gap indicates insertion.
+- Drop media from the media panel or File Explorer between clips in a video layer to insert a column. Other video layers retain their alignment, and an empty slot leaves that layer playing when the column is triggered.
+- Drop one file from File Explorer onto an existing clip to replace its media in place. Click the updated clip when you are ready to switch playback. Drop on the empty tile at the end to add new clips.
 - Clips can also be reordered by dragging. Dragging to another layer makes a copy.
 - Thumbnails are saved in the `.thumbs` folder (if you delete it, it is rebuilt automatically).
 

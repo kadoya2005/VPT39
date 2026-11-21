@@ -23,7 +23,7 @@ import glfw
 import moderngl
 from PIL import Image, ImageDraw, ImageFont
 
-from engine import Layer, Renderer, layer_defaults, DEFAULT_CORNERS, BLENDS, CUE_MODES, LAYER, TRANSITIONS
+from engine import Layer, Renderer, layer_defaults, DEFAULT_CORNERS, BLENDS, CUE_MODES, GAP, LAYER, TRANSITIONS
 from sources import backend_name, is_video, is_image, list_cameras, list_mics, list_windows, list_spout
 from outputs import OutputWindow, gl_hints, monitors, monitor_info
 import webui
@@ -426,6 +426,8 @@ class App:
         if c.get('lid'):  # 確認の間に並びが変わっても、確かめたレイヤーに対して行う
             L = self.layer_by_id(c['lid'])
             if L is None:
+                if cmd == 'import_cue':
+                    self.message = '素材に保存しましたが、追加先のレイヤーが見つかりません'
                 return
             c['layer'] = self.layers.index(L)
         if cmd == 'remove_cue' and L and 'file' in c:
@@ -527,6 +529,27 @@ class App:
                                 old.release()
                             L.error = new.error if new else ''
                 self.touch(True)
+        elif cmd == 'import_cue' and L:
+            f = c.get('file')
+            if not isinstance(f, str) or not (is_image(f) or is_video(f)) or not os.path.isfile(self.media_path(f)):
+                self.message = '取り込んだ素材が見つかりません'
+                return
+            if L.cfg['kind'] == 'photo' and not is_image(f):
+                self.message = '写真ウォールに入れられるのは画像だけです'
+                return
+            cues = L.cfg['cues']
+            expected = c.get('expected')
+            if expected is None:
+                cues.append({'file': f, 'mode': 'loop'})
+                self.message = 'クリップを追加しました'
+            else:
+                i = c.get('cue')
+                if not isinstance(i, int) or not (0 <= i < len(cues)) or cues[i] != expected:
+                    self.message = '素材に保存しましたが、クリップが変わっていたため差し替えませんでした'
+                    return
+                cues[i] = {'file': f, 'mode': cues[i].get('mode', 'loop')}
+                self.message = 'クリップを差し替えました'
+            self.touch(True)
         elif cmd == 'add_cue' and L:
             f = c.get('file', '')
             if f and L.cfg['kind'] == 'photo' and (f.startswith('@') or not is_image(f)):
@@ -542,10 +565,19 @@ class App:
                         cue[k] = str(c[k])[:300]
                 if f == '@camera' and 'adev' not in cue:
                     cue['adev'] = ''
-                cues.insert(at, cue)
-                for d in L.decks:
-                    if d.cue >= at:
-                        d.cue += 1
+                insert_column = c.get('column') and L.cfg['kind'] == 'video'
+                if insert_column and (at >= len(cues) or cues[at] != c.get('anchor')):
+                    self.message = '挿入先が変わったため、コラムを追加できませんでした'
+                    return
+                layers = self.layers if insert_column else [L]
+                for layer in layers:
+                    row = layer.cfg['cues']
+                    if layer is not L and (layer.cfg['kind'] != 'video' or len(row) < at):
+                        continue
+                    row.insert(at, cue if layer is L else {'file': GAP, 'mode': 'loop'})
+                    for d in layer.decks:
+                        if d.cue >= at:
+                            d.cue += 1
                 self.touch(True)
         elif cmd == 'move_cue_to' and L:
             # ドラッグで並べ替え（i 番目を j 番目へ）
@@ -589,8 +621,17 @@ class App:
                 self.touch(True)
         elif cmd == 'cue_mode' and L:
             i = int(c['cue'])
-            if 0 <= i < len(L.cfg['cues']) and c['value'] in CUE_MODES:
-                L.cfg['cues'][i]['mode'] = c['value']
+            mode = c['value']
+            if 0 <= i < len(L.cfg['cues']) and mode in CUE_MODES:
+                cue = L.cfg['cues'][i]
+                if 'file' in c and cue['file'] != c['file']:
+                    return
+                cue['mode'] = mode
+                for d in L.decks:
+                    if d.cue == i and d.label == cue['file']:
+                        d.mode = mode
+                        if hasattr(d.src, 'mode'):
+                            d.src.mode = mode
                 self.touch(True)
         elif cmd == 'add_layer':
             kind = 'photo' if c.get('kind') == 'photo' else 'video'

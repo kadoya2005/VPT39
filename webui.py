@@ -406,13 +406,13 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .lop{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
 .lop input{flex:1;width:auto;min-width:0}
 .track{display:flex;gap:var(--gap);padding:8px var(--gap);align-items:flex-start;min-height:100%}
-.lrow.over .track{background:#0f1a14;outline:1px dashed var(--acc);outline-offset:-3px}
 
 /* ---- クリップのタイル ---- */
 .clip{width:var(--tw);flex:none;background:#0b0d10;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;position:relative}
 .clip.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
-.clip.ins::before{content:'';position:absolute;left:-6px;top:0;bottom:0;width:4px;background:var(--warn);border-radius:2px;z-index:2}
-.clip.ins.end::before{left:auto;right:-6px}
+.clip.ins::before,.clip.fdrop::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:2}
+.clip.ins:not(.empty)::before{border-left:5px solid var(--warn)}
+.clip.ins.empty::before,.clip.fdrop::before{border:3px solid var(--warn);border-radius:7px;background:#ffbe381a}
 .clip .th,.mtile .th{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;cursor:pointer}
 .th img{width:100%;height:100%;object-fit:cover;display:block}
 .clip .num{position:absolute;left:4px;top:3px;font-size:11px;font-weight:700;background:#000b;padding:0 5px;border-radius:4px}
@@ -679,6 +679,24 @@ function setv(L,key,value){cmd({cmd:'set',layer:L,key,value});}
 const MODES=['loop','hold','stop','next'];
 const MODE_NAME={loop:'ループ',hold:'最後で停止',stop:'終了で消える',next:'次へ進む'};
 const MODE_ICON={loop:'⟳',hold:'⏸',stop:'■',next:'⏭'};
+let modeRequests=Promise.resolve(), pendingModes=0;
+function cycleCueMode(button,layer,cue){
+  const value=MODES[(MODES.indexOf(button.dataset.mode)+1)%MODES.length];
+  button.dataset.mode=value;
+  button.textContent=MODE_ICON[value];
+  button.title=`終了時の動き：${MODE_NAME[value]}（押すと切り替え）`;
+  const command={cmd:'cue_mode',lid:layer.id,cue,file:layer.cues[cue].file,value};
+  pendingModes++;
+  modeRequests=modeRequests.then(async()=>{
+    const r=await post(command);
+    if(!r.ok)throw new Error();
+  }).catch(()=>{
+    // 次の状態取得で、実際に適用された設定に戻す。
+    rev=-1;
+  }).finally(()=>{
+    if(--pendingModes===0)setTimeout(poll,60);
+  });
+}
 const BLEND_NAME={normal:'通常',add:'加算',screen:'スクリーン',multiply:'乗算'};
 const TRANS_NAME={fade:'フェード（じわっと）',cut:'静止（効果なし・パッと切り替え）',slide_left:'スライド（右から左へ）',slide_right:'スライド（左から右へ）',
   slide_up:'スライド（下から上へ）',slide_down:'スライド（上から下へ）',wipe:'ワイプ（左から順に）',zoom:'ズーム（少し寄りから）'};
@@ -709,7 +727,18 @@ function dropIndex(row,e){
   for(const t of tiles){const r=t.getBoundingClientRect(); if(e.clientX<r.left+r.width/2) return +t.dataset.j;}
   return tiles.length;
 }
-function clearIns(){document.querySelectorAll('.lrow.over').forEach(r=>r.classList.remove('over'));document.querySelectorAll('.clip.ins').forEach(c=>c.classList.remove('ins','end'));}
+function replacementTile(e){
+  if(!hasFiles(e)&&!e.dataTransfer.types.includes('text/x-sm-file'))return null;
+  const tile=e.target.closest('.clip:not(.empty)');
+  if(!tile)return null;
+  const r=tile.getBoundingClientRect(), edge=r.width/5;
+  return e.clientX>=r.left+edge&&e.clientX<=r.right-edge?tile:null;
+}
+function columnInsert(layer,at){
+  return layer.kind==='video'&&at<layer.cues.length
+    ? {column:true,anchor:layer.cues[at]} : {};
+}
+function clearIns(){document.querySelectorAll('.clip.ins,.clip.fdrop').forEach(c=>c.classList.remove('ins','fdrop'));}
 function endDrag(){dragActive=false; clearIns(); stopAuto();}
 function stopAuto(){if(autoScroll){clearInterval(autoScroll.t);autoScroll=null;}}
 function setupDnD(){
@@ -720,24 +749,55 @@ function setupDnD(){
     el.addEventListener('dragend',endDrag);
   });
   document.querySelectorAll('.lrow').forEach(row=>{
+    const layer=S.layers[+row.dataset.layer];
     row.addEventListener('dragover',e=>{
-      if(!OURS(e.dataTransfer.types))return;
-      e.preventDefault(); clearIns(); row.classList.add('over');
+      const files=hasFiles(e);
+      if(files&&!e.target.closest('.track')){clearIns();return;}
+      if(!files&&!OURS(e.dataTransfer.types))return;
+      e.preventDefault(); clearIns();
+      if(files)e.dataTransfer.dropEffect='copy';
+      const replace=replacementTile(e);
+      if(replace){replace.classList.add('fdrop');return;}
       const at=dropIndex(row,e), tiles=[...row.querySelectorAll('.clip:not(.empty)')];
       if(at<tiles.length) tiles[at].classList.add('ins');
       else{const em=row.querySelector('.clip.empty'); if(em) em.classList.add('ins');}
     });
-    row.addEventListener('dragleave',e=>{ if(!row.contains(e.relatedTarget)) row.classList.remove('over'); });
+    row.addEventListener('dragleave',e=>{ if(!row.contains(e.relatedTarget)) clearIns(); });
     row.addEventListener('drop',e=>{
       e.preventDefault();
-      const L=+row.dataset.layer, at=dropIndex(row,e);
+      const at=dropIndex(row,e), replace=replacementTile(e);
+      if(hasFiles(e)){
+        const files=[...e.dataTransfer.files], track=e.target.closest('.track');
+        endDrag();
+        if(!track)return;
+        const cue=replace?+replace.dataset.j:at, expected=replace?layer.cues[cue]:undefined;
+        if(expected&&files.length!==1){alert('差し替えるファイルを1つだけドロップしてください');return;}
+        if(layer.kind==='photo'&&files.some(f=>!isImg(f.name))){alert('写真ウォールに入れられるのは画像だけです');return;}
+        const column=columnInsert(layer,at);
+        let index=at;
+        return uploadFiles(files,async file=>{
+          const action=!expected&&at<layer.cues.length
+            ? {cmd:'add_cue',at:index,...column}
+            : {cmd:'import_cue',cue,expected};
+          const response=await post({...action,lid:layer.id,file});
+          if(!response.ok) throw new Error();
+          index++;
+        });
+      }
+      const L=+row.dataset.layer;
       const m=e.dataTransfer.getData('text/x-sm-media'), q=e.dataTransfer.getData('text/x-sm-cue');
       endDrag();
-      if(m) return addMedia(L,m,at);
+      if(replace){
+        const cue=+replace.dataset.j, expected=layer.cues[cue];
+        const file=e.dataTransfer.getData('text/x-sm-file');
+        if(file&&expected) cmd({cmd:'import_cue',lid:layer.id,cue,expected,file});
+        return;
+      }
+      if(m) return addMedia(layer,m,at,columnInsert(layer,at));
       if(q&&S.layers[L].kind==='photo'){const o=JSON.parse(q); if(!isImg(o.file||'')||String(o.file).startsWith('@')){alert('写真ウォールに入れられるのは画像だけです');return;}}
       if(q){const o=JSON.parse(q);
         if(o.layer===L){const to=at>o.cue?at-1:at; if(to!==o.cue) cmd({cmd:'move_cue_to',layer:L,cue:o.cue,to});}
-        else{const c={...o}; delete c.layer; delete c.cue; delete c.mode; cmd({cmd:'add_cue',layer:L,at,...c});}}  // 別レイヤーへはコピー
+        else{const c={...o}; delete c.layer; delete c.cue; delete c.mode; cmd({cmd:'add_cue',lid:layer.id,at,...c,...columnInsert(layer,at)});}}  // 別レイヤーへはコピー
     });
   });
 }
@@ -745,7 +805,7 @@ function setupDnD(){
 // （別ウィンドウの素材から持ってきたときも同じ。最後に動いてから少したったら止める）
 let lastOver=0;
 document.addEventListener('dragover',e=>{
-  if(!dragActive&&!OURS(e.dataTransfer.types))return;
+  if(!dragActive&&!OURS(e.dataTransfer.types)&&!hasFiles(e))return;
   lastOver=Date.now();
   const d=$('deck'), r=d.getBoundingClientRect(), edge=70;
   let vy=0,vx=0;
@@ -776,11 +836,11 @@ function buildFolders(){
   sel.style.display=dirs.length?'':'none';
 }
 // 素材の追加。m はファイル名か、特別な素材（空白・レイヤー映像・カメラ・ウィンドウ）の JSON
-function addMedia(L,m,at){
+function addMedia(layer,m,at,column){
   const c=m.startsWith('{')?JSON.parse(m):{file:m};
-  if(S.layers[L].kind==='photo'&&(c.file.startsWith('@')||!isImg(c.file))){alert('写真ウォールに入れられるのは画像だけです（動画・カメラなどは動画レイヤーへ）');return;}
-  if(c.file==='@layer:'+S.layers[L].id){alert('自分自身の映像は追加できません（別のレイヤーに追加してください）');return;}
-  cmd({cmd:'add_cue',layer:L,at,...c});
+  if(layer.kind==='photo'&&(c.file.startsWith('@')||!isImg(c.file))){alert('写真ウォールに入れられるのは画像だけです（動画・カメラなどは動画レイヤーへ）');return;}
+  if(c.file==='@layer:'+layer.id){alert('自分自身の映像は追加できません（別のレイヤーに追加してください）');return;}
+  cmd({cmd:'add_cue',lid:layer.id,at,...c,...column});
 }
 let mkind=VIEW==='media'?'f':(lsGet('vpt39-mkind')||'f');
 function specialTile(c,label,title,cls){
@@ -812,14 +872,18 @@ function buildMedia(){
     const list=S.media.filter(m=>(!q||m.toLowerCase().includes(q))&&
       (!fd||(fd==='.'?!m.includes('/'):m.startsWith(fd+'/'))));
     $('mcount').textContent=`${list.length}${list.length!==S.media.length?' / '+S.media.length:''}件`;
-    box.innerHTML=list.map(m=>`<div class="mtile" draggable="true" data-f="${esc(m)}" title="${esc(m)}">
+    box.innerHTML=list.map(m=>`<div class="mtile" draggable="true" data-media-file data-f="${esc(m)}" title="${esc(m)}">
       <div class="th">${thumbImg(m)}<button class="del" data-del="${esc(m)}" title="この素材をごみ箱へ移す（ごみ箱から元に戻せます）">✕</button></div><div class="cn">${esc(base(m))}</div></div>`).join('')
       ||'<div class="meta">media フォルダに素材がありません。動画や画像を入れると数秒で表示されます。</div>';
   }
   box.querySelectorAll('.mtile').forEach(el=>{
-    el.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/x-sm-media',el.dataset.f);e.dataTransfer.effectAllowed='copy';dragActive=true;});
+    el.addEventListener('dragstart',e=>{
+      e.dataTransfer.setData('text/x-sm-media',el.dataset.f);
+      if(el.hasAttribute('data-media-file'))e.dataTransfer.setData('text/x-sm-file',el.dataset.f);
+      e.dataTransfer.effectAllowed='copy';dragActive=true;
+    });
     el.addEventListener('dragend',endDrag);
-    el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; const s=S.layers[S.selected]; if(s&&(s.kind==='video'||isImg(el.dataset.f))) addMedia(S.selected,el.dataset.f);});
+    el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; const s=S.layers[S.selected]; if(s&&(s.kind==='video'||isImg(el.dataset.f))) addMedia(s,el.dataset.f);});
   });
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation(); deleteMedia(b.dataset.del);});
 }
@@ -842,19 +906,23 @@ function hasFiles(e){return e.dataTransfer&&[...e.dataTransfer.types].includes('
 document.addEventListener('dragover',e=>{ if(hasFiles(e)) e.preventDefault();});
 document.addEventListener('drop',e=>{ if(hasFiles(e)) e.preventDefault();});
 let uploading=false;
-async function uploadFiles(files){
+async function uploadFiles(files,onCopied){
   if(uploading){alert('取り込み中です。終わってからもう一度ドロップしてください');return;}
   const ok=files.filter(f=>isImg(f.name)||/\.(mp4|mov|m4v|avi|mkv|webm|wmv|mpg|mpeg)$/i.test(f.name)), ng=files.length-ok.length;
   if(!ok.length){alert('動画・画像のファイルではありません');return;}
   const fd=$('mfolder').value, dir=fd&&fd!=='.'?fd:'';
   uploading=true; const st=$('mup'); const errs=[];
   for(let k=0;k<ok.length;k++){const f=ok[k];
-    await new Promise(res=>{const x=new XMLHttpRequest();
+    const copied=await new Promise(res=>{const x=new XMLHttpRequest();
       x.open('POST',`/api/upload?name=${encodeURIComponent(f.name)}&dir=${encodeURIComponent(dir)}`);
       x.upload.onprogress=ev=>{ if(ev.lengthComputable) st.textContent=`取り込み中 ${k+1}/${ok.length}：${f.name}（${Math.round(ev.loaded/ev.total*100)}%）`;};
-      x.onload=()=>{try{const r=JSON.parse(x.responseText); if(!r.ok) errs.push(r.msg);}catch(_){errs.push(f.name+' を取り込めませんでした');} res();};
+      x.onload=()=>{try{const r=JSON.parse(x.responseText); if(r.ok)return res(r.file); errs.push(r.msg);}catch(_){errs.push(f.name+' を取り込めませんでした');} res();};
       x.onerror=()=>{errs.push(f.name+' を取り込めませんでした'); res();};
       x.send(f);});
+    if(copied&&onCopied){
+      try{await onCopied(copied);}
+      catch(_){errs.push(f.name+' を素材に保存しましたが、レイヤーに反映できませんでした');}
+    }
   }
   uploading=false; st.textContent=`取り込みました：${ok.length-errs.length} 件`+(ng?`（動画・画像でない ${ng} 件は飛ばしました）`:'')+(dir?`→ ${dir}`:'');
   setTimeout(()=>{ if(st.textContent.startsWith('取り込みました')) st.textContent=''; },6000);
@@ -877,6 +945,7 @@ function buildColumns(){
 function camName(n){const m=/^(.*) #(\d+)$/.exec(n); return m?`${m[1]}（${+m[2]+1}台目）`:n;}
 function cueInfo(c){
   const f=c.file||'';
+  if(f==='@gap') return {cls:'blank',label:'空き枠',name:'空き枠'};
   if(f==='@blank') return {cls:'blank',label:'空白',name:'（空白）'};
   if(f.startsWith('@layer:')){const k=S.layers.findIndex(L=>'@layer:'+L.id===f);
     return {cls:'layer',label:k>=0?`L${k+1}\n${S.layers[k].name}`:'（元のレイヤーなし）',name:k>=0?`L${k+1}の映像`:'レイヤー映像'};}
@@ -901,14 +970,14 @@ function clipTile(i,c,j){
     return `<div class="clip" id="go${i}_${j}" data-j="${j}">
       <div class="th" draggable="true" data-cue="${j}" title="クリックで切り替え・ドラッグで並べ替え"><div class="sp ${sp.cls}">${esc(sp.label)}</div><span class="num">${j+1}</span></div>
       ${adev}
-      <div class="tp"><button class="tb" data-tp="stop" title="消す（フェードアウト）">⏹</button><span class="tt" id="tt${i}_${j}"></span></div>
+      <div class="tp">${c.file==='@gap'?'':`<button class="tb" data-tp="stop" title="消す（フェードアウト）">⏹</button>`}<span class="tt" id="tt${i}_${j}"></span></div>
       <div class="cn"><span title="${esc(sp.name)}">${esc(sp.name)}</span><button class="x" data-rm="${j}" title="このクリップを削除">✕</button></div>
     </div>`;
   }
   const img=isImg(c.file);
   return `<div class="clip" id="go${i}_${j}" data-j="${j}">
     <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（クリックで再生・ドラッグで並べ替え）">${thumbImg(c.file)}<span class="num">${j+1}</span>
-      <button class="md" data-md="${j}" title="終了時の動き：${MODE_NAME[c.mode]||''}（押すと切り替え）">${MODE_ICON[c.mode]||''}</button></div>
+      <button class="md" data-md="${j}" data-mode="${MODE_NAME[c.mode]?c.mode:'loop'}" title="終了時の動き：${MODE_NAME[c.mode]||''}（押すと切り替え）">${MODE_ICON[c.mode]||''}</button></div>
     ${img?'':`<div class="sc" title="ドラッグで再生位置を移動"><i id="sb${i}_${j}"></i></div>
     <div class="tp"><button class="tb" data-tp="restart" title="頭出し">⏮</button><button class="tb" data-tp="toggle" id="tg${i}_${j}" title="再生／一時停止">▶</button><button class="tb" data-tp="stop" title="停止（消す）">⏹</button><span class="tt" id="tt${i}_${j}"></span></div>`}
     <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span><button class="x" data-rm="${j}" title="このクリップを削除">✕</button></div>
@@ -921,7 +990,7 @@ function build(){
     let track;
     if(L.kind==='video'){
       track=L.cues.map((c,j)=>clipTile(i,c,j)).join('')+
-        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><button class="addblank" data-a="blank" title="何も映さないクリップを最後に追加（他のレイヤーが映している間、このレイヤーは休ませる）">＋ 空白を追加</button><small>素材は<br>ここへドラッグ</small></div></div>`;
+        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><button class="addblank" data-a="blank" title="何も映さないクリップを最後に追加（他のレイヤーが映している間、このレイヤーは休ませる）">＋ 空白を追加</button><small>ファイルを<br>ここへドロップ</small></div></div>`;
     }else{
       const listed=L.cues.length>0;
       track=L.cues.map((c,j)=>photoTile(i,c,j)).join('')+
@@ -944,7 +1013,7 @@ function build(){
     d.addEventListener('click',e=>{
       const t=e.target.closest('button,[data-cue]'); if(!t)return;
       if(t.dataset.tp) return cmd({cmd:'transport',layer:i,cue:+t.closest('.clip').dataset.j,op:t.dataset.tp});
-      if(t.dataset.md!==undefined){e.stopPropagation(); const j=+t.dataset.md, m=S.layers[i].cues[j].mode; return cmd({cmd:'cue_mode',layer:i,cue:j,value:MODES[(MODES.indexOf(m)+1)%MODES.length]});}
+      if(t.dataset.md!==undefined){e.stopPropagation(); return cycleCueMode(t,L,+t.dataset.md);}
       if(t.dataset.rm!==undefined){const c=S.layers[i].cues[+t.dataset.rm], sp=cueInfo(c);
         const lid=S.layers[i].id;
         if(confirm(`クリップ「${sp?sp.name:base(c.file)}」を削除しますか？`)) cmd({cmd:'remove_cue',layer:i,lid,cue:+t.dataset.rm,file:c.file}); return;}
@@ -1324,7 +1393,7 @@ async function poll(){
     if(S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない
       const dragNow=dragActive||Date.now()-lastOver<800;
-      if(!dragNow&&(!editingIn('.deck')||S.layers.length!==nlayers)){
+      if(!pendingModes&&!dragNow&&(!editingIn('.deck')||S.layers.length!==nlayers)){
         rev=S.rev; nlayers=S.layers.length; mediaKey=mkey; build();
       }
     }

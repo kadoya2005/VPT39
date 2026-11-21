@@ -99,8 +99,6 @@ class VlcVideoSource(Source):
         media = _vlc_inst.media_new(path)
         for o in options or []:
             media.add_option(o)
-        if mode == 'loop' and not live:
-            media.add_option('input-repeat=65535')
         self.player.set_media(media)
         media.release()  # プレイヤーが持っているので、こちらの分は手放す（切り替えるたびに少しずつ増えないように）
         self.size = w * h * 4
@@ -177,6 +175,10 @@ class VlcVideoSource(Source):
             if self.paused and st == vlc.State.Playing:
                 self.player.set_pause(1)
         self.ended = st in (vlc.State.Ended, vlc.State.Error) and self._pending is None
+        # VLC の input-repeat は再生開始時の設定なので、終了時に現在のモードで判断する。
+        if (self.ended and st == vlc.State.Ended and self._fid
+                and not self.live and not self.paused and self.mode == 'loop'):
+            self.seek(0.0)
 
     def set_paused(self, p):
         self.paused = bool(p)
@@ -196,6 +198,7 @@ class VlcVideoSource(Source):
         if st in (vlc.State.Playing, vlc.State.Paused):
             self.player.set_position(frac)
         else:
+            self._pending = frac
             if st in (vlc.State.Ended, vlc.State.Stopped, vlc.State.Error):
                 p = self.player
 
@@ -209,7 +212,6 @@ class VlcVideoSource(Source):
                         except Exception:
                             pass
                 threading.Thread(target=work, daemon=True).start()
-            self._pending = frac
         self.ended = False
 
     def frame(self):
@@ -277,14 +279,23 @@ class CvVideoSource(Source):
         self.running = True
         self.seekable = n > 0
         self._seek = None
-        self._born = time.time()
-        self.failed = False  # 先頭から1枚も読めない（壊れたファイル・対応していない形式）
+        self._born = time.monotonic()
+        self._failed = False
         self.th = threading.Thread(target=self._run, daemon=True)
         self.th.start()
 
     @property
     def ready(self):
-        return self._fid > 0 or self.ended or time.time() - self._born > 3.0
+        return self._fid > 0
+
+    @property
+    def failed(self):
+        if self._failed:
+            return True
+        if not self.ready and time.monotonic() - self._born > 15.0:
+            self.fail_msg = '15秒たっても映像が出ないので、切り替えをやめました'
+            return True
+        return False
 
     def set_paused(self, p):
         if not p and self.ended:
@@ -314,14 +325,16 @@ class CvVideoSource(Source):
                 continue
             ok, img = self.cap.read()
             if not ok:
-                if idx == 0:
-                    # 頭から1枚も読めない：待たずにくり返すと CPU を使い続けるので、少し待って数回であきらめる
+                if not self.ready or (idx == 0 and self.mode == 'loop'):
+                    # 最初のフレームが読めない場合は再生モードにかかわらず少し待って再試行する
                     fails += 1
-                    time.sleep(0.05)
                     if fails >= 3:
-                        self.failed = True
+                        self._failed = True
                         self.ended = True
                         continue
+                    time.sleep(0.05)
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+                    continue
                 if self.mode == 'loop':
                     self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                     start = time.perf_counter()

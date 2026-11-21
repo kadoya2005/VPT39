@@ -6,28 +6,33 @@ echo   VPT39 セットアップ / Setup
 echo ============================================
 echo.
 echo [1/4] Python を確かめています... / Checking Python...
+if exist ".venv\Scripts\python.exe" (
+  ".venv\Scripts\python.exe" -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) and sys.maxsize > 2**32 else 1)" > nul 2>&1
+  if not errorlevel 1 goto environment_ready
+)
 rem Microsoft Store の「python」（中身のない入口）だと、ここで失敗する
 python -c "import sys; sys.exit(0 if sys.version_info >= (3, 10) and sys.maxsize > 2**32 else 1)" > nul 2>&1
 if errorlevel 1 goto nopython
-python --version
-python -c "import sys; sys.exit(1 if sys.version_info >= (3, 14) else 0)" > nul 2>&1
+echo.
+echo [2/4] 専用の環境（.venv）を作っています... / Creating the environment (.venv)...
+rem 別のPCで作った環境や要件を満たさない環境は作り直す
+if exist ".venv\Scripts\python.exe" rmdir /s /q ".venv" || goto fail
+python -m venv .venv || goto fail
+goto check_environment
+
+:environment_ready
+echo [2/4] 既存の専用環境を使います / Using the existing .venv...
+
+:check_environment
+".venv\Scripts\python.exe" --version || goto fail
+".venv\Scripts\python.exe" -c "import sys; sys.exit(1 if sys.version_info >= (3, 14) else 0)" > nul 2>&1
 if errorlevel 1 echo   （注意）この Python では Spout が使えません。Spout も使うなら Python 3.13 を入れてください。
 if errorlevel 1 echo   (Note) Spout does not work with this Python. Install Python 3.13 to use Spout.
 echo.
-echo [2/4] 専用の環境（.venv）を作っています... / Creating the environment (.venv)...
-rem 別のPCで作った .venv（中の Python の場所が違う）は動かないので作り直す
-if exist .venv\Scripts\python.exe (
-  .venv\Scripts\python.exe -c "pass" > nul 2>&1 || rmdir /s /q .venv
-)
-if not exist .venv\Scripts\python.exe (
-  python -m venv .venv || goto fail
-)
-call .venv\Scripts\activate.bat
-echo.
 echo [3/4] 必要な部品をダウンロードして入れています（数分かかります）...
 echo       Downloading and installing the components (takes a few minutes)...
-python -m pip install -q --disable-pip-version-check --upgrade pip
-python -m pip install --disable-pip-version-check -r requirements.txt
+".venv\Scripts\python.exe" -m pip install -q --disable-pip-version-check --upgrade pip
+".venv\Scripts\python.exe" -m pip install --disable-pip-version-check -r requirements.txt
 if errorlevel 1 goto fail
 echo.
 echo [4/4] フォルダを用意しています... / Preparing folders...

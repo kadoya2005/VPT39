@@ -140,7 +140,7 @@ td{font-size:9.5pt}
     </div>
   </div></div>
 
-  <div class="ok">設定は<b>自動で保存</b>されます（次に run.bat で起動すると、同じ画面に同じ状態で出ます）。本番前に、<b>同じPC・同じプロジェクターで通しリハ</b>を1回。</div>
+  <div class="ok">設定は<b>自動で保存</b>されます。保存した全画面配置で起動するには、VPT39 フォルダで PowerShell を開いて <b>.\run.bat --fullscreen</b> を実行します。本番前に、<b>同じPC・同じプロジェクターで通しリハ</b>を1回。</div>
 
   <div class="foot"><span>VPT39 クイックスタート（表）</span><span>詳しくは manual\index.html（画面対応マニュアル）</span></div>
 </section>
@@ -200,7 +200,7 @@ td{font-size:9.5pt}
     <tr><td>違う映像が出ている</td><td>そのレイヤーの<b>緑の枠</b>のクリップ ／ 「レイヤー設定」の「<b>映す出力</b>」が正しいか</td></tr>
     <tr><td>音が出ない</td><td>ミキサーの <b>M（赤）</b>・フェーダー → PC の音量と出力先 → 上の帯が「VLC（音声あり）」か</td></tr>
     <tr><td>操作パネルを閉じてしまった</td><td>ブラウザで <b>http://localhost:8080/</b> を開く（映像は止まっていない）</td></tr>
-    <tr><td>アプリが落ちた</td><td>① プロジェクターの <b>AV ミュート</b>（リモコン）で客席を隠す ② <b>run.bat</b> ③ 出力が元の画面にフルスクリーンで出る（出なければ STEP2）④ クリップを押し直す（並び・形・音量は保存済み、<b>再生位置は戻らない</b>）⑤ AV ミュート解除</td></tr>
+    <tr><td>アプリが落ちた</td><td>① プロジェクターの <b>AV ミュート</b>（リモコン）で客席を隠す ② PowerShell で <b>.\run.bat --fullscreen</b> を実行 ③ 出力が元の画面にフルスクリーンで出る（出なければ STEP2）④ クリップを押し直す（並び・形・音量は保存済み、<b>再生位置は戻らない</b>）⑤ AV ミュート解除</td></tr>
   </table>
 
   <div class="foot"><span>VPT39 クイックスタート（裏）</span><span>しくみ：manual\concept.pdf　くわしく：manual\guide.pdf</span></div>
