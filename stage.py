@@ -23,7 +23,8 @@ import glfw
 import moderngl
 from PIL import Image, ImageDraw, ImageFont
 
-from engine import Layer, Renderer, layer_defaults, DEFAULT_CORNERS, BLENDS, CUE_MODES, GAP, LAYER, TRANSITIONS
+from engine import (Layer, Renderer, layer_defaults, clip_mix, DEFAULT_CORNERS, BLENDS,
+                    BLANK, CLIP_FLIPS, CLIP_MIX, CUE_MODES, GAP, LAYER, TRANSITIONS)
 from sources import backend_name, is_video, is_image, list_cameras, list_mics, list_windows, list_spout
 from outputs import OutputWindow, gl_hints, monitors, monitor_info
 import webui
@@ -55,6 +56,7 @@ def default_project():
         'master': 1.0,        # 映像の明るさ（ブラックアウトはこちらだけに効く）
         'audio_master': 1.0,  # 音声ミキサーのマスター音量
         'layers': [bg, ov, ph],
+        'column_names': [],
     }
 
 
@@ -66,12 +68,18 @@ def normalize_project(p):
     for k, v in dp.items():
         if k != 'outputs':
             p.setdefault(k, v)
+    names = p['column_names']
+    p['column_names'] = [n.strip()[:80] if isinstance(n, str) else '' for n in names] if isinstance(names, list) else []
     for L in p['layers']:
         for k, v in layer_defaults(L.get('kind', 'video')).items():
             L.setdefault(k, v)
         L['test'] = False  # 開いたときはテストパターンを必ずオフ
         if not L.get('id'):
             L['id'] = new_id()
+    ranked = sorted(enumerate(p['layers']),
+                    key=lambda pair: pair[1]['z_order'] if type(pair[1].get('z_order')) is int else pair[0])
+    for rank, (_, layer) in enumerate(ranked):
+        layer['z_order'] = rank
     return p
 
 
@@ -420,6 +428,23 @@ class App:
         for o in self.outs:
             o.update_cursor()
 
+    @staticmethod
+    def insert_layer_cue(layer, at, cue):
+        row = layer.cfg['cues']
+        row.extend({'file': GAP, 'mode': 'loop'} for _ in range(at - len(row)))
+        row.insert(at, cue)
+        for d in layer.decks:
+            if d.cue >= at:
+                d.cue += 1
+
+    def layers_in_output_order(self):
+        return sorted(enumerate(self.layers), key=lambda pair: pair[1].cfg['z_order'])
+
+    def insert_column_name(self, at):
+        names = self.proj['column_names']
+        if at < len(names):
+            names.insert(at, '')
+
     def handle(self, c):
         cmd = c.get('cmd')
         L = self.layer(c.get('layer'))
@@ -514,6 +539,20 @@ class App:
             self.touch()
         elif cmd == 'scan_inputs':
             self.scan_inputs()
+        elif cmd == 'cue_mix' and L and L.cfg['kind'] == 'video':
+            i = c.get('cue')
+            cues = L.cfg['cues']
+            if not isinstance(i, int) or not 0 <= i < len(cues):
+                return
+            cue = cues[i]
+            if cue['file'] != c.get('file') or cue['file'] in (BLANK, GAP):
+                return
+            values = clip_mix({**clip_mix(cue), **c})
+            cue.update(values)
+            for d in L.decks:
+                if d.settings is cue:
+                    d.mix = values
+            self.touch(True)
         elif cmd == 'cue_set' and L:
             # カメラの音声入力・ウィンドウの題名など、特別なクリップの設定
             i = int(c['cue'])
@@ -547,7 +586,10 @@ class App:
                 if not isinstance(i, int) or not (0 <= i < len(cues)) or cues[i] != expected:
                     self.message = '素材に保存しましたが、クリップが変わっていたため差し替えませんでした'
                     return
-                cues[i] = {'file': f, 'mode': cues[i].get('mode', 'loop')}
+                old = cues[i]
+                cues[i] = {'file': f, 'mode': old.get('mode', 'loop')}
+                if L.cfg['kind'] == 'video':
+                    cues[i].update(clip_mix(old))
                 self.message = 'クリップを差し替えました'
             self.touch(True)
         elif cmd == 'add_cue' and L:
@@ -560,6 +602,8 @@ class App:
                 at = c.get('at')
                 at = len(cues) if at is None else max(0, min(len(cues), int(at)))
                 cue = {'file': f, 'mode': 'next' if c.get('playlist') else 'loop'}
+                if L.cfg['kind'] == 'video' and (CLIP_MIX.keys() & c.keys() or any(k in c for k in CLIP_FLIPS)):
+                    cue.update(clip_mix(c))
                 for k in ('vdev', 'adev', 'title', 'sender'):
                     if k in c:
                         cue[k] = str(c[k])[:300]
@@ -569,16 +613,51 @@ class App:
                 if insert_column and (at >= len(cues) or cues[at] != c.get('anchor')):
                     self.message = '挿入先が変わったため、コラムを追加できませんでした'
                     return
-                layers = self.layers if insert_column else [L]
+                if insert_column:
+                    self.insert_column_name(at)
+                layers = [x for x in self.layers if x.cfg['kind'] == 'video'] if insert_column else [L]
                 for layer in layers:
-                    row = layer.cfg['cues']
-                    if layer is not L and (layer.cfg['kind'] != 'video' or len(row) < at):
-                        continue
-                    row.insert(at, cue if layer is L else {'file': GAP, 'mode': 'loop'})
-                    for d in layer.decks:
-                        if d.cue >= at:
-                            d.cue += 1
+                    self.insert_layer_cue(layer, at, cue if layer is L else {'file': GAP, 'mode': 'loop'})
                 self.touch(True)
+        elif cmd == 'move_cue_into' and L and L.cfg['kind'] == 'video':
+            source = self.layer_by_id(c.get('source_lid'))
+            if source is None or source.cfg['kind'] != 'video':
+                return
+            i, j = c.get('source_cue'), c.get('cue')
+            src, dst = source.cfg['cues'], L.cfg['cues']
+            if not isinstance(i, int) or not isinstance(j, int) or not (0 <= i < len(src) and 0 <= j <= len(dst)):
+                return
+            incoming = src[i]
+            outgoing = dst[j] if j < len(dst) else None
+            if incoming != c.get('source_expected') or outgoing != c.get('expected'):
+                self.message = 'ドラッグ中にクリップが変わったため、移動できませんでした'
+                return
+            if incoming['file'] == GAP or (source is L and i == j):
+                return
+            if incoming['file'] == LAYER + L.cfg['id']:
+                self.message = '自分自身の映像は追加できません（別のレイヤーに追加してください）'
+                return
+            insert = c.get('insert') is True and source is not L and j < len(dst)
+            src[i] = {'file': GAP, 'mode': 'loop'}
+            for layer in (L,) if source is L else (source, L):
+                for d in layer.decks:
+                    if source is L and d.cue == i:
+                        d.cue = j
+                    elif layer is source and layer is not L and d.cue == i:
+                        d.cue = -1
+                        d.target = 0.0
+                    elif not insert and layer is L and d.cue == j:
+                        d.cue = -1
+                        if d.mode == 'next':
+                            d.mode = 'hold'
+            if insert:
+                self.insert_column_name(j)
+                for layer in self.layers:
+                    if layer.cfg['kind'] == 'video':
+                        self.insert_layer_cue(layer, j, incoming if layer is L else {'file': GAP, 'mode': 'loop'})
+            else:
+                dst[j:j + 1] = [incoming]
+            self.touch(True)
         elif cmd == 'move_cue_to' and L:
             # ドラッグで並べ替え（i 番目を j 番目へ）
             cues = L.cfg['cues']
@@ -592,6 +671,63 @@ class App:
                     if d.cue in new:
                         d.cue = new[d.cue]
                 self.touch(True)
+        elif cmd in ('add_column', 'remove_column', 'rename_column', 'move_column'):
+            j = c.get('cue')
+            layers = [x for x in self.layers if x.cfg['kind'] == 'video']
+            names = self.proj['column_names']
+            count = max(len(names), max((len(x.cfg['cues']) for x in layers), default=0))
+            if not layers or not isinstance(j, int) or not 0 <= j <= count:
+                return
+            if c.get('rev') != self.rev:
+                self.message = 'コラムが変わりました。もう一度操作してください'
+                return
+            if cmd == 'add_column':
+                self.insert_column_name(j)
+                for layer in layers:
+                    self.insert_layer_cue(layer, j, {'file': GAP, 'mode': 'loop'})
+            elif cmd == 'move_column':
+                to = c.get('to')
+                if type(to) is not int or not (0 <= j < count and 0 <= to < count) or j == to:
+                    return
+                order = list(range(count))
+                order.insert(to, order.pop(j))
+                new_positions = {old: new for new, old in enumerate(order)}
+                names[:] = [names[k] if k < len(names) else '' for k in order]
+                while names and not names[-1]:
+                    names.pop()
+                for layer in layers:
+                    row = layer.cfg['cues']
+                    row[:] = [row[k] if k < len(row) else {'file': GAP, 'mode': 'loop'} for k in order]
+                    for d in layer.decks:
+                        d.cue = new_positions.get(d.cue, d.cue)
+            elif cmd == 'rename_column' and j < count:
+                name = c.get('name')
+                if not isinstance(name, str):
+                    return
+                names.extend('' for _ in range(j + 1 - len(names)))
+                names[j] = name.strip()[:80]
+                while names and not names[-1]:
+                    names.pop()
+            elif j < count:
+                if j < len(names):
+                    names.pop(j)
+                    while names and not names[-1]:
+                        names.pop()
+                for layer in layers:
+                    row = layer.cfg['cues']
+                    if j >= len(row):
+                        continue
+                    row.pop(j)
+                    for d in layer.decks:
+                        if d.cue == j:
+                            d.cue = -1
+                            if d.mode == 'next':
+                                d.mode = 'hold'
+                        elif d.cue > j:
+                            d.cue -= 1
+            else:
+                return
+            self.touch(True)
         elif cmd == 'go_column':
             # 列ごと再生（同じ列番号のキューを全レイヤーで一斉に）
             j = int(c['cue'])
@@ -601,11 +737,17 @@ class App:
         elif cmd == 'remove_cue' and L:
             i = int(c['cue'])
             if 0 <= i < len(L.cfg['cues']):
-                L.cfg['cues'].pop(i)
+                compact = L.cfg['kind'] != 'video'
+                if compact:
+                    L.cfg['cues'].pop(i)
+                else:
+                    L.cfg['cues'][i] = {'file': GAP, 'mode': 'loop'}
                 for d in L.decks:
                     if d.cue == i:
                         d.cue = -1
-                    elif d.cue > i:
+                        if d.mode == 'next':
+                            d.mode = 'hold'
+                    elif compact and d.cue > i:
                         d.cue -= 1
                 self.touch(True)
         elif cmd == 'move_cue' and L:
@@ -637,6 +779,7 @@ class App:
             kind = 'photo' if c.get('kind') == 'photo' else 'video'
             cfg = layer_defaults(kind)
             cfg['id'] = new_id()
+            cfg['z_order'] = len(self.layers)
             cfg['output'] = self.out_index(self.layers[self.selected]) if self.layer(self.selected) else 0
             self.proj['layers'].append(cfg)
             self.layers.append(Layer(cfg, self))
@@ -646,21 +789,36 @@ class App:
             L.release()
             self.layers.pop(i)
             self.proj['layers'].pop(i)
+            for rank, (_, layer) in enumerate(self.layers_in_output_order()):
+                layer.cfg['z_order'] = rank
             if self.selected > i:  # 上のレイヤーを消したら、選んでいたレイヤーを選んだままにする
                 self.selected -= 1
             self.selected = max(0, min(self.selected, len(self.layers) - 1))
             self.touch(True)
-        elif cmd == 'move_layer' and L:
+        elif cmd == 'move_layer_row' and L:
+            to = c.get('to')
+            if c.get('rev') != self.rev:
+                self.message = 'レイヤー一覧が変わりました。もう一度操作してください'
+                return
+            if type(to) is not int or not 0 <= to < len(self.layers):
+                return
             i = self.layers.index(L)
-            j = i + int(c['dir'])
-            if 0 <= j < len(self.layers):
-                self.layers[i], self.layers[j] = self.layers[j], self.layers[i]
-                P = self.proj['layers']
-                P[i], P[j] = P[j], P[i]
-                if self.selected == i:  # 選択はレイヤーについていく
-                    self.selected = j
-                elif self.selected == j:
-                    self.selected = i
+            if i == to:
+                return
+            selected = self.layers[self.selected]
+            self.layers.insert(to, self.layers.pop(i))
+            rows = self.proj['layers']
+            rows.insert(to, rows.pop(i))
+            self.selected = self.layers.index(selected)
+            self.drag = None
+            self.touch(True)
+        elif cmd == 'set_layer_order' and L:
+            rank = c.get('value')
+            if type(rank) is int and 0 <= rank < len(self.layers) and rank != L.cfg['z_order']:
+                ordered = [layer for _, layer in self.layers_in_output_order() if layer is not L]
+                ordered.insert(rank, L)
+                for i, layer in enumerate(ordered):
+                    layer.cfg['z_order'] = i
                 self.touch(True)
         # ---- 出力ウィンドウ ----
         elif cmd == 'out_fullscreen' and O:
@@ -782,7 +940,7 @@ class App:
             self.message = f'識別を表示できませんでした（{ex}）'
 
     def set_layer_value(self, L, key, v):
-        num = {'opacity': (0, 1), 'volume': (0, 1), 'fade': (0, 30), 'feather': (0, 0.5),
+        num = {'opacity': (0, 1), 'volume': (0, 1), 'feather': (0, 0.5),
                'photo_interval': (0, 600), 'photo_border': (0, 0.2)}
         boo = {'visible', 'audio', 'test', 'photo_newest'}
         if key in num:
@@ -1027,6 +1185,7 @@ class App:
             'audio_master': self.proj.get('audio_master', 1.0),
             'out_warning': ' ／ '.join(self.warnings),
             'media': self.media, 'layers': ls, 'dirty': self.dirty,
+            'column_names': self.proj['column_names'],
             'message': self.message, 'blends': BLENDS, 'modes': CUE_MODES, 'transitions': TRANSITIONS,
             'sel_corner': self.sel_corner,
         }
@@ -1102,7 +1261,6 @@ class App:
     # ---- キーボード・マウス（出力ウィンドウ）----
     def on_key(self, O, k, mods, repeat):
         ctrl = mods & glfw.MOD_CONTROL
-        shift = mods & glfw.MOD_SHIFT
         if ctrl and k == glfw.KEY_Q:
             self.running = False
         elif ctrl and k == glfw.KEY_S:
@@ -1126,22 +1284,15 @@ class App:
             L, C = self.sel_corners()
             if L is None:
                 return
-            if k == glfw.KEY_TAB:  # 角1→2→3→4→全体→角1…
-                self.sel_corner = (self.sel_corner + (4 if shift else 1)) % 5
-            elif k == glfw.KEY_A and not repeat:
-                self.sel_corner = 4
-            elif k == glfw.KEY_T and not repeat:
+            if k == glfw.KEY_T and not repeat:
                 L.cfg['test'] = not L.cfg['test']
                 self.touch()
             elif k == glfw.KEY_R and not repeat:
                 C[:] = [list(p) for p in DEFAULT_CORNERS]
                 self.touch()
-            elif k in (glfw.KEY_LEFT, glfw.KEY_RIGHT, glfw.KEY_UP, glfw.KEY_DOWN):
-                self.nudge({glfw.KEY_LEFT: -1, glfw.KEY_RIGHT: 1}.get(k, 0),
-                           {glfw.KEY_UP: -1, glfw.KEY_DOWN: 1}.get(k, 0), 10 if shift else 1)
 
     def nudge(self, dx, dy, step=1):
-        """矢印キー：選んでいる角（sel_corner=4 なら全体）を出力の画素単位で動かす"""
+        """スマホから、選んだ角または全体を出力の画素単位で動かす。"""
         L, C = self.sel_corners()
         if L is None:
             return
@@ -1353,10 +1504,11 @@ class App:
         self._render_layer_sources(used)
         hud = self.hud() if self.edit else None
         groups = self.groups()
+        ordered_layers = self.layers_in_output_order()
         for g in groups:
             host = self.outs[g['host']]
             fbo, size = host.ensure_target(self.ctx, self.target_size(g['host']))
-            mine = [(li, L, cc) for li, L in enumerate(self.layers)
+            mine = [(li, L, cc) for li, L in ordered_layers
                     for k, cc in self.layer_places(L) if k == g['host']]
             self.renderer.render_output(fbo, size, mine, self.master_eff, self.edit,
                                         self.selected, self.sel_corner,

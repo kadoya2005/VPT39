@@ -40,10 +40,10 @@ Note: tested on Windows 11.
 
 ### Other features
 
-- **Audio mixer**: plays the sound of the videos on all layers at the same time, with volume and mute per layer and per output. The sound also crossfades when you switch clips.
+- **Audio mixer**: plays the sound of the videos on all layers at the same time, with volume and mute per layer and per output.
 - **Capture board input**: brings in the picture and sound of another PC with low latency. Several units of the same model can be told apart.
 - **Photo wall**: shows the photos in a folder automatically, newest first. You can also line up images from your media and show them in a fixed order.
-- **Move photos in real time**: even during the show, you can move photos and videos with the arrow keys or a phone to adjust their position.
+- **Move photos in real time**: even during the show, you can adjust the position of photos and videos with the mouse or a phone.
 - **Prepare on another PC**: if you set the "Show resolution" for each output, the shapes you adjust in a small window can be used as they are in the show.
 - **Setup files**: for each venue or show, save the running order, mapping, volume and outputs together and switch between them.
 - **Safeguards for the show**: auto-save, output windows do not close with ×, outputs open fullscreen on the same display at the next start, BLACKOUT button.
@@ -64,7 +64,7 @@ Note: tested on Windows 11.
 
 | Feature | Description |
 |---|---|
-| Cue playback | Line up videos and still images per layer in running order, and switch with a click or the Space key. With crossfade (time in seconds) |
+| Cue playback | Line up videos and still images per layer in running order, and switch with a click or the Space key |
 | Clip list | Like a VJ app, each layer's clips are shown as tiles with thumbnails. Drag to add and reorder; "Play column" plays the clips with the same number on all layers at once |
 | Mini controls | Under each thumbnail: pause, restart, stop, and drag the playback position bar (seek) |
 | Multiple outputs | Add as many output windows as you like, each fullscreen on any display. One layer can be shown on several outputs at the same time (mapping is set per output) |
@@ -81,7 +81,7 @@ Note: tested on Windows 11.
 | Layer compositing | Any number of layers. Blend modes: Normal, Add, Screen, Multiply. Opacity, show/hide and stacking order can be changed |
 | Four-corner mapping | Move the four corners of each layer to fit a trapezoid or the shape of the screen. With edge feather and a test pattern |
 | Photo wall | Shows the photos in a chosen folder one after another. New photos are shown first. If you line up images from your media in the row, they are shown in that order (if there is only one, it stays on). Portrait and landscape photos are not distorted. 8 transitions (fade, cut, slide, wipe, zoom) |
-| Audio mixer | Plays the sound of all layers and all outputs at the same time. Faders and mute for the audio master → each output → each layer, with level meters. The sound also crossfades when you switch, so it does not cut out |
+| Audio mixer | Plays the sound of all layers and all outputs at the same time. Faders and mute for the audio master → each output → each layer, with level meters |
 | Display layout and identify | Shows a diagram of the connected displays with their arrangement, resolution and scale. "Identify" shows a number on each display; "Display settings…" opens the Windows settings |
 | Saving | Settings are saved automatically to `project.json` (2 seconds after a change) |
 | Setup | For each venue or show, save, open, duplicate and delete named setups with the running order, clips, mapping, volume and output settings (`settings` folder) |
@@ -115,7 +115,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 - In "**Files**" on the "**Media**" tab, the videos and images in media are listed with thumbnails (they appear a few seconds after you add them).
 - Switch to "**Blank, layers, inputs**" to see the following special media. Add them by clicking or dragging, just like files.
-  - **Blank**: shows nothing and stops the sound (the current picture and sound fade out).
+  - **Blank**: clears the picture and stops the sound.
   - **Layer picture** (L1, L2…): shows the current picture of that layer again, at the same time. It also works when the source layer's "Show" is off (the sound plays on the source layer, so it is not doubled). A layer cannot show its own picture.
   - **Cameras and capture boards**: a list of connected devices. In the "No audio" field of the added clip, you can choose an audio input to play with it (such as the capture board audio). After connecting a device, press "Refresh list".
   - **Window**: a list of the windows open now. Only the picture is captured. It may stop when minimized, so keep the window open.
@@ -125,18 +125,23 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - Drop a video or image from the media panel onto the **center** of an existing clip to replace it. A yellow outline indicates replacement, and a yellow line near an edge or gap indicates insertion.
 - Drop media from the media panel or File Explorer between clips in a video layer to insert a column. Other video layers retain their alignment, and an empty slot leaves that layer playing when the column is triggered.
 - Drop one file from File Explorer onto an existing clip to replace its media in place. Click the updated clip when you are ready to switch playback. Drop on the empty tile at the end to add new clips.
-- Clips can also be reordered by dragging. Dragging to another layer makes a copy.
+- In video layers, drop a clip onto another clip's center to move it with its settings, overwrite the destination, and leave the source slot empty. A drop near an edge or in a gap reorders within the same layer or moves the clip to an inserted column in another video layer.
 - Thumbnails are saved in the `.thumbs` folder (if you delete it, it is rebuilt automatically).
 
 ## Controls during the show
 
-- Click a **clip thumbnail** to switch to that media with a crossfade.
+- Click a **clip thumbnail** to switch to that media.
+- Right-click a clip to clear only its slot. Right-click **Play column →** to append a column, or right-click a column number to rename it, insert before or after it, or delete it.
+- Right-click the layer name area to rename, add, or delete a layer.
+- Right-click a clip and choose **Clip settings** to adjust volume (0–100%), horizontal and vertical flip, and separate video and audio fades (0–30 seconds each). Changes apply during playback and save automatically.
+- Press and hold a layer name, then drag it up or down to reorder the control panel without changing the output stack. Press and hold a column header, then drag it left or right to move the name and all its clips together.
 - **Play column 1, 2, 3…**: plays the clips with the same number on all video layers at once (handy if you line up a column for each song).
 - **Mini controls under the thumbnail** (video clips only)
   - Playback position bar: shows progress in green while playing and orange while paused. **Drag it to move the playback position**
   - ⏮: restart (go back to the beginning and play)　▶ / ⏸: play / pause　⏹: stop (clear that layer)
   - Dragging the bar or pressing ⏮ on a clip that is not playing starts playing that clip
-- **Next ▶** / **Space key**: moves layer 1 to the next cue.
+- **Space** moves layer 1 to the next cue.
+- Choose a number under **Layer order** in **Layer settings**. Position 1 is the back of the output stack. The layer list stays in its original order.
 - **BLACKOUT (B key)**: fades everything to black in 0.5 seconds. Press it again to bring it back.
 - **Brightness** (top bar): brightness of the whole picture. Volume is adjusted in the "Audio mixer".
 
@@ -145,9 +150,9 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - The sound of all video layers **plays at the same time**, whichever output (display) they are shown on.
 - Volume is multiplied in this order: **Audio master** → **each output** (Output 1, Output 2…) → **each layer**.
   - Each fader sets the volume, and the **M** button mutes (red = muted).
-  - The green bar under each layer shows the volume actually playing now (it moves up and down during a crossfade).
+  - The green bar under each layer shows the current playback volume.
 - Turning a picture's "Show" off or blackout **does not stop the sound** (so the sound does not cut out during a live show). To stop the sound, use the M button.
-- When you switch clips, the sound crossfades over the same time as the picture. The previous video keeps playing until the first frame of the new video appears, so picture and sound do not cut out even with a 0-second fade.
+- The previous clip keeps playing until the first frame of the new clip is ready. Picture and sound then switch together.
 - Audio is output with Windows DirectSound (to allow a separate volume for each layer).
 
 ## Mapping (adjusting the four corners)
@@ -156,8 +161,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 2. In the diagram on the right of the control panel, drag the corners of the selected layer. Drag inside to move the whole picture.
 3. For final fine-tuning, working **on the output window** is the most accurate.
    - Drag a corner with the mouse
-   - `1`–`9`: select a layer　`Tab`: select a corner
-   - Arrow keys: move 1 px at a time (10 px with `Shift`)
+   - `1`–`9`: select a layer
    - `T`: test pattern　`R`: reset corners　`E`: finish editing
 4. "Test pattern" shows a grid, diagonals and circles, which you can use to check for distortion.
 

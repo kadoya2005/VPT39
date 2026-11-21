@@ -3,6 +3,7 @@ from i18n import tr
 import os
 import time
 import copy
+import math
 
 import numpy as np
 import moderngl
@@ -12,6 +13,39 @@ from sources import make_source, ImageSource, PhotoFeeder, is_image
 DEFAULT_CORNERS = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]  # 左上,右上,右下,左下
 BLENDS = ['normal', 'add', 'screen', 'multiply']
 CUE_MODES = ['loop', 'hold', 'stop', 'next']
+CLIP_MIX = {
+    'volume': (1.0, 1.0),
+    'fade_in': (0.0, 30.0), 'fade_out': (0.0, 30.0),
+    'audio_fade_in': (0.0, 30.0), 'audio_fade_out': (0.0, 30.0),
+}
+CLIP_FLIPS = ('flip_x', 'flip_y')
+
+
+def clip_mix(cue):
+    values = {}
+    for key, (default, maximum) in CLIP_MIX.items():
+        if key.startswith('audio_'):
+            default = values[key.removeprefix('audio_')]
+        value = cue.get(key, default)
+        if not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)):
+            value = default
+        values[key] = max(0.0, min(maximum, value))
+    values.update((key, cue.get(key) is True) for key in CLIP_FLIPS)
+    return values
+
+
+def fade_level(level, target, end_gain, dt, fade_in, fade_out):
+    if level < target:
+        return min(target, level + (dt / fade_in if fade_in > 0 else 1.0))
+    if level > target:
+        return max(target, min(level, end_gain) - (dt / fade_out if fade_out > 0 else 1.0))
+    return level
+
+
+def end_fade_gain(remaining, duration):
+    return max(0.0, min(1.0, remaining / duration)) if remaining is not None and duration > 0 else 1.0
+
+
 # 写真ウォールの切り替え方
 TRANSITIONS = ['fade', 'cut', 'slide_left', 'slide_right', 'slide_up', 'slide_down', 'wipe', 'zoom']
 XF0, WIPE0 = (0.0, 0.0, 1.0), (0.0, 0.0)
@@ -24,7 +58,6 @@ def layer_defaults(kind='video', name=None):
         'visible': True,
         'opacity': 1.0,
         'blend': 'normal',
-        'fade': 1.0,
         'audio': kind == 'video',
         'volume': 1.0,
         'corners': copy.deepcopy(DEFAULT_CORNERS),
@@ -65,7 +98,7 @@ def inv_homography_bytes(corners):
 class Deck:
     """1つのレイヤー内で再生中の1素材（クロスフェード用に複数重なる）"""
 
-    def __init__(self, src, label, cue=-1, mode='loop'):
+    def __init__(self, src, label, cue=-1, mode='loop', settings=None):
         self.src = src
         self.label = label
         self.cue = cue
@@ -73,6 +106,19 @@ class Deck:
         self.tex = None
         self.alpha = 0.0
         self.target = 1.0
+        self.settings = settings
+        self.mix = clip_mix(settings or {})
+        self.end_gain = 1.0
+        self.audio_level = 0.0
+        self.audio_end_gain = 1.0
+
+    @property
+    def clip_flip(self):
+        return (-1 if self.mix['flip_x'] else 1, -1 if self.mix['flip_y'] else 1)
+
+    @property
+    def level(self):
+        return min(self.alpha, self.end_gain)
 
     def release(self):
         self.src.release()
@@ -157,7 +203,7 @@ class Layer:
             if f == BLANK:
                 for d in self.decks:  # 空白：今の映像と音をフェードアウト
                     d.target = 0.0
-            self.decks.append(Deck(src, cue_label(cue, self.app), i, 'hold'))
+            self.decks.append(Deck(src, cue_label(cue, self.app), i, 'hold', cue))
             return
         path = self.app.media_path(f)
         if not os.path.isfile(path):
@@ -172,8 +218,8 @@ class Layer:
             print(self.error)
             return
         self.error = ''
-        # 新しい素材は最初の映像が出てからフェードイン（それまで前の素材の映像と音を流し続ける）
-        d = Deck(src, f, i, cue.get('mode', 'loop'))
+        # 新しい素材は最初の映像が出てから表示する（それまで前の素材の映像と音を流し続ける）
+        d = Deck(src, f, i, cue.get('mode', 'loop'), cue)
         self.decks.append(d)
 
     def _special_source(self, cue, w, h):
@@ -256,9 +302,11 @@ class Layer:
         self.photo_stopped = self.cfg['kind'] == 'photo'
         for d in self.decks:
             d.target = 0.0
-        if self.cfg['fade'] <= 0:
-            for d in self.decks:
+            fade_out = self.cfg['fade'] if self.cfg['kind'] == 'photo' else d.mix['fade_out']
+            if fade_out <= 0:
                 d.alpha = 0.0
+            if self.cfg['kind'] != 'photo' and d.mix['audio_fade_out'] <= 0:
+                d.audio_level = 0.0
 
     # ---- クリップのミニ操作（一時停止・頭出し・シーク）----
     def top_deck(self):
@@ -298,10 +346,10 @@ class Layer:
 
     def deck_draws(self):
         """描く素材の一覧 [(deck, 不透明度, ずらし・拡大, ワイプ)]。写真ウォールは切り替え方に合わせて動かす"""
-        ds = [d for d in self.decks if d.tex is not None and d.alpha > 0]
+        ds = [d for d in self.decks if d.tex is not None and d.level > 0]
         tr = self.cfg.get('photo_trans', 'fade') if self.cfg['kind'] == 'photo' else 'fade'
         if tr in ('fade', 'cut') or not ds or ds[-1].target <= 0:  # 消すときはふつうにフェードアウト
-            return [(d, d.alpha, XF0, WIPE0) for d in ds]
+            return [(d, d.level, XF0, WIPE0) for d in ds]
         top, p = ds[-1], ds[-1].alpha
         e = p * p * (3 - 2 * p)  # ゆっくり始まり、ゆっくり止まる
         sl = {'slide_left': (1, 0), 'slide_right': (-1, 0), 'slide_up': (0, 1), 'slide_down': (0, -1)}
@@ -329,11 +377,10 @@ class Layer:
 
     # ---- 毎フレーム ----
     def update(self, dt, now):
-        if self.cfg['kind'] == 'photo':
+        photo = self.cfg['kind'] == 'photo'
+        if photo:
             self._update_photo(now)
 
-        fade = self.cfg['fade']
-        step = 1.0 if fade <= 0 else dt / fade
         for d in self.decks:
             d.src.update()
             if getattr(d.src, 'failed', False) and d.target > 0:
@@ -345,37 +392,53 @@ class Layer:
             if d.src.ended and d.target > 0:
                 if d.mode == 'stop':
                     d.target = 0.0
+                    if d.end_gain < 1.0:
+                        d.alpha = 0.0
+                    if d.audio_end_gain < 1.0:
+                        d.audio_level = 0.0
                 elif d.mode == 'next' and d is self.decks[-1]:
                     d.mode = 'hold'
                     self.next()
-            if d.alpha < d.target:
-                if d.src.ready:
-                    d.alpha = min(d.target, d.alpha + step)
-            elif d.alpha > d.target:
-                d.alpha = max(d.target, d.alpha - step)
+        top = self.top_deck()
+        if not photo and top is not None and top.src.ready:
+            for d in self.decks[:self.decks.index(top)]:
+                d.target = 0.0
+
+        for d in self.decks:
+            if d.target <= 0 or (d.src.ready and (photo or d is top or d.alpha > 0 or d.audio_level > 0)):
+                fade_in = self.cfg['fade'] if photo else d.mix['fade_in']
+                fade_out = self.cfg['fade'] if photo else d.mix['fade_out']
+                d.alpha = fade_level(d.alpha, d.target, d.end_gain, dt, fade_in, fade_out)
+                if not photo:
+                    d.audio_level = fade_level(d.audio_level, d.target, d.audio_end_gain, dt,
+                                               d.mix['audio_fade_in'], d.mix['audio_fade_out'])
+            if d.target > 0 and not d.src.ended:
+                remaining = None
+                video_out = d.mix['fade_out'] if d.mode == 'stop' else 0.0
+                audio_out = d.mix['audio_fade_out'] if d.mode in ('stop', 'next') else 0.0
+                if d.src.seekable and (video_out > 0 or audio_out > 0):
+                    pos, length = d.src.position()
+                    if length > 0:
+                        remaining = length - pos
+                d.end_gain = end_fade_gain(remaining, video_out)
+                d.audio_end_gain = end_fade_gain(remaining, audio_out)
 
         # ライブ入力が途中で止まった（ケーブルが抜けた・送る側が止まった）ときは、最後の映像のまま赤字で知らせる
-        cur = self.top_deck()
-        stall = getattr(cur.src, 'stall_msg', '') if cur else ''
+        stall = getattr(top.src, 'stall_msg', '') if top else ''
         if stall:
             self.error = self._stall = stall
         elif getattr(self, '_stall', '') and self.error == self._stall:
             self.error = self._stall = ''  # 戻ったら消す
 
-        # 一番上が完全に表示されたら下の素材を解放
-        top = None
-        for d in reversed(self.decks):
-            if d.target > 0:
-                top = d
-                break
         # 次々に切り替えたとき、まだ一度も映っていない途中の素材（一番上より下で alpha が 0）もすぐ解放する
         # （準備中の動画が何本もたまらないように。途中の素材が一瞬映るのも防ぐ）
         keep = []
         ti = self.decks.index(top) if top is not None else -1
         for i, d in enumerate(self.decks):
-            dead = (d.target <= 0 and d.alpha <= 0) or \
+            invisible = d.alpha <= 0 and d.audio_level <= 0
+            dead = (d.target <= 0 and invisible) or \
                    (top is not None and d is not top and i < ti and
-                    (top.alpha >= 1.0 or d.alpha <= 0))
+                    ((photo and top.alpha >= 1.0) or invisible))
             if dead:
                 d.release()
             else:
@@ -386,9 +449,10 @@ class Layer:
         base = self.app.audio_gain(self)
         total = 0.0
         for i, d in enumerate(self.decks):
-            v = d.alpha
-            for nd in self.decks[i + 1:]:
-                v *= (1.0 - nd.alpha)
+            v = (d.level if photo else min(d.audio_level, d.audio_end_gain)) * d.mix['volume']
+            if photo:
+                for nd in self.decks[i + 1:]:
+                    v *= (1.0 - nd.alpha)
             d.src.set_volume(v * base)
             if not d.src.paused and not d.src.ended and not getattr(d.src, 'silent', False):
                 total += v * base
@@ -481,6 +545,7 @@ uniform int premul;
 uniform vec3 tint;
 uniform vec3 xf;       // 写真の切り替え用：中身のずらし (x, y) と拡大率
 uniform vec2 wipe;     // 写真の切り替え用：ワイプの位置とぼかし幅（幅0＝使わない）
+uniform vec2 clip_flip;
 out vec4 fragColor;
 void main(){
     vec2 p = (gl_FragCoord.xy - origin) / res;
@@ -507,6 +572,7 @@ void main(){
     } else {
         // レイヤー映像（GPU で描いたテクスチャ）は行が下から上なので上下を戻す
         vec2 s = (uv - 0.5) / xf.z + 0.5 - xf.xy;
+        s = (s - 0.5) * clip_flip + 0.5;
         if (s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) discard;
         c = texture(tex, premul == 1 ? vec2(s.x, 1.0 - s.y) : s);
     }
@@ -582,7 +648,7 @@ class Renderer:
         t.swizzle = swz
 
     def draw_quad(self, tex, corners, size, opacity, feather=0.0, mode=0, tint=(1, 1, 1), origin=(0, 0),
-                  premul=False, xf=XF0, wipe=WIPE0):
+                  premul=False, xf=XF0, wipe=WIPE0, clip_flip=(1, 1)):
         hb = inv_homography_bytes(corners)
         if hb is None:
             return
@@ -597,6 +663,7 @@ class Renderer:
         p['tint'].value = tint
         p['xf'].value = xf
         p['wipe'].value = wipe
+        p['clip_flip'].value = clip_flip
         (tex or self.dummy).use(0)
         p['tex'].value = 0
         self.vao.render(moderngl.TRIANGLE_STRIP)
@@ -625,7 +692,7 @@ class Renderer:
         self.set_blend('normal')
         for d, a, xf, wp in L.deck_draws():
             self.draw_quad(d.tex, DEFAULT_CORNERS, size, a, premul=getattr(d.src, 'shared_tex', False),
-                           xf=xf, wipe=wp)
+                           xf=xf, wipe=wp, clip_flip=d.clip_flip)
 
     def render_output(self, fbo, size, mine, master, edit=False, selected=0, sel_corner=0, hud=None):
         """1つの出力をフレームバッファに描く。mine: その出力に映す [(レイヤー番号, Layer, 四隅), ...]"""
@@ -647,7 +714,7 @@ class Renderer:
                 for d, a, xf, wp in L.deck_draws():
                     self.draw_quad(d.tex, corners, size, c['opacity'] * a * master,
                                    c['feather'], origin=org, premul=getattr(d.src, 'shared_tex', False),
-                                   xf=xf, wipe=wp)
+                                   xf=xf, wipe=wp, clip_flip=d.clip_flip)
 
             if edit:
                 self.set_blend('normal')

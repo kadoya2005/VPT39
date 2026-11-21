@@ -390,9 +390,18 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 /* ---- レイヤーの行（VJアプリ風：左に名前と基本操作、右にクリップ）---- */
 .grid{display:inline-flex;flex-direction:column;min-width:100%}
 .colhead{position:sticky;top:0;z-index:6;display:flex;align-items:center;background:var(--bg);border-bottom:1px solid var(--line)}
-.colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--bg);padding:8px 10px;font-size:12px;color:var(--dim);border-right:1px solid var(--line);align-self:stretch;display:flex;align-items:center}
+.colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--bg);padding:8px 10px;font-size:12px;color:var(--dim);border-right:1px solid var(--line);align-self:stretch;display:flex;align-items:center;justify-content:space-between;gap:4px}
 .colhead .cols{display:flex;gap:var(--gap);padding:6px var(--gap)}
-.colhead .cols button{width:var(--tw);flex:none;padding:4px 0;font-size:12px}
+.colhead [data-col]{width:var(--tw);flex:none;padding:4px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+[data-layer-drag],.colhead [data-col]{cursor:grab;user-select:none;touch-action:none}
+.grid-moving{background:#3b3020;outline:2px solid var(--warn);outline-offset:-2px;border-radius:5px;cursor:grabbing}
+.colhead .grid-target{outline:2px solid var(--warn);outline-offset:-2px;background:#3b3020}
+.lrow.grid-target{outline:2px solid var(--warn);outline-offset:-2px}
+.lrow.grid-target>.lhead{outline:2px solid var(--warn);outline-offset:-2px;background:#3b3020}
+.colhead .grid-before{box-shadow:inset 4px 0 var(--warn)}
+.colhead .grid-after{box-shadow:inset -4px 0 var(--warn)}
+.lrow.grid-before>div{box-shadow:inset 0 4px var(--warn)}
+.lrow.grid-after>div{box-shadow:inset 0 -4px var(--warn)}
 .lrow{display:flex;border-bottom:1px solid var(--line)}
 .lhead{position:sticky;left:0;z-index:3;width:var(--lw);flex:none;background:var(--panel);padding:8px 10px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--line);cursor:default}
 .lrow.sel .lhead{background:#221d12;box-shadow:inset 4px 0 0 var(--warn)}
@@ -421,8 +430,6 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .clip .md:hover{background:var(--hov);color:var(--hovtx)}
 .clip .cn{display:flex;align-items:center;gap:2px;font-size:11px;padding:3px 3px 4px 6px}
 .clip .cn span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.clip .x{padding:0 5px;font-size:11px;line-height:1.4;border:0;background:transparent;color:var(--dim)}
-.clip .x:hover{color:var(--hovtx);background:var(--hov)}
 .clip:not(.empty):not(.on):hover{border-color:var(--hov)}
 .clip.empty{border-style:dashed;background:transparent}
 .clip.empty .th{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim);font-size:20px;background:transparent;cursor:default;aspect-ratio:auto;height:118px}
@@ -466,14 +473,26 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .sp.spout{background:linear-gradient(135deg,#2a1838,#170d22)}
 .clip select{width:calc(100% - 8px);margin:3px 4px 0;font-size:11px;padding:1px 2px}
 .clip.empty .th{gap:6px}
-.addblank{font-size:12px;padding:3px 8px}
 
 /* ---- 欄を別ウィンドウに切り離す ---- */
 .pop{padding:0 7px;font-size:13px;line-height:1.5}
 .hide{display:none!important}
+#context-menu{position:fixed;z-index:40;display:grid;min-width:170px;max-width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto;padding:4px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;box-shadow:0 6px 20px #0009}
+#context-menu button{border:0;background:transparent;padding:6px 9px;text-align:left}
+#context-menu button:hover,#context-menu button:focus-visible{background:var(--hov);color:var(--hovtx)}
+#context-menu .danger{color:#ff8d85}
 /* セッティングの窓（画面の上に重ねて出す）*/
 .dlg{position:fixed;inset:0;z-index:50;background:#000a;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px}
 .dlgbox{width:min(640px,100%);max-height:calc(100vh - 80px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px #000a}
+#clipdlg{padding:0;border:0;border-radius:12px;background:transparent;color:var(--text)}
+#clipdlg::backdrop{background:#000a}
+#clipdlg .dlgbox{width:min(420px,calc(100vw - 32px))}
+#clipdlg label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#clipdlg input{width:84px}
+#clipdlg input[type=range]{width:min(160px,35vw)}
+#clipdlg input[type=checkbox]{width:auto}
+#clipdlg output{min-width:4.5ch;text-align:right;font-variant-numeric:tabular-nums}
+#clipdlg fieldset{display:grid;gap:8px;margin:0;padding:8px 10px 10px;border:1px solid var(--line);border-radius:6px}
 .setrow{display:flex;gap:6px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#0b0d10}
 .setrow.cur{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
 .setrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
@@ -562,13 +581,32 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <div class="hint" id="lanhint"></div>
 </div></div>
 <div class="childbar" id="childbar"></div>
+<div id="context-menu" class="hide" role="menu" aria-label="操作メニュー"></div>
+<dialog id="clipdlg" aria-labelledby="clipdlgtitle">
+  <form class="dlgbox" id="clipform" novalidate>
+    <b id="clipdlgtitle">クリップ設定</b>
+    <div class="meta" id="clipdlgname"></div>
+    <fieldset><legend>映像</legend>
+      <label>左右反転<input name="flip_x" type="checkbox"></label>
+      <label>上下反転<input name="flip_y" type="checkbox"></label>
+      <label>フェードイン (秒)<input name="fade_in" type="number" min="0" max="30" step="any" required></label>
+      <label>フェードアウト (秒)<input name="fade_out" type="number" min="0" max="30" step="any" required></label>
+    </fieldset>
+    <fieldset><legend>音声</legend>
+      <label><span>音量</span><input name="volume" type="range" min="0" max="100" step="1"><output id="clip-volume"></output></label>
+      <label>フェードイン (秒)<input name="audio_fade_in" type="number" min="0" max="30" step="any" required></label>
+      <label>フェードアウト (秒)<input name="audio_fade_out" type="number" min="0" max="30" step="any" required></label>
+    </fieldset>
+    <div class="row"><span class="meta grow" id="clip-status" role="status"></span><button type="submit">閉じる</button></div>
+  </form>
+</dialog>
 <main>
   <section class="deck" id="deck">
     <div class="grid">
-      <div class="colhead"><div class="lh">列で再生 →</div><div class="cols" id="cols"></div></div>
+      <div class="colhead"><div class="lh" id="column-head" title="右クリックでコラムの操作">列で再生 →</div><div class="cols" id="cols"></div></div>
       <div id="layers"></div>
-      <div class="addrow"><button id="addv">＋動画レイヤー</button><button id="addp">＋写真ウォール</button>
-        <span class="hint" style="align-self:center">Space＝L1の次へ ／ B＝ブラックアウト ／ E＝マッピング編集</span></div>
+      <div class="addrow" id="layer-footer"><span class="hint">コラム・レイヤー・クリップの編集は右クリック</span>
+        <span class="hint">Space＝L1の次へ ／ B＝ブラックアウト ／ E＝マッピング編集</span></div>
     </div>
   </section>
   <aside>
@@ -594,8 +632,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
           <button class="sm lock" id="mapedit">編集 (E)</button><button class="sm lock" id="maptest">テスト表示</button><button class="sm" id="mapreset">四隅リセット</button></div>
         <div class="mtabs" id="mtabs"></div>
         <canvas id="map" width="800" height="450"></canvas>
-        <div class="row" id="cornsel"><span class="meta">矢印キーで動かす所：</span><button class="sm" data-c="0">左上</button><button class="sm" data-c="1">右上</button><button class="sm" data-c="2">右下</button><button class="sm" data-c="3">左下</button><button class="sm" data-c="4">全体</button></div>
-        <div class="hint">角をドラッグで変形、内側をドラッグで移動。「編集 (E)」中は矢印キーで1pxずつ（Shiftで10px）動かせます（この画面でも出力ウィンドウ上でも）。</div>
+        <div class="hint">角をドラッグして変形、内側をドラッグして全体を移動。</div>
       </div>
       <div class="card pane" id="mixer"></div>
       <div class="card pane" id="outs"></div>
@@ -727,9 +764,9 @@ function dropIndex(row,e){
   for(const t of tiles){const r=t.getBoundingClientRect(); if(e.clientX<r.left+r.width/2) return +t.dataset.j;}
   return tiles.length;
 }
-function replacementTile(e){
-  if(!hasFiles(e)&&!e.dataTransfer.types.includes('text/x-sm-file'))return null;
-  const tile=e.target.closest('.clip:not(.empty)');
+function replacementTile(e,moveClip){
+  if(!moveClip&&!hasFiles(e)&&!e.dataTransfer.types.includes('text/x-sm-file'))return null;
+  const tile=e.target.closest(moveClip?'.clip':'.clip:not(.empty)');
   if(!tile)return null;
   const r=tile.getBoundingClientRect(), edge=r.width/5;
   return e.clientX>=r.left+edge&&e.clientX<=r.right-edge?tile:null;
@@ -744,7 +781,9 @@ function stopAuto(){if(autoScroll){clearInterval(autoScroll.t);autoScroll=null;}
 function setupDnD(){
   document.querySelectorAll('.clip:not(.empty) .th').forEach(el=>{
     el.addEventListener('dragstart',e=>{const L=+el.closest('.lrow').dataset.layer, j=+el.closest('.clip').dataset.j;
-      e.dataTransfer.setData('text/x-sm-cue',JSON.stringify({layer:L,cue:j,...S.layers[L].cues[j]}));
+      const layer=S.layers[L], clip=layer.cues[j];
+      e.dataTransfer.setData('text/x-sm-cue',JSON.stringify({layer:L,lid:layer.id,cue:j,clip}));
+      if(layer.kind==='video'&&clip.file!=='@gap')e.dataTransfer.setData('text/x-sm-video-cue','1');
       e.dataTransfer.effectAllowed='copyMove'; dragActive=true;});
     el.addEventListener('dragend',endDrag);
   });
@@ -756,7 +795,9 @@ function setupDnD(){
       if(!files&&!OURS(e.dataTransfer.types))return;
       e.preventDefault(); clearIns();
       if(files)e.dataTransfer.dropEffect='copy';
-      const replace=replacementTile(e);
+      const moveClip=layer.kind==='video'&&e.dataTransfer.types.includes('text/x-sm-video-cue');
+      const replace=replacementTile(e,moveClip);
+      if(moveClip)e.dataTransfer.dropEffect='move';
       if(replace){replace.classList.add('fdrop');return;}
       const at=dropIndex(row,e), tiles=[...row.querySelectorAll('.clip:not(.empty)')];
       if(at<tiles.length) tiles[at].classList.add('ins');
@@ -765,7 +806,8 @@ function setupDnD(){
     row.addEventListener('dragleave',e=>{ if(!row.contains(e.relatedTarget)) clearIns(); });
     row.addEventListener('drop',e=>{
       e.preventDefault();
-      const at=dropIndex(row,e), replace=replacementTile(e);
+      const moveClip=layer.kind==='video'&&e.dataTransfer.types.includes('text/x-sm-video-cue');
+      const at=dropIndex(row,e), replace=replacementTile(e,moveClip);
       if(hasFiles(e)){
         const files=[...e.dataTransfer.files], track=e.target.closest('.track');
         endDrag();
@@ -784,20 +826,28 @@ function setupDnD(){
           index++;
         });
       }
-      const L=+row.dataset.layer;
       const m=e.dataTransfer.getData('text/x-sm-media'), q=e.dataTransfer.getData('text/x-sm-cue');
       endDrag();
       if(replace){
-        const cue=+replace.dataset.j, expected=layer.cues[cue];
+        const cue=+replace.dataset.j, expected=layer.cues[cue]??null;
+        if(moveClip&&q){
+          const source=JSON.parse(q);
+          return cmd({cmd:'move_cue_into',lid:layer.id,cue,expected,
+            source_lid:source.lid,source_cue:source.cue,source_expected:source.clip});
+        }
         const file=e.dataTransfer.getData('text/x-sm-file');
         if(file&&expected) cmd({cmd:'import_cue',lid:layer.id,cue,expected,file});
         return;
       }
       if(m) return addMedia(layer,m,at,columnInsert(layer,at));
-      if(q&&S.layers[L].kind==='photo'){const o=JSON.parse(q); if(!isImg(o.file||'')||String(o.file).startsWith('@')){alert('写真ウォールに入れられるのは画像だけです');return;}}
       if(q){const o=JSON.parse(q);
-        if(o.layer===L){const to=at>o.cue?at-1:at; if(to!==o.cue) cmd({cmd:'move_cue_to',layer:L,cue:o.cue,to});}
-        else{const c={...o}; delete c.layer; delete c.cue; delete c.mode; cmd({cmd:'add_cue',lid:layer.id,at,...c,...columnInsert(layer,at)});}}  // 別レイヤーへはコピー
+        if(layer.kind==='photo'&&(!isImg(o.clip.file||'')||o.clip.file.startsWith('@'))){alert('写真ウォールに入れられるのは画像だけです');return;}
+        if(o.lid===layer.id){const to=at>o.cue?at-1:at; if(to!==o.cue) cmd({cmd:'move_cue_to',lid:layer.id,cue:o.cue,to});}
+        else if(moveClip){
+          cmd({cmd:'move_cue_into',lid:layer.id,cue:at,expected:layer.cues[at]??null,insert:true,
+            source_lid:o.lid,source_cue:o.cue,source_expected:o.clip});
+        }
+        else{const c={...o.clip}; delete c.mode; cmd({cmd:'add_cue',lid:layer.id,at,...c,...columnInsert(layer,at)});}}
     });
   });
 }
@@ -823,6 +873,102 @@ document.addEventListener('dragover',e=>{
 });
 document.addEventListener('drop',endDrag);
 document.addEventListener('dragend',endDrag);
+
+// レイヤー名とコラム見出しだけを長押しで並べ替える。
+let gridDrag=null, suppressGridClick=false;
+function markGridDrop(drag,scroll=false){
+  const deck=$('deck'), rect=deck.getBoundingClientRect(), {x,y,layer}=drag;
+  drag.marker?.classList.remove('grid-before','grid-after','grid-target');
+  drag.marker=null; drag.to=drag.from;
+  if(x<rect.left||x>rect.right||y<rect.top||y>rect.bottom)return;
+  if(scroll){
+    const start=layer?rect.top+$('column-head').offsetHeight:rect.left+$('column-head').offsetWidth;
+    const end=layer?rect.bottom:rect.right, p=layer?y:x;
+    const delta=p>=start&&p<start+36?-14:p>end-36?14:0;
+    if(layer)deck.scrollTop+=delta;
+    else deck.scrollLeft+=delta;
+  }
+  const items=[...deck.querySelectorAll(layer?'.lrow':'#cols [data-col]')];
+  if(!items.length)return;
+  let boundary=items.findIndex(item=>{
+    const r=item.getBoundingClientRect();
+    return layer?y<(r.top+r.bottom)/2:x<(r.left+r.right)/2;
+  });
+  if(boundary<0)boundary=items.length;
+  drag.to=boundary>drag.from?boundary-1:boundary;
+  if(drag.to===drag.from)return;
+  drag.marker=items[Math.min(boundary,items.length-1)];
+  drag.marker.classList.add('grid-target',boundary===items.length?'grid-after':'grid-before');
+}
+function activateGridDrag(drag){
+  if(gridDrag!==drag||drag.active||!drag.handle.isConnected)return;
+  clearTimeout(drag.timer);
+  drag.active=true;
+  drag.handle.classList.add('grid-moving');
+  closeContextMenu();
+  markGridDrop(drag);
+  drag.scroll=setInterval(()=>markGridDrop(drag,true),30);
+}
+function finishGridDrag(commit=false){
+  const drag=gridDrag;
+  if(!drag)return;
+  gridDrag=null;
+  clearTimeout(drag.timer);
+  clearInterval(drag.scroll);
+  if(drag.handle.hasPointerCapture(drag.pointer))drag.handle.releasePointerCapture(drag.pointer);
+  if(!drag.active)return;
+  drag.handle.classList.remove('grid-moving');
+  drag.marker?.classList.remove('grid-before','grid-after','grid-target');
+  suppressGridClick=true;
+  if(commit&&drag.to!==drag.from){
+    const target=drag.layer?{cmd:'move_layer_row',lid:drag.lid}:{cmd:'move_column',cue:drag.from};
+    cmd({...target,to:drag.to,rev:drag.revision});
+  }
+}
+document.addEventListener('pointerdown',e=>{
+  if(!gridDrag)suppressGridClick=false;
+  if(!e.isPrimary||e.button!==0)return;
+  if(!S||gridDrag)return;
+  const handle=e.target.closest('[data-layer-drag],#cols [data-col]');
+  if(!handle)return;
+  const layer=handle.hasAttribute('data-layer-drag');
+  const from=+(layer?handle.closest('.lrow').dataset.layer:handle.dataset.col);
+  const drag={handle,layer,from,to:from,lid:handle.dataset.layerDrag,revision:rev,
+    pointer:e.pointerId,x:e.clientX,y:e.clientY,active:false};
+  gridDrag=drag;
+  handle.setPointerCapture(drag.pointer);
+  drag.timer=setTimeout(()=>activateGridDrag(drag),250);
+});
+document.addEventListener('pointermove',e=>{
+  const drag=gridDrag;
+  if(!drag||drag.pointer!==e.pointerId)return;
+  if(!drag.active&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)>8)activateGridDrag(drag);
+  if(!drag.active)return;
+  drag.x=e.clientX;drag.y=e.clientY;
+  markGridDrop(drag);
+});
+document.addEventListener('pointerup',e=>{
+  if(gridDrag?.pointer!==e.pointerId)return;
+  if(gridDrag.active){
+    gridDrag.x=e.clientX;gridDrag.y=e.clientY;
+    markGridDrop(gridDrag);
+  }
+  finishGridDrag(true);
+});
+document.addEventListener('pointercancel',e=>{if(gridDrag?.pointer===e.pointerId)finishGridDrag();});
+document.addEventListener('lostpointercapture',e=>{if(gridDrag?.pointer===e.pointerId)finishGridDrag();});
+window.addEventListener('blur',()=>finishGridDrag());
+document.addEventListener('click',e=>{
+  if(suppressGridClick&&e.detail){
+    suppressGridClick=false;
+    e.preventDefault();e.stopImmediatePropagation();
+  }
+},true);
+document.addEventListener('contextmenu',e=>{
+  if((gridDrag?.active||suppressGridClick)&&e.target.closest('[data-layer-drag],#cols [data-col]')){
+    e.preventDefault();e.stopImmediatePropagation();
+  }
+},true);
 
 // ---- 素材ブラウザ ----
 function buildFolders(){
@@ -933,11 +1079,89 @@ $('mkf').onclick=()=>{mkind='f'; lsSet('vpt39-mkind','f'); if(S) buildMedia();};
 $('mks').onclick=()=>{mkind='s'; lsSet('vpt39-mkind','s'); if(S){ if(!(S.inputs||{}).time) cmd({cmd:'scan_inputs'}); buildMedia();}};
 
 // ---- 列ボタン（クリップの列とそろえて並べる）----
-function buildColumns(){
-  const n=Math.max(0,...S.layers.filter(L=>L.kind==='video').map(L=>L.cues.length));
-  $('cols').innerHTML=Array.from({length:n},(_,j)=>`<button data-col="${j}" title="${j+1}番目のクリップを全部の動画レイヤーで一斉に再生">▶ ${j+1}</button>`).join('');
-  $('cols').querySelectorAll('[data-col]').forEach(b=>b.onclick=()=>cmd({cmd:'go_column',cue:+b.dataset.col}));
+const contextMenu=$('context-menu');
+let contextOrigin=null;
+function closeContextMenu(restoreFocus=false){
+  if(contextMenu.classList.contains('hide'))return;
+  contextMenu.classList.add('hide');
+  if(restoreFocus&&contextOrigin?.isConnected)contextOrigin.focus({preventScroll:true});
+  contextOrigin=null;
 }
+function openContextMenu(e,actions){
+  e.preventDefault();
+  const menu=contextMenu;
+  contextOrigin=e.target.closest('button,[tabindex]');
+  menu.replaceChildren(...actions.map(([label,run,danger])=>{
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=T(label); b.setAttribute('role','menuitem');
+    b.classList.toggle('danger',Boolean(danger));
+    b.onclick=()=>{closeContextMenu(true);run();};
+    return b;
+  }));
+  menu.classList.remove('hide');
+  const x=Math.max(6,Math.min(e.clientX,innerWidth-menu.offsetWidth-6));
+  const y=Math.max(6,Math.min(e.clientY,innerHeight-menu.offsetHeight-6));
+  menu.style.left=x+'px'; menu.style.top=y+'px';
+  menu.firstElementChild.focus({preventScroll:true});
+}
+document.addEventListener('pointerdown',e=>{if(!contextMenu.contains(e.target))closeContextMenu();});
+document.addEventListener('dragstart',()=>closeContextMenu());
+$('deck').addEventListener('scroll',()=>closeContextMenu());
+window.addEventListener('resize',()=>closeContextMenu());
+contextMenu.addEventListener('keydown',e=>{
+  e.stopPropagation();
+  if(e.key==='Escape'||e.key==='Tab'){
+    closeContextMenu(true);
+    if(e.key==='Escape')e.preventDefault();
+  }else if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+    e.preventDefault();
+    const items=[...contextMenu.children], i=items.indexOf(document.activeElement);
+    items[(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length].focus({preventScroll:true});
+  }
+});
+function deleteColumn(cue,revision){
+  if(confirm(`コラム ${cue+1} を削除しますか？ 全動画レイヤーのこの列が消えます。`)){
+    cmd({cmd:'remove_column',cue,rev:revision});
+  }
+}
+function columnMenu(cue,revision){
+  return [
+    ['このコラムを再生',()=>cmd({cmd:'go_column',cue})],
+    ['コラム名を変更',()=>{
+      const name=prompt('コラム名（空欄で番号のみ）',S.column_names[cue]||'');
+      if(name!==null)cmd({cmd:'rename_column',cue,rev:revision,name});
+    }],
+    ['このコラムの前に追加',()=>cmd({cmd:'add_column',cue,rev:revision})],
+    ['このコラムの後に追加',()=>cmd({cmd:'add_column',cue:cue+1,rev:revision})],
+    ['このコラムを削除',()=>deleteColumn(cue,revision),true]
+  ];
+}
+function buildColumns(){
+  const layers=S.layers.filter(L=>L.kind==='video'), revision=S.rev;
+  const names=S.column_names, n=layers.length?Math.max(names.length,...layers.map(L=>L.cues.length)):0, cols=$('cols');
+  cols.innerHTML=Array.from({length:n},(_,j)=>{
+    const name=names[j]||'';
+    return `<button data-col="${j}" title="${name?esc(name):`${j+1}番目のクリップを全部の動画レイヤーで一斉に再生`}">▶ ${j+1}${name?' '+esc(name):''}</button>`;
+  }).join('');
+  cols.querySelectorAll('[data-col]').forEach(b=>b.onclick=()=>cmd({cmd:'go_column',cue:+b.dataset.col}));
+  cols.oncontextmenu=e=>{
+    const col=e.target.closest('[data-col]');
+    if(col)openContextMenu(e,columnMenu(+col.dataset.col,revision));
+  };
+  $('column-head').oncontextmenu=e=>{
+    const actions=layers.length
+      ? [['末尾にコラムを追加',()=>cmd({cmd:'add_column',cue:n,rev:revision})]]
+      : layerAddMenu();
+    openContextMenu(e,actions);
+  };
+}
+function layerAddMenu(){
+  return [
+    ['動画レイヤーを追加',()=>cmd({cmd:'add_layer',kind:'video'})],
+    ['写真ウォールを追加',()=>cmd({cmd:'add_layer',kind:'photo'})]
+  ];
+}
+$('layer-footer').oncontextmenu=e=>openContextMenu(e,layerAddMenu());
 
 // ---- レイヤーの行 ----
 // 特別なクリップの表示名
@@ -958,8 +1182,69 @@ function cueInfo(c){
 function photoTile(i,c,j){
   return `<div class="clip" id="go${i}_${j}" data-j="${j}">
     <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（押すとすぐ出す・ドラッグで並べ替え）">${thumbImg(c.file)}<span class="num">${j+1}</span></div>
-    <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span><button class="x" data-rm="${j}" title="この画像を写真ウォールから外す">✕</button></div>
+    <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span></div>
   </div>`;
+}
+let clipUpdates=Promise.resolve();
+function openClipSettings(layer,j){
+  const c=layer.cues[j], form=$('clipform'), dialog=$('clipdlg');
+  const fields=form.elements;
+  $('clipdlgname').textContent=cueInfo(c)?.name||base(c.file);
+  $('clip-status').textContent='';
+  fields.volume.value=Math.round((c.volume??1)*100);
+  fields.flip_x.checked=Boolean(c.flip_x);
+  fields.flip_y.checked=Boolean(c.flip_y);
+  fields.fade_in.value=c.fade_in??0;
+  fields.fade_out.value=c.fade_out??0;
+  fields.audio_fade_in.value=c.audio_fade_in??c.fade_in??0;
+  fields.audio_fade_out.value=c.audio_fade_out??c.fade_out??0;
+  const showAudio=()=>{
+    $('clip-volume').textContent=fields.volume.value+'%';
+  };
+  showAudio();
+  let pending={}, timer=null, sending=false;
+  const flush=(force=false)=>{
+    clearTimeout(timer); timer=null;
+    if((sending&&!force)||!Object.keys(pending).length)return;
+    const values=pending;
+    pending={}; sending=true;
+    clipUpdates=clipUpdates.then(async()=>{
+      const response=await post({cmd:'cue_mix',lid:layer.id,cue:j,file:c.file,...values});
+      if(!response.ok)throw new Error();
+    }).catch(()=>{
+      if(dialog.onclose===closeUpdates)$('clip-status').textContent=T('設定を送れませんでした');
+    }).finally(()=>{
+      sending=false;
+      if(Object.keys(pending).length)flush();
+      else if(!dialog.open)setTimeout(poll,60);
+    });
+  };
+  const closeUpdates=()=>flush(true);
+  form.oninput=e=>{
+    const field=e.target;
+    if(!field.name||!field.validity.valid)return;
+    showAudio();
+    const value=field.type==='checkbox'?field.checked:field.valueAsNumber;
+    pending[field.name]=field.name==='volume'?value/100:value;
+    if(timer===null&&!sending)timer=setTimeout(flush,30);
+  };
+  form.onsubmit=e=>{
+    e.preventDefault();
+    closeUpdates();
+    dialog.close();
+  };
+  dialog.oncancel=closeUpdates;
+  dialog.onclose=closeUpdates;
+  dialog.showModal();
+}
+function deleteClip(layer,j){
+  const clip=layer.cues[j], sp=cueInfo(clip);
+  if(confirm(`クリップ「${sp?sp.name:base(clip.file)}」を削除しますか？`)){
+    cmd({cmd:'remove_cue',lid:layer.id,cue:j,file:clip.file});
+  }
+}
+function deleteLayer(layer){
+  if(confirm(`レイヤー「${layer.name}」を削除しますか？`))cmd({cmd:'remove_layer',lid:layer.id});
 }
 function clipTile(i,c,j){
   const sp=cueInfo(c);
@@ -968,10 +1253,10 @@ function clipTile(i,c,j){
     const adev=c.file==='@camera'?`<select data-adev="${j}" title="一緒に流す音声（キャプチャーボードの音声など）"><option value="">音声なし</option>${
       [...new Set([...mics,c.adev].filter(Boolean))].map(n=>`<option value="${esc(n)}" ${n===c.adev?'selected':''}>${esc(n)}</option>`).join('')}</select>`:'';
     return `<div class="clip" id="go${i}_${j}" data-j="${j}">
-      <div class="th" draggable="true" data-cue="${j}" title="クリックで切り替え・ドラッグで並べ替え"><div class="sp ${sp.cls}">${esc(sp.label)}</div><span class="num">${j+1}</span></div>
+      <div class="th" ${c.file==='@gap'?'':`draggable="true" data-cue="${j}" title="クリックで切り替え・ドラッグで並べ替え"`}><div class="sp ${sp.cls}">${esc(sp.label)}</div><span class="num">${j+1}</span></div>
       ${adev}
-      <div class="tp">${c.file==='@gap'?'':`<button class="tb" data-tp="stop" title="消す（フェードアウト）">⏹</button>`}<span class="tt" id="tt${i}_${j}"></span></div>
-      <div class="cn"><span title="${esc(sp.name)}">${esc(sp.name)}</span><button class="x" data-rm="${j}" title="このクリップを削除">✕</button></div>
+      <div class="tp">${c.file==='@gap'?'':`<button class="tb" data-tp="stop" title="消す">⏹</button>`}<span class="tt" id="tt${i}_${j}"></span></div>
+      <div class="cn"><span title="${esc(sp.name)}">${esc(sp.name)}</span></div>
     </div>`;
   }
   const img=isImg(c.file);
@@ -980,17 +1265,18 @@ function clipTile(i,c,j){
       <button class="md" data-md="${j}" data-mode="${MODE_NAME[c.mode]?c.mode:'loop'}" title="終了時の動き：${MODE_NAME[c.mode]||''}（押すと切り替え）">${MODE_ICON[c.mode]||''}</button></div>
     ${img?'':`<div class="sc" title="ドラッグで再生位置を移動"><i id="sb${i}_${j}"></i></div>
     <div class="tp"><button class="tb" data-tp="restart" title="頭出し">⏮</button><button class="tb" data-tp="toggle" id="tg${i}_${j}" title="再生／一時停止">▶</button><button class="tb" data-tp="stop" title="停止（消す）">⏹</button><span class="tt" id="tt${i}_${j}"></span></div>`}
-    <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span><button class="x" data-rm="${j}" title="このクリップを削除">✕</button></div>
+    <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span></div>
   </div>`;
 }
 function build(){
+  closeContextMenu();
   const box=$('layers'); box.innerHTML='';
   S.layers.forEach((L,i)=>{
     const d=document.createElement('div'); d.className='lrow'; d.id='row'+i; d.dataset.layer=i; d.dataset.kind=L.kind;
     let track;
     if(L.kind==='video'){
       track=L.cues.map((c,j)=>clipTile(i,c,j)).join('')+
-        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><button class="addblank" data-a="blank" title="何も映さないクリップを最後に追加（他のレイヤーが映している間、このレイヤーは休ませる）">＋ 空白を追加</button><small>ファイルを<br>ここへドロップ</small></div></div>`;
+        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><small>ファイルを<br>ここへドロップ</small></div></div>`;
     }else{
       const listed=L.cues.length>0;
       track=L.cues.map((c,j)=>photoTile(i,c,j)).join('')+
@@ -1000,13 +1286,10 @@ function build(){
         <div class="meta">間隔：${L.photo_interval>0?L.photo_interval+'秒':'自動で切り替えない'}　列で再生とは別に動きます</div></div>`;
     }
     d.innerHTML=`<div class="lhead">
-        <div class="row" style="gap:6px;flex-wrap:nowrap"><span class="lname grow" title="${esc(L.name)}">${esc(L.name)}</span><span class="tag">L${i+1} ${L.kind==='photo'?'写真':'動画'}</span></div>
+        <div class="row" data-layer-drag="${esc(L.id)}" style="gap:6px;flex-wrap:nowrap"><span class="lname grow" title="${esc(L.name)}">${esc(L.name)}</span><span class="tag">L${i+1} ${L.kind==='photo'?'写真':'動画'}</span></div>
         <div class="now" id="now${i}">—</div><div class="bar"><i id="bar${i}"></i></div>
-        ${L.kind==='video'?`<div class="lbtns"><button data-a="prev" title="前のクリップ">◀</button><button data-a="next" title="次のクリップ">次へ ▶</button><button data-a="clear" title="このレイヤーをフェードアウトして消す">消す</button></div>`:''}
         <div class="lbtns"><button data-a="vis" id="vis${i}" title="映す／隠す（音は止まらない）">表示</button>
-          ${L.kind==='video'?`<button class="mut" data-a="mute" id="mut${i}" title="このレイヤーの音をミュート">M</button>`:''}
-          <button data-ml="-1" title="奥へ（上の行へ）">▲</button><button data-ml="1" title="手前へ（下の行へ）">▼</button>
-          <button data-a="del" title="このレイヤーを削除">🗑</button></div>
+          ${L.kind==='video'?`<button class="mut" data-a="mute" id="mut${i}" title="このレイヤーの音をミュート">M</button><button data-a="clear" title="このレイヤーの映像と音を消す">消す</button>`:''}</div>
         <div class="lop">不透明度<input type="range" min="0" max="1" step="0.01" id="op${i}" data-k="opacity"></div>
         <div class="err" id="err${i}"></div>
       </div><div class="track">${track}</div>`;
@@ -1014,23 +1297,41 @@ function build(){
       const t=e.target.closest('button,[data-cue]'); if(!t)return;
       if(t.dataset.tp) return cmd({cmd:'transport',layer:i,cue:+t.closest('.clip').dataset.j,op:t.dataset.tp});
       if(t.dataset.md!==undefined){e.stopPropagation(); return cycleCueMode(t,L,+t.dataset.md);}
-      if(t.dataset.rm!==undefined){const c=S.layers[i].cues[+t.dataset.rm], sp=cueInfo(c);
-        const lid=S.layers[i].id;
-        if(confirm(`クリップ「${sp?sp.name:base(c.file)}」を削除しますか？`)) cmd({cmd:'remove_cue',layer:i,lid,cue:+t.dataset.rm,file:c.file}); return;}
       if(t.dataset.cue!==undefined) return cmd({cmd:'go',layer:i,cue:+t.dataset.cue});
-      if(t.dataset.ml!==undefined) return cmd({cmd:'move_layer',layer:i,dir:+t.dataset.ml});
       const a=t.dataset.a;
-      if(a==='next'||a==='prev'||a==='clear') cmd({cmd:a,layer:i});
+      if(a==='clear') cmd({cmd:'clear',layer:i});
       else if(a==='skip') cmd({cmd:'skip_photo',layer:i});
-      else if(a==='blank') cmd({cmd:'add_cue',layer:i,file:'@blank'});
       // 表示・M は押した瞬間に見た目を切り替える（本体の返事を待つと、一瞬なにも起きないように見えるため）
       else if(a==='vis'){const v=!S.layers[i].visible; S.layers[i].visible=v; t.classList.toggle('on',v); t.classList.toggle('held',!v); t.textContent=v?'表示':'隠し中'; setv(i,'visible',v);}
       else if(a==='mute'){const v=!S.layers[i].audio; S.layers[i].audio=v; t.classList.toggle('on',!v); const m=$('mxlm'+i); if(m) m.classList.toggle('on',!v); setv(i,'audio',v);}
-      else if(a==='del'){ const lid=S.layers[i].id; if(confirm(`レイヤー「${S.layers[i].name}」を削除しますか？`)) cmd({cmd:'remove_layer',layer:i,lid});}
+    });
+    const revision=S.rev;
+    d.addEventListener('contextmenu',e=>{
+      const tile=e.target.closest('.clip[data-j]');
+      if(tile){
+        const j=+tile.dataset.j, clip=L.cues[j];
+        if(!clip){
+          if(L.kind==='video')openContextMenu(e,[['空白クリップを追加',()=>cmd({cmd:'add_cue',lid:L.id,file:'@blank'})]]);
+          return;
+        }
+        if(clip.file==='@gap')return openContextMenu(e,columnMenu(j,revision));
+        const actions=[['クリップを再生',()=>cmd({cmd:'go',lid:L.id,cue:j})]];
+        if(L.kind==='video'&&clip.file!=='@blank')actions.push(['クリップ設定',()=>openClipSettings(L,j)]);
+        actions.push(['このクリップを削除',()=>deleteClip(L,j),true]);
+        return openContextMenu(e,actions);
+      }
+      if(e.target.closest('.lhead')){
+        const actions=[['レイヤー名を変更',()=>{
+          const name=prompt('レイヤー名',L.name);
+          if(name?.trim())cmd({cmd:'set',lid:L.id,key:'name',value:name.trim()});
+        }],...layerAddMenu()];
+        if(S.layers.length>1)actions.push(['このレイヤーを削除',()=>deleteLayer(L),true]);
+        openContextMenu(e,actions);
+      }
     });
     const op=d.querySelector('#op'+i); op.addEventListener('input',()=>setv(i,'opacity',parseFloat(op.value)));
     d.querySelectorAll('[data-adev]').forEach(s=>s.onchange=()=>cmd({cmd:'cue_set',layer:i,cue:+s.dataset.adev,key:'adev',value:s.value}));
-    d.addEventListener('mousedown',()=>{ if(S.selected!==i){S.selected=i; cmd({cmd:'select',layer:i});} });
+    d.addEventListener('mousedown',e=>{ if(e.button===0&&S.selected!==i){S.selected=i; cmd({cmd:'select',layer:i});} });
     box.appendChild(d);
   });
   setupDnD(); setupScrub(); buildFolders(); buildMedia(); buildColumns(); lsetKey='';
@@ -1043,12 +1344,14 @@ function buildLset(){
   if(key===lsetKey||editingIn('#lset')) return; lsetKey=key;
   let h=`<div class="set">
     <span class="lbl">名前</span><input data-k="name" value="${esc(L.name)}">
+    <span class="lbl">重なり順</span><select id="layer-order" aria-label="重なり順">
+      ${S.layers.map((_,rank)=>`<option value="${rank}" ${rank===L.z_order?'selected':''}>${rank+1}${rank===0?'（一番奥）':rank===S.layers.length-1?'（一番手前）':''}</option>`).join('')}
+    </select>
     <span class="lbl">不透明度</span><input type="range" min="0" max="1" step="0.01" data-k="opacity" id="iop">
     <span class="lbl">合成方法</span><select data-k="blend">${S.blends.map(b=>`<option value="${b}" ${b===L.blend?'selected':''}>${BLEND_NAME[b]}</option>`).join('')}</select>
     ${S.targets.length>1?`<span class="lbl">映す出力</span><div class="chk">${S.targets.map(t=>{const on=L.places.some(p=>p.output===t.output), only=on&&L.places.length===1;
       return `<label><input type="checkbox" data-place="${t.output}" ${on?'checked':''} ${only?'disabled':''}>${esc(t.name)}</label>`;}).join('')}
       <span class="meta" style="flex-basis:100%">複数にチェックすると、同じ映像を同時に映します（位置合わせは出力ごと）</span></div>`:''}
-    <span class="lbl">フェード</span><span class="row"><input type="number" min="0" max="30" step="0.1" data-k="fade" value="${L.fade}"><span class="meta">秒（切り替えにかける時間・音も同じ）</span></span>
     ${L.kind==='photo'?`
     <span class="lbl">フォルダ</span><input data-k="photo_folder" value="${esc(L.photo_folder)}">
     <span class="lbl">間隔(秒)</span><span class="row"><input type="number" step="0.5" min="0" data-k="photo_interval" value="${L.photo_interval}"><span class="meta">0＝自動で切り替えない</span></span>
@@ -1060,6 +1363,8 @@ function buildLset(){
   $('lset').innerHTML=h;
   // 作ったときのレイヤーに送る（入力の途中で別のレイヤーを選んでも、選び直した方を書き換えないように）
   const lid=L.id, idx=()=>{const k=S.layers.findIndex(x=>x.id===lid); return k>=0?k:-1;};
+  const order=$('layer-order');
+  order.onchange=()=>{cmd({cmd:'set_layer_order',lid,value:+order.value});order.blur();};
   $('lset').querySelectorAll('[data-place]').forEach(c=>c.onchange=()=>{const k=idx(); if(k>=0) cmd({cmd:'place',layer:k,output:+c.dataset.place,value:c.checked});});
   $('lset').querySelectorAll('[data-k]').forEach(el=>{
     const k=el.dataset.k, ev=(el.type==='range')?'input':'change';
@@ -1180,7 +1485,7 @@ function update(){
   buildLan();
   if(document.activeElement!==$('master')) $('master').value=S.master;
   $('bo').classList.toggle('on',S.blackout);
-  $('edit').classList.toggle('on',S.edit); $('mapedit').classList.toggle('on',S.edit); markCorner();
+  $('edit').classList.toggle('on',S.edit); $('mapedit').classList.toggle('on',S.edit);
   $('msg').textContent=S.message||'';
   S.layers.forEach((L,i)=>{
     const row=$('row'+i); if(!row)return;
@@ -1237,11 +1542,7 @@ function drawMap(){
     g.fillStyle=col; g.font=(sel?'bold ':'')+'22px sans-serif'; g.fillText('L'+(i+1)+' '+L.name,Math.max(4,c[0][0]*W+10),Math.max(0,c[0][1]*H)+28+26*nth++);
     if(sel){c.forEach(p=>{
       const x=Math.min(W-9,Math.max(9,p[0]*W)), y=Math.min(H-9,Math.max(9,p[1]*H));  // 画面の端の角も見えるように
-      g.fillStyle='#fff';g.fillRect(x-9,y-9,18,18);g.strokeStyle=col;g.lineWidth=3;g.strokeRect(x-9,y-9,18,18);});
-      // 矢印キーで動かす所（赤）
-      g.strokeStyle='#ff3b30'; g.lineWidth=4;
-      if(S.sel_corner===4){g.beginPath(); c.forEach((p,k)=>k?g.lineTo(p[0]*W,p[1]*H):g.moveTo(p[0]*W,p[1]*H)); g.closePath(); g.stroke();}
-      else if(c[S.sel_corner]){const p=c[S.sel_corner], x=Math.min(W-9,Math.max(9,p[0]*W)), y=Math.min(H-9,Math.max(9,p[1]*H)); g.fillStyle='#ff3b30'; g.fillRect(x-9,y-9,18,18);}}
+      g.fillStyle='#fff';g.fillRect(x-9,y-9,18,18);g.strokeStyle=col;g.lineWidth=3;g.strokeRect(x-9,y-9,18,18);});}
     g.globalAlpha=1;
   });
 }
@@ -1257,7 +1558,6 @@ $('map').addEventListener('pointerdown',e=>{
   // ドラッグ中に選択が変わっても、つかんだレイヤーを動かす（id で覚える）
   const base={pts,o:S.map_out,lid:L.id};
   if(bd<18) dragging={...base,k:best}; else if(inside(pts,x,y)) dragging={...base,k:-1,last:[x,y]}; else return;
-  S.sel_corner=bd<18?best:4; post({cmd:'sel_corner',value:S.sel_corner}); markCorner();
   cv.setPointerCapture(e.pointerId);
 });
 $('map').addEventListener('pointermove',e=>{
@@ -1360,30 +1660,24 @@ $('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
 function setThumbSize(v){document.documentElement.style.setProperty('--mt',v+'px');}
 $('msize').addEventListener('input',e=>{setThumbSize(e.target.value); lsSet('vpt39-msize-'+(VIEW||'main'),e.target.value);});
 {const v=lsGet('vpt39-msize-'+(VIEW||'main')); if(v){$('msize').value=v; setThumbSize(v);} else if(VIEW==='media'){$('msize').value=170; setThumbSize(170);}}
-$('addv').onclick=()=>cmd({cmd:'add_layer',kind:'video'});
-$('addp').onclick=()=>cmd({cmd:'add_layer',kind:'photo'});
 $('maptest').onclick=()=>setv(S.selected,'test',!S.layers[S.selected].test);
 $('mapreset').onclick=()=>{ if(confirm('このレイヤーの四隅を、画面いっぱいの四角に戻しますか？')) cmd({cmd:'reset_corners',layer:S.selected,output:S.map_out}); };
 document.addEventListener('keydown',e=>{
-  if(!S)return;
+  if(gridDrag&&e.key==='Escape'){finishGridDrag();return;}
+  if(!S||$('clipdlg').open)return;
   // 文字を打つ欄と選択欄だけはキーを奪わない。スライダーやボタンを触った直後でも Space / B / E が効く
   const a=document.activeElement, tag=a?a.tagName:'';
   if(!$('setdlg').classList.contains('hide')){ if(e.key==='Escape') closeSettings(); return; }
   if(!$('landlg').classList.contains('hide')){ if(e.key==='Escape') $('landlg').classList.add('hide'); return; }  // セッティングの窓を開いている間は、本番のキーは効かない
   if(tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&!/^(range|checkbox|button)$/.test(a.type)))return;
   if(e.ctrlKey||e.metaKey||e.altKey) return;  // Ctrl+B などはブラウザの操作に任せる
-  const arrow=/^Arrow/.test(e.key);
-  if(arrow&&!S.edit) return;  // 編集中でなければ矢印はスライダーなどに任せる
-  if(!arrow&&e.repeat){ if(e.code==='Space') e.preventDefault(); return; }  // 押しっぱなしで何度も切り替えない（矢印は押しっぱなしで動かせる）
+  if(e.code!=='Space'&&!/^[be]$/i.test(e.key))return;
+  if(e.repeat){ if(e.code==='Space') e.preventDefault(); return; }
   if(tag==='INPUT'||tag==='BUTTON') a.blur();
   if(e.code==='Space'){e.preventDefault();cmd({cmd:'next',layer:0});}
   else if(e.key==='b'||e.key==='B') cmd({cmd:'blackout',value:!S.blackout});
   else if(e.key==='e'||e.key==='E') cmd({cmd:'edit',value:!S.edit});
-  else if(S.edit&&/^Arrow/.test(e.key)){e.preventDefault();
-    cmd({cmd:'nudge',dx:{ArrowLeft:-1,ArrowRight:1}[e.key]||0,dy:{ArrowUp:-1,ArrowDown:1}[e.key]||0,shift:e.shiftKey});}
 });
-function markCorner(){document.querySelectorAll('#cornsel [data-c]').forEach(b=>b.classList.toggle('on',+b.dataset.c===S.sel_corner));}
-document.querySelectorAll('#cornsel [data-c]').forEach(b=>b.onclick=()=>{S.sel_corner=+b.dataset.c; cmd({cmd:'sel_corner',value:S.sel_corner}); markCorner(); drawMap(); b.blur();});
 
 async function poll(){
   try{
@@ -1392,8 +1686,8 @@ async function poll(){
     applyDetached(); buildOuts(); buildMixer(); buildSettings();
     if(S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない
-      const dragNow=dragActive||Date.now()-lastOver<800;
-      if(!pendingModes&&!dragNow&&(!editingIn('.deck')||S.layers.length!==nlayers)){
+      const dragNow=gridDrag||dragActive||Date.now()-lastOver<800;
+      if(!pendingModes&&!$('clipdlg').open&&!dragNow&&(!editingIn('.deck')||S.layers.length!==nlayers)){
         rev=S.rev; nlayers=S.layers.length; mediaKey=mkey; build();
       }
     }
