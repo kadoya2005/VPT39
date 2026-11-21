@@ -1,6 +1,9 @@
-**日本語版：[README.ja.md](README.ja.md)**
+## 🇯🇵 日本語の案内はこちら → [README（日本語）](README.ja.md) ／ [インストール方法（日本語）](https://kadoya2005.github.io/VPT39-manual/install.html) ／ [マニュアル（日本語）](https://kadoya2005.github.io/VPT39-manual/)
 
 # VPT39 — Live video playback + projection mapping
+
+> ### 📘 Manual: **https://kadoya2005.github.io/VPT39-manual/en/**
+> ### ⬇ How to install (step by step): **https://kadoya2005.github.io/VPT39-manual/en/install.html**
 
 **What this app is:** a video player made especially for projection mapping.
 It is designed to be easy to use for media and interactive art works that use projectors, live shows and similar events.
@@ -89,6 +92,9 @@ Note: tested on Windows 11.
 
 ## Setup (Windows, first time only)
 
+**Step-by-step guide with pictures: [How to install VPT39](https://kadoya2005.github.io/VPT39-manual/en/install.html)** (downloading from GitHub, Python, VLC, setup.bat and troubleshooting)
+
+0. Download this repository with the green **"Code" → "Download ZIP"** button, then right-click the ZIP → "Extract All".
 1. Install **Python 3.13 (64-bit)**. During installation, check "Add python.exe to PATH" (Spout does not work with 3.14 or later. See chapter 2 of manual\en\guide.pdf for illustrations).
 2. Install **VLC media player (64-bit)**. It is needed to play videos with sound. Without it, only the picture is played.
 3. Double-click **`setup.bat`** in this folder. The required libraries are installed automatically.
@@ -211,7 +217,7 @@ Both install any missing libraries automatically before starting. When VPT39 sta
 
 - `outputs`: settings for each output window. `rect` is the position and size as a window; `fullscreen` and `fs_rect` are the display it was made fullscreen on. These are updated automatically by the control panel and by moving the windows, so you do not need to edit them by hand.
 - The old format (`"output": {"display": 1}` and so on) is converted automatically at the first start (fullscreen on that display).
-- `allow_lan`: whether to allow control from a phone or tablet. Switching it with the "**Phone**" button in the top bar of the control panel saves it here (no restart needed). When it is on, a QR code appears; scan it with the phone camera. There is no password, and anyone on the same network can control it, so do not use it on a venue's shared Wi-Fi, and turn it off when you are done.
+- `allow_lan`: whether to allow control from a phone or tablet. Switching it with the "**Phone**" button in the top bar of the control panel saves it here (no restart needed). When it is on, a QR code appears; scan it with the phone camera. The QR code address contains a key, so only phones that scanned it can control VPT39, and only what the phone page does (deleting media and so on works only from the PC). The key changes when you turn it on again or restart VPT39. Still, use your own router or phone tethering rather than a venue's shared Wi-Fi, and turn it off when you are done.
 - The "Show resolution" of each output (`res`) and the name of the open setup (`setting_name`) are also stored here.
 
 ## Using with a photo wall
