@@ -105,11 +105,20 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - `media` folder: videos for each song (mp4, mov and so on) and images (png, jpg). Subfolders are fine.
 - `photos` folder: photos for the photo wall. We recommend putting only photos here that a person has checked and approved.
 
-## Tabs on the right (Media, Layer settings, Mixer, Outputs)
+## Panels on the right
 
-- On the right, switch between the "**Media**", "**Layer settings**", "**Mixer**" and "**Outputs**" tabs.
-- Press **⧉** on a tab, or **drag the tab out of the browser window and release it**, to open that panel in a separate window (it opens where you release it). Close the separate window to put it back as a tab.
-- When you have a lot of media, it is handy to open Media in a separate window and make it large.
+- Choose **Media**, **Mixer**, **Edit mapping**, **Layer settings**, or **Output settings** from **Settings** in the upper-right toolbar.
+- Use **×** in the panel header to hide the right panel, or **Open in new tab ↗** to open it in another browser tab and hide it on the main screen. Choose a panel from **Settings** to show it again.
+- Use **Settings** to switch between Japanese and English.
+- Choose **Save now** to save the current state immediately, or **Setup** to save, open, duplicate, or delete named setups.
+
+## Decks
+
+- Click a deck tab below the clip grid to select it, or right-click it to rename or delete it.
+- Right-click a deck tab to add a deck before or after it. To reorder decks, hold a tab, drag it until the insertion marker appears, then release it.
+- Each deck saves its own video-layer clips, clip settings, and columns. Layer settings, output settings, and photo walls are shared. Any video or audio playing when you switch decks keeps playing.
+- Your existing clips and columns appear in the first deck.
+- A deck, column, or layer can be deleted when there is more than one.
 
 ## Adding clips (thumbnail list)
 
@@ -133,7 +142,8 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - Click a **clip thumbnail** to switch to that media.
 - Right-click a clip to clear only its slot. Right-click **Play column →** to append a column, or right-click a column number to rename it, insert before or after it, or delete it.
 - Right-click the layer name area to rename, add, or delete a layer.
-- Right-click a clip and choose **Clip settings** to adjust volume (0–100%), horizontal and vertical flip, and separate video and audio fades (0–30 seconds each). Changes apply during playback and save automatically.
+- Right-click a clip and choose **Clip settings** to adjust volume (0–100%) and separate video and audio fades (0–30 seconds each). Changes apply during playback and save automatically.
+- Use **Flip** in **Layer settings** to flip the layer horizontally or vertically. This applies to the layer across all decks and to photo walls.
 - Press and hold a layer name, then drag it up or down to reorder the control panel without changing the output stack. Press and hold a column header, then drag it left or right to move the name and all its clips together.
 - **Play column 1, 2, 3…**: plays the clips with the same number on all video layers at once (handy if you line up a column for each song).
 - **Mini controls under the thumbnail** (video clips only)
@@ -157,7 +167,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Mapping (adjusting the four corners)
 
-1. Turn on "Edit mapping (E)".
+1. Choose **Edit mapping (E)** from **Settings** in the upper-right toolbar.
 2. In the diagram on the right of the control panel, drag the corners of the selected layer. Drag inside to move the whole picture.
 3. For final fine-tuning, working **on the output window** is the most accurate.
    - Drag a corner with the mouse
@@ -166,6 +176,9 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 4. "Test pattern" shows a grid, diagonals and circles, which you can use to check for distortion.
 
 ## Output windows (used the same way as in VPT)
+
+- In **Settings → Output settings**, set each output’s **Output FPS limit** to **30 FPS** or **60 FPS** (default). Joined outputs follow the first output’s limit.
+- At a 60 FPS output limit, a 30 FPS clip holds each frame until the next source frame arrives. Playback speed and audio stay the same.
 
 1. In Windows "Display settings", choose "Extend these displays".
 2. When VPT39 starts, a small window called "VPT39 Output 1" opens. **Drag it to the display (projector) you want to project on.**

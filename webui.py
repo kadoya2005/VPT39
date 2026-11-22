@@ -381,7 +381,11 @@ input[type=number]{width:62px}
 
 /* ---- 全体：左＝レイヤー（自分だけスクロール）、右＝素材（固定）＋設定（自分だけスクロール）---- */
 main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 410px}
-.deck{overflow:auto;min-width:0;position:relative;padding-bottom:30px}
+.workspace{display:flex;flex-direction:column;min-width:0;min-height:0}
+.deck{flex:1;overflow:auto;min-width:0;position:relative;padding-bottom:30px}
+.deck-bar{display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid var(--line);background:#0a0b0d}
+#show-decks{display:flex;gap:5px;overflow-x:auto;min-width:0;padding:2px}
+#show-decks button{flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:none;touch-action:none}
 aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line);background:#121418}
 .side-scroll{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
 @media(max-width:1000px){body{overflow:auto;display:block}main{display:block}.deck{overflow:visible}aside{border-left:0}.side-scroll{overflow:visible}}
@@ -395,11 +399,12 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .colhead [data-col]{width:var(--tw);flex:none;padding:4px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-layer-drag],.colhead [data-col]{cursor:grab;user-select:none;touch-action:none}
 .grid-moving{background:#3b3020;outline:2px solid var(--warn);outline-offset:-2px;border-radius:5px;cursor:grabbing}
-.colhead .grid-target{outline:2px solid var(--warn);outline-offset:-2px;background:#3b3020}
+.colhead .grid-target,#show-decks .grid-target{outline:2px solid var(--warn);outline-offset:-2px}
+.colhead .grid-target{background:#3b3020}
 .lrow.grid-target{outline:2px solid var(--warn);outline-offset:-2px}
 .lrow.grid-target>.lhead{outline:2px solid var(--warn);outline-offset:-2px;background:#3b3020}
-.colhead .grid-before{box-shadow:inset 4px 0 var(--warn)}
-.colhead .grid-after{box-shadow:inset -4px 0 var(--warn)}
+.colhead .grid-before,#show-decks .grid-before{box-shadow:inset 4px 0 var(--warn)}
+.colhead .grid-after,#show-decks .grid-after{box-shadow:inset -4px 0 var(--warn)}
 .lrow.grid-before>div{box-shadow:inset 0 4px var(--warn)}
 .lrow.grid-after>div{box-shadow:inset 0 -4px var(--warn)}
 .lrow{display:flex;border-bottom:1px solid var(--line)}
@@ -446,13 +451,13 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .addrow{display:flex;gap:8px;padding:12px 10px}
 
 /* ---- 右：タブ（素材・レイヤー設定・ミキサー・出力）---- */
-.tabs{flex:none;display:flex;gap:2px;padding:6px 6px 0;background:#0a0b0d;border-bottom:1px solid var(--line)}
-.tab{display:flex;align-items:center;gap:4px;padding:6px 8px 6px 10px;border:1px solid var(--line);border-bottom:0;border-radius:7px 7px 0 0;background:#14171c;color:var(--dim);font-size:13px;cursor:pointer;user-select:none;white-space:nowrap}
-.tab:hover{border-color:var(--hov);color:var(--hov)}
-.tab.act{background:var(--panel);color:var(--text);font-weight:600;position:relative;top:1px}
-.tab.det{opacity:.55;font-style:italic}
-.tab .pop{border:0;background:transparent;color:var(--dim)}
-.tab .pop:hover{color:var(--hovtx);background:var(--hov)}
+.panel-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:#0a0b0d;border-bottom:1px solid var(--line)}
+.panel-actions{display:flex;align-items:center;gap:8px}
+.panel-link{color:var(--dim);font-size:12px;white-space:nowrap}
+.panel-link:hover{color:var(--text)}
+body.panel-closed main{grid-template-columns:minmax(0,1fr)}
+body.panel-closed aside{display:none}
+#panel-settings{white-space:nowrap}
 .tabbody{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
 .pane{display:none}
 .pane.act{display:flex}
@@ -475,7 +480,6 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .clip.empty .th{gap:6px}
 
 /* ---- 欄を別ウィンドウに切り離す ---- */
-.pop{padding:0 7px;font-size:13px;line-height:1.5}
 .hide{display:none!important}
 #context-menu{position:fixed;z-index:40;display:grid;min-width:170px;max-width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto;padding:4px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;box-shadow:0 6px 20px #0009}
 #context-menu button{border:0;background:transparent;padding:6px 9px;text-align:left}
@@ -497,16 +501,12 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .setrow.cur{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
 .setrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .setrow .tm{color:var(--dim);font-size:12px;white-space:nowrap}
-#setbtn b{color:var(--acc)}
-#setbtn.none b{color:var(--dim);font-weight:400}
 .childbar{display:none}
-body.child header,body.child .deck,body.child .tabs,body.child .pop{display:none}
+body.child header,body.child .workspace,body.child .panel-bar{display:none}
 body.child main{grid-template-columns:minmax(0,1fr)}
 body.child aside{border-left:0}
 body.child .childbar{display:flex;flex:none;gap:10px;align-items:center;padding:8px 14px;background:#0a0b0d;border-bottom:1px solid var(--line)}
 @media(max-width:640px){.childbar .meta{display:none}}
-body.noaside main{grid-template-columns:minmax(0,1fr)}
-body.noaside aside{display:none}
 .chk{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}
 .chk label{display:flex;gap:4px;align-items:center;white-space:nowrap}
 .mtabs{display:flex;gap:4px;flex-wrap:wrap}
@@ -558,13 +558,10 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <span class="lbl" title="映像全体の明るさ（音量は右の「音声ミキサー」）">明るさ</span><input type="range" id="master" min="0" max="1" step="0.01">
   <button id="bo" class="bo">BLACKOUT (B)</button>
   <button id="clearall">全レイヤー消去</button>
-  <button id="edit" class="lock">マッピング編集 (E)</button>
   <span class="grow"></span>
   <span class="msg" id="msg"></span>
   <button id="lanbtn" title="スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）">スマホ</button>
-  <button id="setbtn" title="会場・公演ごとの設定ファイル（名前を付けて保存・開く・複製・削除）">セッティング：<b id="setname">（名前なし）</b> ▾</button>
-  <button id="langbtn" class="sm" title="言語 / Language">EN</button>
-  <button id="save">保存</button>
+  <button type="button" id="panel-settings" aria-haspopup="menu" aria-controls="context-menu" aria-expanded="false">設定 ▾</button>
   <button id="quit">終了</button>
 </header>
 <div id="setdlg" class="dlg hide"><div class="dlgbox">
@@ -587,8 +584,6 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
     <b id="clipdlgtitle">クリップ設定</b>
     <div class="meta" id="clipdlgname"></div>
     <fieldset><legend>映像</legend>
-      <label>左右反転<input name="flip_x" type="checkbox"></label>
-      <label>上下反転<input name="flip_y" type="checkbox"></label>
       <label>フェードイン (秒)<input name="fade_in" type="number" min="0" max="30" step="any" required></label>
       <label>フェードアウト (秒)<input name="fade_out" type="number" min="0" max="30" step="any" required></label>
     </fieldset>
@@ -601,6 +596,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   </form>
 </dialog>
 <main>
+  <div class="workspace">
   <section class="deck" id="deck">
     <div class="grid">
       <div class="colhead"><div class="lh" id="column-head" title="右クリックでコラムの操作">列で再生 →</div><div class="cols" id="cols"></div></div>
@@ -609,8 +605,18 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
         <span class="hint">Space＝L1の次へ ／ B＝ブラックアウト ／ E＝マッピング編集</span></div>
     </div>
   </section>
+    <div class="deck-bar">
+      <div id="show-decks"></div>
+    </div>
+  </div>
   <aside>
-    <div class="tabs" id="tabs"></div>
+    <div class="panel-bar">
+      <b id="panel-title">素材</b>
+      <div class="panel-actions">
+        <a class="panel-link" id="panel-link" href="/?view=media" target="_blank" rel="noopener">別タブで開く ↗</a>
+        <button type="button" class="sm" id="panel-close" title="右側のパネルを閉じる"><span aria-hidden="true">×</span></button>
+      </div>
+    </div>
     <div class="tabbody">
     <div class="media pane">
       <div class="row"><div class="seg"><button id="mkf" class="on">ファイル</button><button id="mks">空白・レイヤー・入力</button></div>
@@ -640,75 +646,45 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   </aside>
 </main>
 <script>
-let S=null, rev=-1, nlayers=-1, mediaKey=null, dragging=null, lsetKey='';
+let S=null, rev=-1, nlayers=-1, mediaKey=null, dragging=null, lsetKey='', gridDeck=null;
 const $=id=>document.getElementById(id);
 function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
-function lsDel(k){try{localStorage.removeItem(k);}catch(e){}}
-
-// ---- 欄を別ウィンドウに切り離す（?view=media / insp / mixer / outs）----
-const VIEW=new URLSearchParams(location.search).get('view');
-const PANELS={media:'素材',insp:'レイヤー設定',mixer:'音声ミキサー',outs:'出力ウィンドウ'};
-const TABNAME={media:'素材',insp:'レイヤー設定',mixer:'ミキサー',outs:'出力'};
-const POPSIZE={media:[1100,800],insp:[480,920],mixer:[480,560],outs:[520,820]};
+// パネルを右側に表示するか、専用 URL をブラウザの別タブで開く。
+const PANELS={media:'素材',insp:'レイヤー設定',mixer:'ミキサー',outs:'出力設定'};
+const requestedView=new URLSearchParams(location.search).get('view');
+const VIEW=Object.hasOwn(PANELS,requestedView)?requestedView:null;
 function panelEl(p){return p==='media'?document.querySelector('.media'):p==='insp'?document.querySelector('.insp'):$(p);}
-let curTab=lsGet('vpt39-tab')||'media'; if(!PANELS[curTab]) curTab='media';
-if(VIEW&&PANELS[VIEW]){
+let curTab=VIEW||lsGet('vpt39-tab');
+if(!Object.hasOwn(PANELS,curTab))curTab='media';
+if(VIEW){
   document.body.classList.add('child');
   document.title='VPT39 '+PANELS[VIEW];
-  curTab=VIEW;
-  $('childbar').innerHTML=`<b>VPT39</b><span>${PANELS[VIEW]}（別ウィンドウ）</span><span class="grow"></span>
-    <span class="meta">このウィンドウを閉じると、メイン画面のタブに戻ります</span><button class="sm" id="dock">メイン画面に戻す</button>`;
-  $('dock').onclick=()=>{lsDel('vpt39-pop-'+VIEW); window.close();};
-  const beat=()=>lsSet('vpt39-pop-'+VIEW,Date.now());
-  beat(); setInterval(beat,1000);
-  window.addEventListener('beforeunload',()=>lsDel('vpt39-pop-'+VIEW));
+  $('childbar').innerHTML=`<b>VPT39</b><span>${PANELS[VIEW]}</span><span class="grow"></span>
+    <a class="panel-link" href="/">メイン画面へ</a>`;
 }
-// 別ウィンドウが最小化されていると、ブラウザは合図を1分に1回まで間引くので、75秒は待つ（閉じたときは beforeunload ですぐ消える）
-const isDet=p=>!VIEW&&Date.now()-(+(lsGet('vpt39-pop-'+p)||0))<75000;
-// タブ：押すと切り替え。⧉ か、タブをウィンドウの外へドラッグして離すと別ウィンドウになる
-function buildTabs(){
-  const dets=Object.keys(PANELS).filter(isDet);
-  const key=curTab+'|'+dets.join(',');
-  if($('tabs').dataset.k===key)return; $('tabs').dataset.k=key;
-  $('tabs').innerHTML=Object.keys(PANELS).map(p=>`<div class="tab ${p===curTab?'act':''} ${isDet(p)?'det':''}" data-tab="${p}" draggable="true"
-     title="${isDet(p)?'別ウィンドウで開いています（押すとそのウィンドウを前に出します）':'押すと切り替え／ウィンドウの外へドラッグすると別ウィンドウ'}">${TABNAME[p]}${isDet(p)?' ↗':`<button class="sm pop" data-pop="${p}" title="別ウィンドウで開く">⧉</button>`}</div>`).join('');
-  $('tabs').querySelectorAll('.tab').forEach(t=>{
-    t.addEventListener('click',e=>{ if(e.target.closest('[data-pop]'))return; const p=t.dataset.tab;
-      if(isDet(p)){const w=window.open('','vpt39-'+p); if(w) w.focus(); return;}
-      curTab=p; lsSet('vpt39-tab',p); applyDetached();});
-    t.addEventListener('dragstart',e=>{e.dataTransfer.setData('text/x-sm-tab',t.dataset.tab); e.dataTransfer.effectAllowed='move';});
-    t.addEventListener('dragend',e=>{
-      // ブラウザのウィンドウの外で離したら、その場所に別ウィンドウで開く
-      const out=e.screenX<window.screenX||e.screenX>window.screenX+window.outerWidth||e.screenY<window.screenY||e.screenY>window.screenY+window.outerHeight;
-      const offPage=e.clientX<=0&&e.clientY<=0&&e.screenX===0&&e.screenY===0;  // 位置が取れないとき
-      if(out&&!offPage&&!isDet(t.dataset.tab)) popOut(t.dataset.tab,e.screenX-60,e.screenY-20);
-    });
-  });
+function activatePanel(p){
+  curTab=p;
+  lsSet('vpt39-tab',p);
+  document.body.classList.remove('panel-closed');
+  showPanel();
 }
-function popOut(p,x,y){
-  const [w,h]=POPSIZE[p];
-  lsSet('vpt39-pop-'+p,Date.now());
-  const pos=(x!==undefined)?`,left=${Math.round(x)},top=${Math.round(y)}`:'';
-  const win=window.open('/?view='+p,'vpt39-'+p,`width=${w},height=${h}${pos}`);
-  if(!win){lsDel('vpt39-pop-'+p); alert('別ウィンドウを開けませんでした（ブラウザのポップアップブロックを許可してください）');}
-  applyDetached();
+function closePanel(){
+  document.body.classList.add('panel-closed');
+  $('panel-settings').focus({preventScroll:true});
 }
-// メイン画面：別ウィンドウで開いている欄はタブから外す（別ウィンドウが閉じたら自動で戻る）
-function applyDetached(){
-  if(VIEW){Object.keys(PANELS).forEach(p=>panelEl(p).classList.toggle('act',p===VIEW)); return;}
-  const live=Object.keys(PANELS).filter(p=>!isDet(p));
-  if(!live.includes(curTab)&&live.length) curTab=live[0];
-  Object.keys(PANELS).forEach(p=>panelEl(p).classList.toggle('act',p===curTab&&live.includes(p)));
-  document.body.classList.toggle('noaside',!live.length);
-  buildTabs();
+function showPanel(){
+  Object.keys(PANELS).forEach(p=>panelEl(p).classList.toggle('act',p===curTab));
+  if(VIEW)return;
+  $('panel-title').textContent=PANELS[curTab];
+  $('panel-link').href='/?view='+curTab;
 }
-document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-pop]'); if(!b)return;
-  e.stopPropagation(); popOut(b.dataset.pop);
-});
-window.addEventListener('storage',applyDetached);
-function post(c){return fetch('/api/cmd',{method:'POST',body:JSON.stringify(c)});}
+showPanel();
+$('panel-close').onclick=closePanel;
+$('panel-close').addEventListener('keydown',e=>{if(e.code==='Space')e.stopPropagation();});
+$('panel-link').addEventListener('click',closePanel);
+$('panel-link').addEventListener('auxclick',e=>{if(e.button===1)closePanel();});
+function post(c){return fetch('/api/cmd',{method:'POST',body:JSON.stringify({deck:gridDeck??S?.active_deck,...c})});}
 function cmd(c){post(c).then(()=>setTimeout(poll,60));}
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 function fmt(t){t=Math.max(0,t|0);return (t/60|0)+':'+String(t%60).padStart(2,'0');}
@@ -722,7 +698,7 @@ function cycleCueMode(button,layer,cue){
   button.dataset.mode=value;
   button.textContent=MODE_ICON[value];
   button.title=`終了時の動き：${MODE_NAME[value]}（押すと切り替え）`;
-  const command={cmd:'cue_mode',lid:layer.id,cue,file:layer.cues[cue].file,value};
+  const command={cmd:'cue_mode',deck:gridDeck,lid:layer.id,cue,file:layer.cues[cue].file,value};
   pendingModes++;
   modeRequests=modeRequests.then(async()=>{
     const r=await post(command);
@@ -779,10 +755,11 @@ function clearIns(){document.querySelectorAll('.clip.ins,.clip.fdrop').forEach(c
 function endDrag(){dragActive=false; clearIns(); stopAuto();}
 function stopAuto(){if(autoScroll){clearInterval(autoScroll.t);autoScroll=null;}}
 function setupDnD(){
+  const deck=gridDeck;
   document.querySelectorAll('.clip:not(.empty) .th').forEach(el=>{
     el.addEventListener('dragstart',e=>{const L=+el.closest('.lrow').dataset.layer, j=+el.closest('.clip').dataset.j;
       const layer=S.layers[L], clip=layer.cues[j];
-      e.dataTransfer.setData('text/x-sm-cue',JSON.stringify({layer:L,lid:layer.id,cue:j,clip}));
+      e.dataTransfer.setData('text/x-sm-cue',JSON.stringify({deck,lid:layer.id,cue:j,clip}));
       if(layer.kind==='video'&&clip.file!=='@gap')e.dataTransfer.setData('text/x-sm-video-cue','1');
       e.dataTransfer.effectAllowed='copyMove'; dragActive=true;});
     el.addEventListener('dragend',endDrag);
@@ -821,17 +798,18 @@ function setupDnD(){
           const action=!expected&&at<layer.cues.length
             ? {cmd:'add_cue',at:index,...column}
             : {cmd:'import_cue',cue,expected};
-          const response=await post({...action,lid:layer.id,file});
+          const response=await post({...action,deck,lid:layer.id,file});
           if(!response.ok) throw new Error();
           index++;
         });
       }
       const m=e.dataTransfer.getData('text/x-sm-media'), q=e.dataTransfer.getData('text/x-sm-cue');
       endDrag();
+      const source=q?JSON.parse(q):null;
+      if(source&&source.deck!==deck)return;
       if(replace){
         const cue=+replace.dataset.j, expected=layer.cues[cue]??null;
-        if(moveClip&&q){
-          const source=JSON.parse(q);
+        if(moveClip&&source){
           return cmd({cmd:'move_cue_into',lid:layer.id,cue,expected,
             source_lid:source.lid,source_cue:source.cue,source_expected:source.clip});
         }
@@ -840,7 +818,7 @@ function setupDnD(){
         return;
       }
       if(m) return addMedia(layer,m,at,columnInsert(layer,at));
-      if(q){const o=JSON.parse(q);
+      if(source){const o=source;
         if(layer.kind==='photo'&&(!isImg(o.clip.file||'')||o.clip.file.startsWith('@'))){alert('写真ウォールに入れられるのは画像だけです');return;}
         if(o.lid===layer.id){const to=at>o.cue?at-1:at; if(to!==o.cue) cmd({cmd:'move_cue_to',lid:layer.id,cue:o.cue,to});}
         else if(moveClip){
@@ -874,21 +852,23 @@ document.addEventListener('dragover',e=>{
 document.addEventListener('drop',endDrag);
 document.addEventListener('dragend',endDrag);
 
-// レイヤー名とコラム見出しだけを長押しで並べ替える。
+// レイヤー名・コラム見出し・デッキタブを長押しで並べ替える。
+const gridDragHandles='[data-layer-drag],#cols [data-col],#show-decks [data-deck]';
 let gridDrag=null, suppressGridClick=false;
 function markGridDrop(drag,scroll=false){
-  const deck=$('deck'), rect=deck.getBoundingClientRect(), {x,y,layer}=drag;
+  const {x,y,layer,tab}=drag;
+  const area=$(tab?'show-decks':'deck'), rect=area.getBoundingClientRect();
   drag.marker?.classList.remove('grid-before','grid-after','grid-target');
   drag.marker=null; drag.to=drag.from;
   if(x<rect.left||x>rect.right||y<rect.top||y>rect.bottom)return;
   if(scroll){
-    const start=layer?rect.top+$('column-head').offsetHeight:rect.left+$('column-head').offsetWidth;
+    const start=tab?rect.left:layer?rect.top+$('column-head').offsetHeight:rect.left+$('column-head').offsetWidth;
     const end=layer?rect.bottom:rect.right, p=layer?y:x;
     const delta=p>=start&&p<start+36?-14:p>end-36?14:0;
-    if(layer)deck.scrollTop+=delta;
-    else deck.scrollLeft+=delta;
+    if(layer)area.scrollTop+=delta;
+    else area.scrollLeft+=delta;
   }
-  const items=[...deck.querySelectorAll(layer?'.lrow':'#cols [data-col]')];
+  const items=[...area.querySelectorAll(tab?'[data-deck]':layer?'.lrow':'#cols [data-col]')];
   if(!items.length)return;
   let boundary=items.findIndex(item=>{
     const r=item.getBoundingClientRect();
@@ -898,7 +878,8 @@ function markGridDrop(drag,scroll=false){
   drag.to=boundary>drag.from?boundary-1:boundary;
   if(drag.to===drag.from)return;
   drag.marker=items[Math.min(boundary,items.length-1)];
-  drag.marker.classList.add('grid-target',boundary===items.length?'grid-after':'grid-before');
+  drag.after=boundary===items.length;
+  drag.marker.classList.add('grid-target',drag.after?'grid-after':'grid-before');
 }
 function activateGridDrag(drag){
   if(gridDrag!==drag||drag.active||!drag.handle.isConnected)return;
@@ -921,6 +902,10 @@ function finishGridDrag(commit=false){
   drag.marker?.classList.remove('grid-before','grid-after','grid-target');
   suppressGridClick=true;
   if(commit&&drag.to!==drag.from){
+    if(drag.tab){
+      cmd({cmd:'deck_move',id:drag.handle.dataset.deck,anchor:drag.marker.dataset.deck,after:drag.after});
+      return;
+    }
     const target=drag.layer?{cmd:'move_layer_row',lid:drag.lid}:{cmd:'move_column',cue:drag.from};
     cmd({...target,to:drag.to,rev:drag.revision});
   }
@@ -929,11 +914,12 @@ document.addEventListener('pointerdown',e=>{
   if(!gridDrag)suppressGridClick=false;
   if(!e.isPrimary||e.button!==0)return;
   if(!S||gridDrag)return;
-  const handle=e.target.closest('[data-layer-drag],#cols [data-col]');
+  const handle=e.target.closest(gridDragHandles);
   if(!handle)return;
   const layer=handle.hasAttribute('data-layer-drag');
-  const from=+(layer?handle.closest('.lrow').dataset.layer:handle.dataset.col);
-  const drag={handle,layer,from,to:from,lid:handle.dataset.layerDrag,revision:rev,
+  const tab=handle.hasAttribute('data-deck');
+  const from=tab?Array.from(handle.parentElement.children).indexOf(handle):+(layer?handle.closest('.lrow').dataset.layer:handle.dataset.col);
+  const drag={handle,layer,tab,from,to:from,lid:handle.dataset.layerDrag,revision:rev,
     pointer:e.pointerId,x:e.clientX,y:e.clientY,active:false};
   gridDrag=drag;
   handle.setPointerCapture(drag.pointer);
@@ -965,7 +951,7 @@ document.addEventListener('click',e=>{
   }
 },true);
 document.addEventListener('contextmenu',e=>{
-  if((gridDrag?.active||suppressGridClick)&&e.target.closest('[data-layer-drag],#cols [data-col]')){
+  if((gridDrag?.active||suppressGridClick)&&e.target.closest(gridDragHandles)){
     e.preventDefault();e.stopImmediatePropagation();
   }
 },true);
@@ -1035,7 +1021,8 @@ function buildMedia(){
 }
 // 素材をごみ箱へ（クリップで使っていれば、そのことも知らせる）
 async function deleteMedia(m){
-  const used=S.layers.reduce((n,L)=>n+L.cues.filter(c=>c.file===m).length,0);
+  const other=S.other_deck_media_uses||{};
+  const used=S.layers.reduce((n,L)=>n+L.cues.filter(c=>c.file===m).length,Object.hasOwn(other,m)?other[m]:0);
   if(!confirm(`「${base(m)}」をごみ箱へ移しますか？${used?`\n\nこの素材は ${used} 個のクリップで使っています。クリップは残りますが、再生すると「ファイルが見つかりません」になります。`:''}\n\n（ごみ箱から元に戻せます）`))return;
   try{const r=await fetch('/api/media_delete',{method:'POST',body:JSON.stringify({file:m})}).then(r=>r.json());
     if(!r.ok) alert(r.msg||'削除できませんでした');}catch(e){alert('削除できませんでした');}
@@ -1084,13 +1071,16 @@ let contextOrigin=null;
 function closeContextMenu(restoreFocus=false){
   if(contextMenu.classList.contains('hide'))return;
   contextMenu.classList.add('hide');
+  if(contextOrigin?.hasAttribute('aria-expanded'))contextOrigin.setAttribute('aria-expanded','false');
   if(restoreFocus&&contextOrigin?.isConnected)contextOrigin.focus({preventScroll:true});
   contextOrigin=null;
 }
-function openContextMenu(e,actions){
+function openContextMenu(e,actions,anchor=null){
   e.preventDefault();
+  closeContextMenu();
   const menu=contextMenu;
-  contextOrigin=e.target.closest('button,[tabindex]');
+  contextOrigin=anchor||e.target.closest('button,[tabindex]');
+  if(anchor)anchor.setAttribute('aria-expanded','true');
   menu.replaceChildren(...actions.map(([label,run,danger])=>{
     const b=document.createElement('button');
     b.type='button'; b.textContent=T(label); b.setAttribute('role','menuitem');
@@ -1099,12 +1089,79 @@ function openContextMenu(e,actions){
     return b;
   }));
   menu.classList.remove('hide');
-  const x=Math.max(6,Math.min(e.clientX,innerWidth-menu.offsetWidth-6));
-  const y=Math.max(6,Math.min(e.clientY,innerHeight-menu.offsetHeight-6));
+  const rect=anchor?.getBoundingClientRect();
+  const x=Math.max(6,Math.min(rect?.left??e.clientX,innerWidth-menu.offsetWidth-6));
+  const y=Math.max(6,Math.min(rect?.bottom??e.clientY,innerHeight-menu.offsetHeight-6));
   menu.style.left=x+'px'; menu.style.top=y+'px';
   menu.firstElementChild.focus({preventScroll:true});
 }
-document.addEventListener('pointerdown',e=>{if(!contextMenu.contains(e.target))closeContextMenu();});
+document.addEventListener('pointerdown',e=>{
+  if(!contextMenu.contains(e.target)&&!e.target.closest('#panel-settings'))closeContextMenu();
+});
+const settingsButton=$('panel-settings');
+settingsButton.onclick=e=>{
+  if(contextOrigin===settingsButton&&!contextMenu.classList.contains('hide'))return closeContextMenu(true);
+  openContextMenu(e,[
+    ['素材',()=>activatePanel('media')],
+    ['ミキサー',()=>activatePanel('mixer')],
+    [S?.edit?'マッピング編集を終了':'マッピング編集 (E)',()=>{
+      if(!S)return;
+      activatePanel('insp');
+      cmd({cmd:'edit',value:!S.edit});
+    }],
+    ['レイヤー設定',()=>activatePanel('insp')],
+    ['出力設定',()=>activatePanel('outs')],
+    ['今すぐ保存',()=>cmd({cmd:'save'})],
+    ['セッティング',openSettings],
+    [LANG==='en'?'日本語に切り替え':'English に切り替え',()=>cmd({cmd:'lang',value:LANG==='en'?'ja':'en'})]
+  ],settingsButton);
+};
+settingsButton.addEventListener('keydown',e=>{if(e.code==='Space')e.stopPropagation();});
+function addDeckAction(label,anchor,after=false){
+  return [label,()=>{
+    const names=new Set(S.decks.map(d=>d.name));
+    let n=1;
+    while(names.has('デッキ '+n)||names.has('Deck '+n))n++;
+    const name=prompt('デッキ名',T('デッキ '+n));
+    if(name?.trim())cmd({cmd:'deck_add',name,anchor,after});
+  }];
+}
+function deckActions(deck){
+  const actions=[['デッキ名を変更',()=>{
+    const name=prompt('デッキ名',deck.name);
+    if(name?.trim())cmd({cmd:'deck_rename',id:deck.id,name});
+  }],addDeckAction('このデッキの前に追加',deck.id),addDeckAction('このデッキの後に追加',deck.id,true)];
+  if(S.decks.length>1)actions.push(['このデッキを削除',()=>{
+    if(confirm(`デッキ「${deck.name}」とその中のクリップを削除しますか？`)){
+      cmd({cmd:'deck_delete',id:deck.id});
+    }
+  },true]);
+  return actions;
+}
+$('show-decks').addEventListener('keydown',e=>{if(e.code==='Space')e.stopPropagation();});
+function buildDeckTabs(){
+  const list=$('show-decks'), key=JSON.stringify([S.active_deck,S.decks]);
+  if(list.dataset.key===key)return;
+  if(gridDrag?.tab)finishGridDrag();
+  const oldActive=list.querySelector('.on')?.dataset.deck;
+  const focused=list.contains(document.activeElement)?document.activeElement.dataset.deck:null;
+  list.dataset.key=key;
+  list.replaceChildren(...S.decks.map(deck=>{
+    const b=document.createElement('button');
+    const active=deck.id===S.active_deck;
+    b.type='button'; b.classList.toggle('on',active);
+    b.dataset.deck=deck.id;
+    b.translate=false;
+    b.setAttribute('aria-pressed',String(active));
+    b.textContent=deck.name; b.title=deck.name;
+    b.onclick=()=>cmd({cmd:'deck_select',id:deck.id});
+    b.oncontextmenu=e=>openContextMenu(e,deckActions(deck));
+    return b;
+  }));
+  const active=list.querySelector('.on');
+  if(S.active_deck!==oldActive)active?.scrollIntoView({block:'nearest',inline:'nearest'});
+  if(focused)(Array.from(list.children).find(b=>b.dataset.deck===focused)||active)?.focus({preventScroll:true});
+}
 document.addEventListener('dragstart',()=>closeContextMenu());
 $('deck').addEventListener('scroll',()=>closeContextMenu());
 window.addEventListener('resize',()=>closeContextMenu());
@@ -1124,21 +1181,25 @@ function deleteColumn(cue,revision){
     cmd({cmd:'remove_column',cue,rev:revision});
   }
 }
+function columnCount(layers=S.layers.filter(L=>L.kind==='video')){
+  return layers.length?Math.max(S.column_names.length,...layers.map(L=>L.cues.length)):0;
+}
 function columnMenu(cue,revision){
-  return [
+  const actions=[
     ['このコラムを再生',()=>cmd({cmd:'go_column',cue})],
     ['コラム名を変更',()=>{
       const name=prompt('コラム名（空欄で番号のみ）',S.column_names[cue]||'');
       if(name!==null)cmd({cmd:'rename_column',cue,rev:revision,name});
     }],
     ['このコラムの前に追加',()=>cmd({cmd:'add_column',cue,rev:revision})],
-    ['このコラムの後に追加',()=>cmd({cmd:'add_column',cue:cue+1,rev:revision})],
-    ['このコラムを削除',()=>deleteColumn(cue,revision),true]
+    ['このコラムの後に追加',()=>cmd({cmd:'add_column',cue:cue+1,rev:revision})]
   ];
+  if(columnCount()>1)actions.push(['このコラムを削除',()=>deleteColumn(cue,revision),true]);
+  return actions;
 }
 function buildColumns(){
   const layers=S.layers.filter(L=>L.kind==='video'), revision=S.rev;
-  const names=S.column_names, n=layers.length?Math.max(names.length,...layers.map(L=>L.cues.length)):0, cols=$('cols');
+  const names=S.column_names, n=columnCount(layers), cols=$('cols');
   cols.innerHTML=Array.from({length:n},(_,j)=>{
     const name=names[j]||'';
     return `<button data-col="${j}" title="${name?esc(name):`${j+1}番目のクリップを全部の動画レイヤーで一斉に再生`}">▶ ${j+1}${name?' '+esc(name):''}</button>`;
@@ -1188,12 +1249,11 @@ function photoTile(i,c,j){
 let clipUpdates=Promise.resolve();
 function openClipSettings(layer,j){
   const c=layer.cues[j], form=$('clipform'), dialog=$('clipdlg');
+  const deck=gridDeck;
   const fields=form.elements;
   $('clipdlgname').textContent=cueInfo(c)?.name||base(c.file);
   $('clip-status').textContent='';
   fields.volume.value=Math.round((c.volume??1)*100);
-  fields.flip_x.checked=Boolean(c.flip_x);
-  fields.flip_y.checked=Boolean(c.flip_y);
   fields.fade_in.value=c.fade_in??0;
   fields.fade_out.value=c.fade_out??0;
   fields.audio_fade_in.value=c.audio_fade_in??c.fade_in??0;
@@ -1209,7 +1269,7 @@ function openClipSettings(layer,j){
     const values=pending;
     pending={}; sending=true;
     clipUpdates=clipUpdates.then(async()=>{
-      const response=await post({cmd:'cue_mix',lid:layer.id,cue:j,file:c.file,...values});
+      const response=await post({cmd:'cue_mix',deck,lid:layer.id,cue:j,file:c.file,...values});
       if(!response.ok)throw new Error();
     }).catch(()=>{
       if(dialog.onclose===closeUpdates)$('clip-status').textContent=T('設定を送れませんでした');
@@ -1339,15 +1399,24 @@ function build(){
 
 // ---- 右：選んでいるレイヤーの設定 ----
 function buildLset(){
-  const i=S.selected, L=S.layers[i]; if(!L){$('lset').innerHTML='';return;}
+  const i=S.selected, L=S.layers[i]; if(!L){$('lset').innerHTML='';lsetKey='';return;}
   const key=JSON.stringify([i,rev,S.targets,L.places.map(p=>p.output)]);
-  if(key===lsetKey||editingIn('#lset')) return; lsetKey=key;
+  if(key===lsetKey){
+    for(const axis of ['flip_x','flip_y'])$('lset').querySelector(`[data-k="${axis}"]`).checked=Boolean(L[axis]);
+    return;
+  }
+  if(editingIn('#lset'))return;
+  lsetKey=key;
   let h=`<div class="set">
     <span class="lbl">名前</span><input data-k="name" value="${esc(L.name)}">
     <span class="lbl">重なり順</span><select id="layer-order" aria-label="重なり順">
       ${S.layers.map((_,rank)=>`<option value="${rank}" ${rank===L.z_order?'selected':''}>${rank+1}${rank===0?'（一番奥）':rank===S.layers.length-1?'（一番手前）':''}</option>`).join('')}
     </select>
     <span class="lbl">不透明度</span><input type="range" min="0" max="1" step="0.01" data-k="opacity" id="iop">
+    <span class="lbl">反転</span><div class="chk">
+      <label><input type="checkbox" data-k="flip_x" ${L.flip_x?'checked':''}>左右反転</label>
+      <label><input type="checkbox" data-k="flip_y" ${L.flip_y?'checked':''}>上下反転</label>
+    </div>
     <span class="lbl">合成方法</span><select data-k="blend">${S.blends.map(b=>`<option value="${b}" ${b===L.blend?'selected':''}>${BLEND_NAME[b]}</option>`).join('')}</select>
     ${S.targets.length>1?`<span class="lbl">映す出力</span><div class="chk">${S.targets.map(t=>{const on=L.places.some(p=>p.output===t.output), only=on&&L.places.length===1;
       return `<label><input type="checkbox" data-place="${t.output}" ${on?'checked':''} ${only?'disabled':''}>${esc(t.name)}</label>`;}).join('')}
@@ -1370,7 +1439,7 @@ function buildLset(){
     const k=el.dataset.k, ev=(el.type==='range')?'input':'change';
     el.addEventListener(ev,()=>{
       const v=el.type==='checkbox'?el.checked:(el.type==='range'||el.type==='number')?parseFloat(el.value):(k==='output'?+el.value:el.value);
-      const j=idx(); if(j>=0) setv(j,k,v);
+      cmd({cmd:'set',lid,key:k,value:v});
     });
   });
 }
@@ -1389,7 +1458,7 @@ function resSelect(o,k){
 }
 function buildOuts(){
   const box=$('outs'); if(!box)return;
-  const key=JSON.stringify([S.outputs.map(o=>[o.name,o.size,o.win,o.res,o.fullscreen,o.monitor,o.join,o.overlap,o.gamma,o.host]),S.screens,S.out_warning,
+  const key=JSON.stringify([S.outputs.map(o=>[o.name,o.size,o.win,o.res,o.fps_limit,o.fullscreen,o.monitor,o.join,o.overlap,o.gamma,o.host]),S.screens,S.out_warning,
     S.layers.map(L=>[L.name,L.places.map(p=>p.output)])]);
   if(key===outsKey||editingIn('#outs')) return; outsKey=key;
   const sc=S.screens||[];
@@ -1415,6 +1484,10 @@ function buildOuts(){
       <button class="sm" data-oback="${k}" title="ウィンドウに戻してメイン画面の中央へ">手元に戻す</button>
       ${S.outputs.length>1?`<button class="sm" data-orm="${k}" title="この出力を削除">✕</button>`:''}</div>
       <div class="wide"><span title="本番で使うプロジェクターの解像度。決めておくと、準備用の別のPC（小さいウィンドウ）でも本番と同じ大きさで描くので、四隅や重なりがそのまま使える">本番の解像度</span>${resSelect(o,k)}${o.res&&(o.win[0]!==o.res[0]||o.win[1]!==o.res[1])?`<span class="meta">（いまのウィンドウ ${o.win[0]}×${o.win[1]} に縮小して表示）</span>`:''}</div>
+      <div class="wide"><label for="output-fps-${k}">出力FPSの上限</label>
+        <select id="output-fps-${k}" data-ofps="${k}" ${head?'':'disabled'}>${[30,60].map(fps=>`<option value="${fps}" ${fps===S.outputs[o.host].fps_limit?'selected':''}>${fps} FPS</option>`).join('')}</select>
+        ${head?'':'<span class="meta">横長につないだ先頭の出力に合わせる</span>'}
+        <span class="meta">実測 <span id="output-rate-${k}"></span></span></div>
       ${k>0?`<div class="wide"><label title="2台のプロジェクターで1枚の横長の映像にする"><input type="checkbox" data-join="${k}" ${o.join?'checked':''}> 出力${k}の右につなげて横長にする</label>
         ${o.join?`<span>重なり</span><input type="number" min="0" max="2000" step="10" data-ov="${k}" value="${o.overlap}"><span class="meta">px（ぼかしてつなぐ幅）</span>
           <span>ガンマ</span><input type="number" min="1" max="3" step="0.1" data-gm="${k}" value="${o.gamma}" title="出力${k}と出力${k+1}のつなぎ目の明るさがそろわないときに調整（つなぎ目が明るすぎる→大きく、暗すぎる→小さく）"><span class="meta">（このつなぎ目だけ）</span>`:''}</div>`:''}
@@ -1434,6 +1507,10 @@ function buildOuts(){
       const m=a&&/^\s*(\d{2,5})\s*[x×*,]\s*(\d{2,5})\s*$/i.exec(a); if(m) return cmd({cmd:'out_res',output:k,value:[+m[1],+m[2]]}); outsKey=''; return buildOuts();}
     const [w,h]=v.split('x').map(Number); cmd({cmd:'out_res',output:k,value:[w,h]});});
   box.querySelectorAll('[data-oback]').forEach(b=>b.onclick=()=>cmd({cmd:'out_bring_back',output:+b.dataset.oback}));
+  box.querySelectorAll('[data-ofps]').forEach(s=>s.onchange=()=>{
+    cmd({cmd:'out_fps',output:+s.dataset.ofps,value:+s.value});
+    s.blur();
+  });
   box.querySelectorAll('[data-orm]').forEach(b=>b.onclick=()=>{ if(confirm(`${S.outputs[+b.dataset.orm].name} を削除しますか？（その出力のレイヤーは出力1に移ります）`)) cmd({cmd:'out_remove',output:+b.dataset.orm}); });
   box.querySelectorAll('[data-pl]').forEach(c=>c.onchange=()=>cmd({cmd:'place',layer:+c.dataset.pl,output:+c.dataset.po,value:c.checked}));
   box.querySelectorAll('[data-join]').forEach(c=>c.onchange=()=>cmd({cmd:'out_join',output:+c.dataset.join,value:c.checked}));
@@ -1481,11 +1558,15 @@ function updateMixer(){
 
 function update(){
   updateMixer();
+  S.outputs.forEach((o,k)=>{
+    const el=$('output-rate-'+k), rate=o.fps?`${o.fps} FPS`:'—';
+    if(el&&el.textContent!==rate)el.textContent=rate;
+  });
   $('meta').textContent=`${S.backend} ・ 出力 ${S.outputs.length>1?S.outputs.length+'画面':S.size[0]+'×'+S.size[1]} ・ ${S.fps}fps${S.dirty?' ・ 未保存':''}`;
   buildLan();
   if(document.activeElement!==$('master')) $('master').value=S.master;
   $('bo').classList.toggle('on',S.blackout);
-  $('edit').classList.toggle('on',S.edit); $('mapedit').classList.toggle('on',S.edit);
+  $('panel-settings').classList.toggle('on',S.edit); $('mapedit').classList.toggle('on',S.edit);
   $('msg').textContent=S.message||'';
   S.layers.forEach((L,i)=>{
     const row=$('row'+i); if(!row)return;
@@ -1583,9 +1664,7 @@ $('map').addEventListener('lostpointercapture',()=>{ if(dragging) endDragMap(tru
 $('master').addEventListener('input',e=>cmd({cmd:'master',value:parseFloat(e.target.value)}));
 $('bo').onclick=()=>cmd({cmd:'blackout',value:!S.blackout});
 $('clearall').onclick=()=>cmd({cmd:'clear_all'});
-$('edit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
 $('mapedit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
-$('save').onclick=()=>cmd({cmd:'save'});
 
 // ---- スマホから操作（オン・オフと QR コード）----
 let lanKey='';
@@ -1616,9 +1695,8 @@ $('lantoggle').onclick=()=>{ lanKey=''; cmd({cmd:'lan',value:!S.allow_lan}); };
 function fmtTime(t){const d=new Date(t*1000), p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
 let setKey='';
 function buildSettings(){
-  const nm=S.setting_name||'';
-  $('setname').textContent=nm||'（名前なし）'; $('setbtn').classList.toggle('none',!nm);
   if($('setdlg').classList.contains('hide')) return;
+  const nm=S.setting_name||'';
   const k=JSON.stringify([nm,S.settings]); if(k===setKey) return; setKey=k;
   $('setcur').innerHTML=nm?T(`いま開いている：<b style="color:var(--acc)">${esc(nm)}</b>（変えると自動で上書き保存）`):
     'いまの状態には名前が付いていません。残しておくなら、名前を付けて保存してください。';
@@ -1646,14 +1724,21 @@ function saveAs(n){
   if(exists&&n!==S.setting_name&&!confirm(`「${n}」はもうあります。いまの状態で上書きしますか？`))return;
   cmd({cmd:'setting_save_as',name:n,overwrite:exists}); $('setnew').value='';
 }
-function openSettings(){ $('setdlg').classList.remove('hide'); setKey=''; buildSettings(); }
-function closeSettings(){ $('setdlg').classList.add('hide'); }
-$('setbtn').onclick=openSettings;
+function openSettings(){
+  if(!S)return;
+  $('setdlg').classList.remove('hide');
+  setKey='';
+  buildSettings();
+  $('setclose').focus({preventScroll:true});
+}
+function closeSettings(){
+  $('setdlg').classList.add('hide');
+  settingsButton.focus({preventScroll:true});
+}
 $('setclose').onclick=closeSettings;
 $('setdlg').addEventListener('click',e=>{ if(e.target.id==='setdlg') closeSettings(); });
 $('setsaveas').onclick=()=>saveAs($('setnew').value);
 $('setnew').addEventListener('keydown',e=>{ if(e.key==='Enter') saveAs($('setnew').value); });
-$('langbtn').onclick=()=>cmd({cmd:'lang',value:LANG==='en'?'ja':'en'});
 $('quit').onclick=()=>{ if(confirm('VPT39 を終了しますか？（設定は保存されます）')) cmd({cmd:'quit'}); };
 $('mfilter').addEventListener('input',()=>{ if(S) buildMedia(); });
 $('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
@@ -1681,14 +1766,26 @@ document.addEventListener('keydown',e=>{
 
 async function poll(){
   try{
-    const r=await fetch('/api/state'); S=await r.json(); setLang(S.lang);
+    const r=await fetch('/api/state'), state=await r.json();
+    if(S&&state.boot===S.boot&&state.rev<S.rev)return;
+    S=state; setLang(S.lang);
+    const deckChanged=gridDeck!==null&&gridDeck!==S.active_deck;
+    if(deckChanged){
+      closeContextMenu();
+      if($('clipdlg').open)$('clipdlg').close();
+      if(gridDrag)finishGridDrag();
+      endDrag();
+      scrub=null;
+      $('deck').scrollLeft=0;
+    }
+    buildDeckTabs();
     const mkey=S.media.join('\n')+'|'+S.boot+'|'+((S.inputs||{}).mics||[]).join('|');
-    applyDetached(); buildOuts(); buildMixer(); buildSettings();
-    if(S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
+    buildOuts(); buildMixer(); buildSettings();
+    if(deckChanged||S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない
       const dragNow=gridDrag||dragActive||Date.now()-lastOver<800;
-      if(!pendingModes&&!$('clipdlg').open&&!dragNow&&(!editingIn('.deck')||S.layers.length!==nlayers)){
-        rev=S.rev; nlayers=S.layers.length; mediaKey=mkey; build();
+      if(deckChanged||(!pendingModes&&!$('clipdlg').open&&!dragNow&&(!editingIn('.deck')||S.layers.length!==nlayers))){
+        rev=S.rev; nlayers=S.layers.length; mediaKey=mkey; gridDeck=S.active_deck; build();
       }
     }
     if(mkind==='s') buildMedia();

@@ -18,7 +18,7 @@ CLIP_MIX = {
     'fade_in': (0.0, 30.0), 'fade_out': (0.0, 30.0),
     'audio_fade_in': (0.0, 30.0), 'audio_fade_out': (0.0, 30.0),
 }
-CLIP_FLIPS = ('flip_x', 'flip_y')
+LAYER_FLIPS = ('flip_x', 'flip_y')
 
 
 def clip_mix(cue):
@@ -30,7 +30,6 @@ def clip_mix(cue):
         if not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)):
             value = default
         values[key] = max(0.0, min(maximum, value))
-    values.update((key, cue.get(key) is True) for key in CLIP_FLIPS)
     return values
 
 
@@ -58,6 +57,8 @@ def layer_defaults(kind='video', name=None):
         'visible': True,
         'opacity': 1.0,
         'blend': 'normal',
+        'flip_x': False,
+        'flip_y': False,
         'audio': kind == 'video',
         'volume': 1.0,
         'corners': copy.deepcopy(DEFAULT_CORNERS),
@@ -98,7 +99,7 @@ def inv_homography_bytes(corners):
 class Deck:
     """1つのレイヤー内で再生中の1素材（クロスフェード用に複数重なる）"""
 
-    def __init__(self, src, label, cue=-1, mode='loop', settings=None):
+    def __init__(self, src, label, cue=-1, mode='loop', settings=None, cue_row=None):
         self.src = src
         self.label = label
         self.cue = cue
@@ -107,14 +108,11 @@ class Deck:
         self.alpha = 0.0
         self.target = 1.0
         self.settings = settings
+        self.cue_row = cue_row
         self.mix = clip_mix(settings or {})
         self.end_gain = 1.0
         self.audio_level = 0.0
         self.audio_end_gain = 1.0
-
-    @property
-    def clip_flip(self):
-        return (-1 if self.mix['flip_x'] else 1, -1 if self.mix['flip_y'] else 1)
 
     @property
     def level(self):
@@ -171,13 +169,18 @@ class Layer:
     # ---- 操作 ----
     @property
     def current_cue(self):
-        for d in reversed(self.decks):
-            if d.target > 0:
-                return d.cue
-        return -1
+        d = self.top_deck()
+        return d.cue if d is not None and self.in_current_row(d) else -1
 
-    def go(self, i):
-        cues = self.cfg['cues']
+    def in_current_row(self, deck):
+        return deck.cue_row is None or deck.cue_row is self.cfg['cues']
+
+    def current_row_decks(self):
+        return (d for d in self.decks if self.in_current_row(d))
+
+    def go(self, i, cues=None):
+        if cues is None:
+            cues = self.cfg['cues']
         if not (0 <= i < len(cues)):
             return
         if self.cfg['kind'] == 'photo':
@@ -203,7 +206,7 @@ class Layer:
             if f == BLANK:
                 for d in self.decks:  # 空白：今の映像と音をフェードアウト
                     d.target = 0.0
-            self.decks.append(Deck(src, cue_label(cue, self.app), i, 'hold', cue))
+            self.decks.append(Deck(src, cue_label(cue, self.app), i, 'hold', cue, cues))
             return
         path = self.app.media_path(f)
         if not os.path.isfile(path):
@@ -219,7 +222,7 @@ class Layer:
             return
         self.error = ''
         # 新しい素材は最初の映像が出てから表示する（それまで前の素材の映像と音を流し続ける）
-        d = Deck(src, f, i, cue.get('mode', 'loop'), cue)
+        d = Deck(src, f, i, cue.get('mode', 'loop'), cue, cues)
         self.decks.append(d)
 
     def _special_source(self, cue, w, h):
@@ -288,13 +291,14 @@ class Layer:
         self._step_cue(-1)
 
     def _step_cue(self, direction):
-        cues = self.cfg['cues']
+        self._step_in_row(self.cfg['cues'], self.current_cue, direction)
+
+    def _step_in_row(self, cues, current, direction):
         n = len(cues)
-        current = self.current_cue
         for step in range(1, n + 1):
             i = (current + direction * step) % n
             if cues[i].get('file') != GAP:
-                self.go(i)
+                self.go(i, cues)
                 return
 
     def clear(self):
@@ -318,7 +322,7 @@ class Layer:
     def transport(self, cue, op, value=None):
         """op: 'toggle'（再生/一時停止）, 'restart'（頭出し）, 'seek'（value=0〜1）, 'stop'（消す）"""
         d = self.top_deck()
-        current = d is not None and d.cue == cue
+        current = d is not None and self.in_current_row(d) and d.cue == cue
         if op == 'stop':
             if current:
                 self.clear()
@@ -328,12 +332,12 @@ class Layer:
             current = is_special(file) or d.label == file
         if not current:
             # まだ再生していないクリップ → 再生を始めてから操作
+            count = len(self.decks)
             self.go(cue)
-            d = self.decks[-1] if self.decks and self.decks[-1].cue == cue else None
-            if d is None:
+            if len(self.decks) == count:
                 return
             if op == 'seek':
-                d.src.seek(value or 0.0)
+                self.decks[-1].src.seek(value or 0.0)
             return
         if op == 'toggle':
             d.src.set_paused(not d.src.paused)
@@ -343,6 +347,10 @@ class Layer:
                 d.src.set_paused(False)
         elif op == 'seek':
             d.src.seek(value or 0.0)
+
+    @property
+    def flip(self):
+        return (-1 if self.cfg['flip_x'] else 1, -1 if self.cfg['flip_y'] else 1)
 
     def deck_draws(self):
         """描く素材の一覧 [(deck, 不透明度, ずらし・拡大, ワイプ)]。写真ウォールは切り替え方に合わせて動かす"""
@@ -398,7 +406,7 @@ class Layer:
                         d.audio_level = 0.0
                 elif d.mode == 'next' and d is self.decks[-1]:
                     d.mode = 'hold'
-                    self.next()
+                    self._step_in_row(d.cue_row if d.cue_row is not None else self.cfg['cues'], d.cue, 1)
         top = self.top_deck()
         if not photo and top is not None and top.src.ready:
             for d in self.decks[:self.decks.index(top)]:
@@ -545,7 +553,7 @@ uniform int premul;
 uniform vec3 tint;
 uniform vec3 xf;       // 写真の切り替え用：中身のずらし (x, y) と拡大率
 uniform vec2 wipe;     // 写真の切り替え用：ワイプの位置とぼかし幅（幅0＝使わない）
-uniform vec2 clip_flip;
+uniform vec2 layer_flip;
 out vec4 fragColor;
 void main(){
     vec2 p = (gl_FragCoord.xy - origin) / res;
@@ -572,7 +580,7 @@ void main(){
     } else {
         // レイヤー映像（GPU で描いたテクスチャ）は行が下から上なので上下を戻す
         vec2 s = (uv - 0.5) / xf.z + 0.5 - xf.xy;
-        s = (s - 0.5) * clip_flip + 0.5;
+        s = (s - 0.5) * layer_flip + 0.5;
         if (s.x < 0.0 || s.x > 1.0 || s.y < 0.0 || s.y > 1.0) discard;
         c = texture(tex, premul == 1 ? vec2(s.x, 1.0 - s.y) : s);
     }
@@ -648,7 +656,7 @@ class Renderer:
         t.swizzle = swz
 
     def draw_quad(self, tex, corners, size, opacity, feather=0.0, mode=0, tint=(1, 1, 1), origin=(0, 0),
-                  premul=False, xf=XF0, wipe=WIPE0, clip_flip=(1, 1)):
+                  premul=False, xf=XF0, wipe=WIPE0, layer_flip=(1, 1)):
         hb = inv_homography_bytes(corners)
         if hb is None:
             return
@@ -663,7 +671,7 @@ class Renderer:
         p['tint'].value = tint
         p['xf'].value = xf
         p['wipe'].value = wipe
-        p['clip_flip'].value = clip_flip
+        p['layer_flip'].value = layer_flip
         (tex or self.dummy).use(0)
         p['tex'].value = 0
         self.vao.render(moderngl.TRIANGLE_STRIP)
@@ -690,9 +698,10 @@ class Renderer:
         ctx.viewport = (0, 0, size[0], size[1])
         ctx.clear(0.0, 0.0, 0.0, 0.0)
         self.set_blend('normal')
+        flip = L.flip
         for d, a, xf, wp in L.deck_draws():
             self.draw_quad(d.tex, DEFAULT_CORNERS, size, a, premul=getattr(d.src, 'shared_tex', False),
-                           xf=xf, wipe=wp, clip_flip=d.clip_flip)
+                           xf=xf, wipe=wp, layer_flip=flip)
 
     def render_output(self, fbo, size, mine, master, edit=False, selected=0, sel_corner=0, hud=None):
         """1つの出力をフレームバッファに描く。mine: その出力に映す [(レイヤー番号, Layer, 四隅), ...]"""
@@ -711,10 +720,11 @@ class Renderer:
                 if c['test']:
                     self.draw_quad(None, corners, size, c['opacity'] * master, c['feather'], 1, tint, org)
                     continue
+                flip = L.flip
                 for d, a, xf, wp in L.deck_draws():
                     self.draw_quad(d.tex, corners, size, c['opacity'] * a * master,
                                    c['feather'], origin=org, premul=getattr(d.src, 'shared_tex', False),
-                                   xf=xf, wipe=wp, clip_flip=d.clip_flip)
+                                   xf=xf, wipe=wp, layer_flip=flip)
 
             if edit:
                 self.set_blend('normal')

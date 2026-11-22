@@ -123,6 +123,10 @@ class OutputWindow:
         self.ext_key = None
         self.last_click = 0.0
         self.mouse = (0.0, 0.0)
+        self.next_frame = 0.0
+        self.presented_frames = 0
+        self.fps = 0.0
+        cfg['fps_limit'] = self.fps_limit
 
         gl_hints(visible=False)
         rect = cfg.get('rect')
@@ -139,7 +143,7 @@ class OutputWindow:
         self.prog = self.ctx.program(vertex_shader=BLIT_VS, fragment_shader=BLIT_FS)
         self.vbo = self.ctx.buffer(np.array([-1, -1, 1, -1, -1, 1, 1, 1], 'f4').tobytes())
         self.vao = self.ctx.vertex_array(self.prog, [(self.vbo, '2f', 'p')])
-        glfw.swap_interval(1 if index == 0 else 0)  # 画面のちらつき防止は1つ目の出力だけで十分
+        glfw.swap_interval(0)  # 出力ごとの描画間隔を使い、別の画面の垂直同期を待たない
         glfw.make_context_current(app.main_win)
 
         glfw.set_key_callback(self.win, self._on_key)
@@ -186,6 +190,19 @@ class OutputWindow:
             except (TypeError, ValueError):
                 pass
         return self.size()
+
+    @property
+    def fps_limit(self):
+        return 30 if self.cfg.get('fps_limit') == 30 else 60
+
+    def advance_frame(self, now):
+        period = 1.0 / self.fps_limit
+        if not self.next_frame:
+            self.next_frame = now + period
+        else:
+            # 処理落ちした分は飛ばして、元の周期で次を描く。
+            elapsed_periods = int(max(0.0, now - self.next_frame) / period)
+            self.next_frame += (elapsed_periods + 1) * period
 
     def view_rect(self, ww, wh):
         """ウィンドウ（ww×wh）の中で映像を映す範囲 (x, y, 幅, 高さ)。
@@ -290,6 +307,7 @@ class OutputWindow:
         self.ext.use(0)
         self.vao.render(moderngl.TRIANGLE_STRIP)
         glfw.swap_buffers(self.win)
+        self.presented_frames += 1
 
     def drop_target(self):
         """横長の2台目以降になったら、自分用の描画先は不要"""

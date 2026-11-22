@@ -27,11 +27,7 @@ EN = {
     'スマホ': 'Phone',
     'スマホ ON': 'Phone ON',
     'スマホ（つながらない）': 'Phone (no network)',
-    '会場・公演ごとの設定ファイル（名前を付けて保存・開く・複製・削除）':
-        'Setup files for each venue or show (save as, open, duplicate, delete)',
-    'セッティング：': 'Setup: ',
-    '（名前なし）': '(unnamed)',
-    '保存': 'Save',
+    '今すぐ保存': 'Save now',
     '終了': 'Quit',
     '（本体と接続できません）': '(cannot connect to VPT39)',
     'VPT39（本体と接続できません）': 'VPT39 (cannot connect to VPT39)',
@@ -39,7 +35,7 @@ EN = {
     '{#0}画面': '{0} outputs',
     '・ 未保存': '· unsaved',
     '未保存': 'unsaved',
-    '言語 / Language': '言語 / Language',
+    '日本語に切り替え': 'Switch to Japanese (日本語)',
 
     # ---- セッティング ----
     'セッティング': 'Setup',
@@ -239,6 +235,16 @@ EN = {
     'レイヤー名': 'Layer name',
     'クリップを再生': 'Play clip',
     '右クリックでコラムの操作': 'Right-click for column actions',
+    'デッキ {#0}': 'Deck {0}',
+    'このデッキの前に追加': 'Insert a deck before this one',
+    'このデッキの後に追加': 'Insert a deck after this one',
+    'デッキ名': 'Deck name',
+    'デッキ名を変更': 'Rename deck',
+    'このデッキを削除': 'Delete this deck',
+    'デッキ「{0}」とその中のクリップを削除しますか？': 'Delete deck “{0}” and its clips?',
+    'デッキが切り替わりました。もう一度操作してください': 'The active deck changed. Try again.',
+    'デッキ一覧が変わりました。もう一度操作してください': 'The deck list changed. Try again.',
+    '素材に保存しましたが、操作先のデッキが切り替わりました': 'The media was imported, but the destination deck is no longer selected.',
     'コラム・レイヤー・クリップの編集は右クリック': 'Right-click to edit columns, layers, or clips',
     '動画レイヤーを追加': 'Add video layer',
     '写真ウォールを追加': 'Add photo wall',
@@ -250,12 +256,22 @@ EN = {
     'レイヤー一覧が変わりました。もう一度操作してください': 'The layer list changed. Try again.',
     'ドラッグ中にクリップが変わったため、移動できませんでした': 'A clip changed during the drag, so it was left in place.',
     'クリップ設定': 'Clip settings',
+    '反転': 'Flip',
     '左右反転': 'Flip horizontally',
     '上下反転': 'Flip vertically',
     '設定を送れませんでした': 'Could not send the settings.',
     '映像': 'Video',
     '音声': 'Audio',
     '設定': 'Settings',
+    '設定 ▾': 'Settings ▾',
+    '出力設定': 'Output settings',
+    '出力FPSの上限': 'Output FPS limit',
+    '横長につないだ先頭の出力に合わせる': 'Uses the first output’s FPS limit',
+    '実測': 'Measured',
+    'マッピング編集を終了': 'Exit mapping edit',
+    '別タブで開く ↗': 'Open in new tab ↗',
+    '右側のパネルを閉じる': 'Close the right panel',
+    'メイン画面へ': 'Main panel',
     '音量 (%)': 'Volume (%)',
     'フェードイン (秒)': 'Fade in (s)',
     'フェードアウト (秒)': 'Fade out (s)',
@@ -637,7 +653,7 @@ function T(s){ if(LANG!=='en'||typeof s!=='string') return s;
   let v=I18N_CACHE.get(s); if(v===undefined){v=trans(s); if(I18N_CACHE.size>5000) I18N_CACHE.clear(); I18N_CACHE.set(s,v);} return v;}
 function trNode(n){
   if(n.nodeType===3){const v=n.nodeValue; if(I18N_JA.test(v)){const t=T(v); if(t!==v) n.nodeValue=t;} return;}
-  if(n.nodeType!==1||n.tagName==='SCRIPT'||n.tagName==='STYLE'||n.tagName==='TEXTAREA') return;
+  if(n.nodeType!==1||n.tagName==='SCRIPT'||n.tagName==='STYLE'||n.tagName==='TEXTAREA'||n.getAttribute('translate')==='no') return;
   for(const a of ['title','placeholder','alt']){const v=n.getAttribute&&n.getAttribute(a); if(v&&I18N_JA.test(v)){const t=T(v); if(t!==v) n.setAttribute(a,t);}}
   for(const c of n.childNodes) trNode(c);
 }
@@ -652,7 +668,6 @@ function setLang(l){
   if(!l||l===LANG) return;
   if(LANG!==null){ location.reload(); return; }
   LANG=l; document.documentElement.lang=l;
-  {const b=document.getElementById('langbtn'); if(b) b.textContent=l==='en'?'日本語':'EN';}
   if(l==='en'){ document.title=T(document.title); trNode(document.body);
     I18N_OBS.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['title','placeholder','alt']}); }
 }

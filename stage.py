@@ -18,13 +18,14 @@ import argparse
 import threading
 import subprocess
 import webbrowser
+from collections import Counter
 
 import glfw
 import moderngl
 from PIL import Image, ImageDraw, ImageFont
 
 from engine import (Layer, Renderer, layer_defaults, clip_mix, DEFAULT_CORNERS, BLENDS,
-                    BLANK, CLIP_FLIPS, CLIP_MIX, CUE_MODES, GAP, LAYER, TRANSITIONS)
+                    BLANK, CLIP_MIX, CUE_MODES, GAP, LAYER, LAYER_FLIPS, TRANSITIONS)
 from sources import backend_name, is_video, is_image, list_cameras, list_mics, list_windows, list_spout
 from outputs import OutputWindow, gl_hints, monitors, monitor_info
 import webui
@@ -37,6 +38,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 def new_id():
     import uuid
     return uuid.uuid4().hex[:8]
+
+
+def new_deck(number):
+    return {'id': new_id(), 'name': tr(f'デッキ {number}')}
+
+
+def column_names(names):
+    return [n.strip()[:80] if isinstance(n, str) else '' for n in names] if isinstance(names, list) else []
 
 
 def default_project():
@@ -68,11 +77,11 @@ def normalize_project(p):
     for k, v in dp.items():
         if k != 'outputs':
             p.setdefault(k, v)
-    names = p['column_names']
-    p['column_names'] = [n.strip()[:80] if isinstance(n, str) else '' for n in names] if isinstance(names, list) else []
+    p['column_names'] = column_names(p['column_names'])
     for L in p['layers']:
         for k, v in layer_defaults(L.get('kind', 'video')).items():
-            L.setdefault(k, v)
+            if k not in LAYER_FLIPS:
+                L.setdefault(k, v)
         L['test'] = False  # 開いたときはテストパターンを必ずオフ
         if not L.get('id'):
             L['id'] = new_id()
@@ -80,10 +89,51 @@ def normalize_project(p):
                     key=lambda pair: pair[1]['z_order'] if type(pair[1].get('z_order')) is int else pair[0])
     for rank, (_, layer) in enumerate(ranked):
         layer['z_order'] = rank
+    # 表示中のデッキは従来どおり layers と column_names に保存する。
+    # ほかのデッキには動画レイヤーのクリップ一覧とコラム名を保存する。
+    decks = []
+    seen = set()
+    video_ids = {L['id'] for L in p['layers'] if L['kind'] == 'video'}
+    if isinstance(p.get('decks'), list):
+        for entry in p['decks']:
+            if not isinstance(entry, dict):
+                continue
+            deck_id = entry.get('id')
+            if not isinstance(deck_id, str) or not deck_id or deck_id in seen:
+                continue
+            seen.add(deck_id)
+            name = entry.get('name')
+            name = name.strip()[:80] if isinstance(name, str) else ''
+            deck = {'id': deck_id, 'name': name or tr(f'デッキ {len(decks) + 1}')}
+            if deck_id != p.get('active_deck'):
+                rows = entry.get('cues')
+                deck['cues'] = {lid: row for lid, row in rows.items()
+                                if lid in video_ids and isinstance(row, list)} if isinstance(rows, dict) else {}
+                deck['column_names'] = column_names(entry.get('column_names'))
+            decks.append(deck)
+    if not isinstance(p.get('active_deck'), str) or p['active_deck'] not in seen:
+        active = new_deck(len(decks) + 1)
+        p['active_deck'] = active['id']
+        decks.append(active)
+    p['decks'] = decks
+    for layer in p['layers']:
+        missing = [key for key in LAYER_FLIPS if key not in layer]
+        if not missing:
+            continue
+        rows = [layer['cues'], *(d.get('cues', {}).get(layer['id'], []) for d in decks)]
+        clips = [c for row in rows for c in row if c.get('file') not in (None, '', BLANK, GAP)]
+        # 旧形式のクリップで反転が統一されていた軸だけ、レイヤーに引き継ぐ。
+        for key in missing:
+            layer[key] = bool(clips) and all(c.get(key) is True for c in clips)
     return p
 
 
 SETTING_BAD = set('\\/:*?"<>|')
+DECK_SCOPED_CMDS = {
+    'go', 'transport', 'next', 'prev', 'go_column', 'cue_mix', 'cue_set', 'cue_mode',
+    'add_cue', 'import_cue', 'remove_cue', 'move_cue', 'move_cue_into', 'move_cue_to',
+    'add_column', 'remove_column', 'rename_column', 'move_column',
+}
 
 
 def clean_setting_name(name):
@@ -128,6 +178,7 @@ class App:
         self.sel_corner = 0
         self.drag = None
         self.rev = 1
+        self._media_use_cache = (None, {})
         self.dirty = False
         self.last_change = 0.0
         self.cmd_q = queue.Queue()
@@ -433,7 +484,7 @@ class App:
         row = layer.cfg['cues']
         row.extend({'file': GAP, 'mode': 'loop'} for _ in range(at - len(row)))
         row.insert(at, cue)
-        for d in layer.decks:
+        for d in layer.current_row_decks():
             if d.cue >= at:
                 d.cue += 1
 
@@ -445,8 +496,77 @@ class App:
         if at < len(names):
             names.insert(at, '')
 
+    def switch_deck(self, deck):
+        active_id = self.proj['active_deck']
+        if deck['id'] == active_id:
+            return
+        active = next(d for d in self.proj['decks'] if d['id'] == active_id)
+        active['cues'] = {}
+        rows = deck.pop('cues', {})
+        for layer in self.layers:
+            cfg = layer.cfg
+            if cfg['kind'] != 'video':
+                continue
+            lid = cfg['id']
+            active['cues'][lid] = cfg['cues']
+            cfg['cues'] = rows.get(lid, [])
+        active['column_names'] = self.proj['column_names']
+        self.proj['column_names'] = deck.pop('column_names', [])
+        self.proj['active_deck'] = deck['id']
+        self.touch(True)
+
+    def handle_deck(self, c):
+        decks = self.proj['decks']
+        cmd = c['cmd']
+        anchor = c.get('anchor')
+        target = next((d for d in decks if d['id'] == anchor), None) if anchor is not None else None
+        if anchor is not None and target is None:
+            self.message = 'デッキ一覧が変わりました。もう一度操作してください'
+            return
+        if cmd == 'deck_add':
+            name = c.get('name')
+            if isinstance(name, str) and name.strip():
+                deck = {'id': new_id(), 'name': name.strip()[:80]}
+                at = len(decks) if target is None else decks.index(target) + (c.get('after') is True)
+                decks.insert(at, deck)
+                self.switch_deck(deck)
+            return
+        deck = next((d for d in decks if d['id'] == c.get('id')), None)
+        if deck is None:
+            return
+        if cmd == 'deck_select':
+            self.switch_deck(deck)
+        elif cmd == 'deck_move' and target is not None and target is not deck:
+            old = decks.index(deck)
+            at = decks.index(target) + (c.get('after') is True)
+            if old < at:
+                at -= 1
+            if at != old:
+                decks.insert(at, decks.pop(old))
+                self.touch(True)
+        elif cmd == 'deck_rename':
+            name = c.get('name')
+            if isinstance(name, str) and name.strip():
+                deck['name'] = name.strip()[:80]
+                self.touch(True)
+        elif cmd == 'deck_delete' and len(decks) > 1:
+            index = decks.index(deck)
+            if deck['id'] == self.proj['active_deck']:
+                self.switch_deck(decks[index - 1 if index else 1])
+            for row in deck['cues'].values():
+                row.clear()  # 削除したデッキで再生中の素材は、新しい素材に切り替えるまで残す。
+            decks.remove(deck)
+            self.touch(True)
+
     def handle(self, c):
         cmd = c.get('cmd')
+        if cmd in ('deck_add', 'deck_select', 'deck_move', 'deck_rename', 'deck_delete'):
+            self.handle_deck(c)
+            return
+        if cmd in DECK_SCOPED_CMDS and c.get('deck', self.proj['active_deck']) != self.proj['active_deck']:
+            self.message = ('素材に保存しましたが、操作先のデッキが切り替わりました' if cmd == 'import_cue'
+                            else 'デッキが切り替わりました。もう一度操作してください')
+            return
         L = self.layer(c.get('layer'))
         if c.get('lid'):  # 確認の間に並びが変わっても、確かめたレイヤーに対して行う
             L = self.layer_by_id(c['lid'])
@@ -560,7 +680,7 @@ class App:
                 L.cfg['cues'][i][c['key']] = str(c.get('value', ''))[:300]
                 if c['key'] == 'adev':  # 再生中なら音声だけ入れ替える（映像は止めない）
                     from sources import AudioIn
-                    for d in L.decks:
+                    for d in L.current_row_decks():
                         if d.cue == i and hasattr(d.src, 'audio'):
                             new = AudioIn(str(c['value'])) if c['value'] else None  # 先に新しい方を作ってから入れ替える
                             old, d.src.audio = d.src.audio, new
@@ -587,9 +707,16 @@ class App:
                     self.message = '素材に保存しましたが、クリップが変わっていたため差し替えませんでした'
                     return
                 old = cues[i]
+                if f == old.get('file'):
+                    return
                 cues[i] = {'file': f, 'mode': old.get('mode', 'loop')}
                 if L.cfg['kind'] == 'video':
                     cues[i].update(clip_mix(old))
+                    for d in L.current_row_decks():
+                        if d.cue == i:
+                            d.cue = -1
+                            if d.mode == 'next':
+                                d.mode = 'hold'
                 self.message = 'クリップを差し替えました'
             self.touch(True)
         elif cmd == 'add_cue' and L:
@@ -602,7 +729,7 @@ class App:
                 at = c.get('at')
                 at = len(cues) if at is None else max(0, min(len(cues), int(at)))
                 cue = {'file': f, 'mode': 'next' if c.get('playlist') else 'loop'}
-                if L.cfg['kind'] == 'video' and (CLIP_MIX.keys() & c.keys() or any(k in c for k in CLIP_FLIPS)):
+                if L.cfg['kind'] == 'video' and CLIP_MIX.keys() & c.keys():
                     cue.update(clip_mix(c))
                 for k in ('vdev', 'adev', 'title', 'sender'):
                     if k in c:
@@ -640,7 +767,7 @@ class App:
             insert = c.get('insert') is True and source is not L and j < len(dst)
             src[i] = {'file': GAP, 'mode': 'loop'}
             for layer in (L,) if source is L else (source, L):
-                for d in layer.decks:
+                for d in layer.current_row_decks():
                     if source is L and d.cue == i:
                         d.cue = j
                     elif layer is source and layer is not L and d.cue == i:
@@ -665,9 +792,9 @@ class App:
             if 0 <= i < len(cues) and 0 <= j < len(cues) and i != j:
                 order = list(range(len(cues)))
                 order.insert(j, order.pop(i))
-                L.cfg['cues'] = [cues[k] for k in order]
+                cues[:] = [cues[k] for k in order]
                 new = {old: k for k, old in enumerate(order)}
-                for d in L.decks:
+                for d in L.current_row_decks():
                     if d.cue in new:
                         d.cue = new[d.cue]
                 self.touch(True)
@@ -698,7 +825,7 @@ class App:
                 for layer in layers:
                     row = layer.cfg['cues']
                     row[:] = [row[k] if k < len(row) else {'file': GAP, 'mode': 'loop'} for k in order]
-                    for d in layer.decks:
+                    for d in layer.current_row_decks():
                         d.cue = new_positions.get(d.cue, d.cue)
             elif cmd == 'rename_column' and j < count:
                 name = c.get('name')
@@ -708,17 +835,15 @@ class App:
                 names[j] = name.strip()[:80]
                 while names and not names[-1]:
                     names.pop()
-            elif j < count:
+            elif cmd == 'remove_column' and count > 1 and j < count:
                 if j < len(names):
                     names.pop(j)
-                    while names and not names[-1]:
-                        names.pop()
                 for layer in layers:
                     row = layer.cfg['cues']
                     if j >= len(row):
                         continue
                     row.pop(j)
-                    for d in layer.decks:
+                    for d in layer.current_row_decks():
                         if d.cue == j:
                             d.cue = -1
                             if d.mode == 'next':
@@ -742,7 +867,7 @@ class App:
                     L.cfg['cues'].pop(i)
                 else:
                     L.cfg['cues'][i] = {'file': GAP, 'mode': 'loop'}
-                for d in L.decks:
+                for d in L.current_row_decks():
                     if d.cue == i:
                         d.cue = -1
                         if d.mode == 'next':
@@ -755,7 +880,7 @@ class App:
             cues = L.cfg['cues']
             if 0 <= i < len(cues) and 0 <= j < len(cues):
                 cues[i], cues[j] = cues[j], cues[i]
-                for d in L.decks:
+                for d in L.current_row_decks():
                     if d.cue == i:
                         d.cue = j
                     elif d.cue == j:
@@ -769,7 +894,7 @@ class App:
                 if 'file' in c and cue['file'] != c['file']:
                     return
                 cue['mode'] = mode
-                for d in L.decks:
+                for d in L.current_row_decks():
                     if d.cue == i and d.label == cue['file']:
                         d.mode = mode
                         if hasattr(d.src, 'mode'):
@@ -789,6 +914,8 @@ class App:
             L.release()
             self.layers.pop(i)
             self.proj['layers'].pop(i)
+            for deck in self.proj['decks']:
+                deck.get('cues', {}).pop(L.cfg['id'], None)
             for rank, (_, layer) in enumerate(self.layers_in_output_order()):
                 layer.cfg['z_order'] = rank
             if self.selected > i:  # 上のレイヤーを消したら、選んでいたレイヤーを選んだままにする
@@ -840,6 +967,8 @@ class App:
             O.cfg.setdefault('overlap', 0)
             self._grp = None
             self._fix_places()
+            for out in self.outs:
+                out.next_frame = 0.0
             self.touch(True)
         elif cmd == 'lan':
             self.set_lan(bool(c.get('value')))
@@ -863,6 +992,12 @@ class App:
                 O.cfg['res'] = [w, h]
             self._grp = None
             self.touch(True)
+        elif cmd == 'out_fps' and O:
+            limit = c.get('value')
+            if type(limit) is int and limit in (30, 60):
+                O.cfg['fps_limit'] = limit
+                O.next_frame = 0.0
+                self.touch()
         elif cmd == 'out_blend' and O:
             if 'overlap' in c:
                 O.cfg['overlap'] = max(0, min(2000, int(c['overlap'])))
@@ -885,9 +1020,6 @@ class App:
                 x['output'] = fix(int(x.get('output', 0)))
                 for m in x.get('more', []):
                     m['output'] = fix(int(m['output']))
-            # 新しい出力1で垂直同期を効かせる（出力1を消すと、どのウィンドウにも同期がなくなっていた）
-            glfw.make_context_current(self.outs[0].win)
-            glfw.swap_interval(1)
             glfw.make_context_current(self.main_win)
             self.map_out = fix(self.map_out)
             self._grp = None
@@ -942,7 +1074,7 @@ class App:
     def set_layer_value(self, L, key, v):
         num = {'opacity': (0, 1), 'volume': (0, 1), 'feather': (0, 0.5),
                'photo_interval': (0, 600), 'photo_border': (0, 0.2)}
-        boo = {'visible', 'audio', 'test', 'photo_newest'}
+        boo = {'visible', 'audio', 'test', 'photo_newest', *LAYER_FLIPS}
         if key in num:
             lo, hi = num[key]
             L.cfg[key] = max(lo, min(hi, float(v)))
@@ -1143,6 +1275,10 @@ class App:
 
     # ---- 状態（ブラウザへ）----
     def build_state(self):
+        if self._media_use_cache[0] != self.rev:
+            counts = Counter(cue['file'] for deck in self.proj['decks'] for row in deck.get('cues', {}).values()
+                             for cue in row if not cue['file'].startswith('@'))
+            self._media_use_cache = (self.rev, counts)
         ls = []
         for L in self.layers:
             c = L.cfg
@@ -1168,6 +1304,7 @@ class App:
         for k, o in enumerate(self.outs):
             outs.append({'name': o.name(), 'size': list(o.render_size()), 'win': list(o.size()),
                          'res': o.cfg.get('res'), 'fullscreen': o.fullscreen,
+                         'fps_limit': o.fps_limit, 'fps': round(o.fps),
                          'monitor': o.monitor_index(), 'host': self.host_of(k),
                          'target': self.target_name(k), 'join': bool(o.cfg.get('join')) and k > 0,
                          'overlap': int(o.cfg.get('overlap', 0)), 'gamma': self.seam_gamma(k),
@@ -1186,6 +1323,9 @@ class App:
             'out_warning': ' ／ '.join(self.warnings),
             'media': self.media, 'layers': ls, 'dirty': self.dirty,
             'column_names': self.proj['column_names'],
+            'active_deck': self.proj['active_deck'],
+            'decks': [{'id': d['id'], 'name': d['name']} for d in self.proj['decks']],
+            'other_deck_media_uses': self._media_use_cache[1],
             'message': self.message, 'blends': BLENDS, 'modes': CUE_MODES, 'transitions': TRANSITIONS,
             'sel_corner': self.sel_corner,
         }
@@ -1409,7 +1549,7 @@ class App:
         self.scan_inputs()
         last = time.perf_counter()
         last_state = 0.0
-        frames, fps_t = 0, last
+        fps_t = last
         while self.running:
             glfw.poll_events()
             while True:
@@ -1449,10 +1589,13 @@ class App:
                 except Exception:
                     pass
 
-            frames += 1
             if now - fps_t >= 1.0:
-                self.fps = frames / (now - fps_t)
-                frames, fps_t = 0, now
+                fps_sample_at = time.perf_counter()
+                for out in self.outs:
+                    out.fps = out.presented_frames / (fps_sample_at - fps_t)
+                    out.presented_frames = 0
+                self.fps = max((out.fps for out in self.outs), default=0.0)
+                fps_t = fps_sample_at
             if wall - self.last_media_scan > 3.0:
                 self._safe_call('素材の一覧', self.scan_media)
                 self.last_media_scan = wall
@@ -1465,10 +1608,11 @@ class App:
                 last_state = wall
                 if self.message and int(wall) % 4 == 0:
                     self.message = ''
-            # 垂直同期が効いていないときに空回りしない（最大 約240fps）
-            spent = time.perf_counter() - now
-            if spent < 1 / 240:
-                time.sleep(1 / 240 - spent)
+            # 操作・再生の更新間隔より先に描画の時刻が来るなら、その時刻に起きる。
+            wake_at = min([now + 1 / 240, *(self.outs[g['host']].next_frame for g in self.groups())])
+            delay = wake_at - time.perf_counter()
+            if delay > 0:
+                time.sleep(delay)
 
         if self.dirty:
             self._safe_call('保存', self.save)
@@ -1497,15 +1641,21 @@ class App:
 
     def _draw_frame(self):
         # メイン側で出力ごとに描く → 各ウィンドウに貼る
-        glfw.make_context_current(self.main_win)
+        now = time.perf_counter()
         self._grp = None
+        groups = self.groups()
+        due = [g for g in groups if now >= self.outs[g['host']].next_frame]
+        if not due and not self.snap_path:
+            return
+        for g in due:
+            self.outs[g['host']].advance_frame(now)
+        glfw.make_context_current(self.main_win)
         used = self._layer_refs()
         self.renderer.upload_all(self.layers, used)
         self._render_layer_sources(used)
         hud = self.hud() if self.edit else None
-        groups = self.groups()
         ordered_layers = self.layers_in_output_order()
-        for g in groups:
+        for g in groups if self.snap_path else due:
             host = self.outs[g['host']]
             fbo, size = host.ensure_target(self.ctx, self.target_size(g['host']))
             mine = [(li, L, cc) for li, L in ordered_layers
@@ -1517,8 +1667,9 @@ class App:
                 self.outs[m].drop_target()
         if self.snap_path:
             self.snapshot()
-        self.ctx.finish()
-        for g in groups:
+        if due:
+            self.ctx.finish()
+        for g in due:
             src = self.outs[g['host']].tex
             n = len(g['members'])
             for i, m in enumerate(g['members']):
