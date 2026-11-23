@@ -107,8 +107,8 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Panels on the right
 
-- Choose **Media**, **Mixer**, **Edit mapping**, **Layer settings**, or **Output settings** from **Settings** in the upper-right toolbar.
-- Use **×** in the panel header to hide the right panel. Choose a panel from **Settings** to show it again. **Open in new tab ↗** opens the panel in another browser tab and hides it on the main screen. **Main panel** closes the separate tab and restores the panel on the original main screen.
+- Use the tabs on the right to switch between **Media**, **Mixer**, **Layer settings**, and **Output settings**. The toolbar’s **Settings** menu also lists the panels and includes **Edit mapping**.
+- Use **×** in the panel header to hide the right panel. Choose a panel from **Settings** to show it again. **↗** opens the panel in another browser tab and hides it on the main screen. **Main panel** closes the separate tab and restores the panel on the original main screen.
 - Use **Settings** to switch between Japanese and English.
 - Choose **Save now** to save the current state immediately, or **Save as** to choose a folder and file name in the Windows save dialog.
 - Choose **Open setup** to open a setup from the `settings` folder or browse for a file elsewhere. Changes to the active setup are saved automatically.

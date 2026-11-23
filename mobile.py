@@ -4,43 +4,46 @@
 PAGE = r"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#0a0b0d">
+<meta name="theme-color" content="#111111">
 <title>VPT39 セッティング</title>
 <!--I18N-->
 <style>
-:root{--bg:#0e1013;--panel:#171a1f;--panel2:#1f232a;--line:#2b3038;--text:#e6e8eb;--dim:#8a919c;
---acc:#3dd68c;--warn:#ffb020;--red:#ff4d4f;--hov:#a9ecc9;--hovtx:#06291a}
+/* SPECTRUM_THEME */
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,"Hiragino Sans","Yu Gothic UI",sans-serif;
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 var(--font);
   touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-body{padding:calc(8px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom))}
-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-h1{font-size:20px;margin:0;color:var(--acc);font-weight:800;letter-spacing:.05em}
+body{padding:calc(10px + env(safe-area-inset-top)) 12px calc(16px + env(safe-area-inset-bottom))}
+main{max-width:700px;margin:auto}
+header{display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0;font-weight:800;letter-spacing:-.02em}
 h1 small{font-size:12px;color:var(--dim);font-weight:400;margin-left:6px;letter-spacing:0}
 .grow{flex:1}
 .dot{width:10px;height:10px;border-radius:50%;background:var(--red);flex:none}
 .dot.ok{background:var(--acc)}
-button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
-button:active{background:var(--hov);border-color:var(--hov);color:var(--hovtx)}
-button.on{background:var(--acc);border-color:var(--acc);color:#04120a;font-weight:700}
-button.held{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+button{font:600 14px/1.35 var(--font);color:var(--text);background:var(--panel2);border:1px solid transparent;border-radius:8px;padding:10px 12px;cursor:pointer}
+button:active{background:var(--line)}
+button.on{background:var(--accent-subtle);border-color:var(--focus);color:var(--text)}
+button.held{background:var(--negative-subtle);border-color:var(--red);color:var(--red)}
+#edit{background:var(--accent);color:#fff;border-radius:999px}
+#edit.on{background:var(--negative-subtle);border-color:var(--red);color:var(--red)}
+:is(button,select,input):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 button:disabled{opacity:.35}
-select{font:inherit;color:var(--text);background:#0c0e11;border:1px solid var(--line);border-radius:10px;padding:10px;width:100%}
+select{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--edge);border-radius:8px;padding:10px;width:100%;min-width:0}
 .row{display:flex;gap:8px;align-items:center;margin:8px 0}
 .lbl{color:var(--dim);font-size:13px;min-width:4.5em}
 #map{width:100%;display:block;background:#000;border:1px solid var(--line);border-radius:10px;touch-action:none}
-.pad{display:grid;grid-template-columns:1fr 1.25fr;gap:10px;margin-top:10px}
+.pad{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:10px;margin-top:10px;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
 .corners,.dpad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .corners button,.dpad button{padding:0;height:52px;font-size:14px}
 .dpad button{font-size:22px}
 .dpad .step{font-size:14px;font-weight:700}
 .corners .all{font-size:13px}
 .cap{color:var(--dim);font-size:12px;margin:2px 0 4px}
-input[type=range]{flex:1;accent-color:var(--acc);height:28px}
+input[type=range]{flex:1;accent-color:var(--focus);height:28px;min-width:0}
 .val{width:3em;text-align:right;color:var(--dim);font-size:13px}
 .tools{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:10px}
 .tools button{padding:12px 4px;font-size:14px}
-#off{display:none;position:fixed;left:12px;right:12px;top:calc(8px + env(safe-area-inset-top));z-index:9;background:var(--red);color:#fff;
+#off{display:none;position:fixed;left:12px;right:12px;top:calc(8px + env(safe-area-inset-top));z-index:9;background:var(--negative-subtle);color:var(--red);border:1px solid var(--red);
   border-radius:10px;padding:12px;font-weight:700;text-align:center}
 body.lost #off{display:block}
 body.lost main{opacity:.35;pointer-events:none}

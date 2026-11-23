@@ -276,6 +276,7 @@ EN = {
     '設定': 'Settings',
     '設定 ▾': 'Settings ▾',
     '出力設定': 'Output settings',
+    'パネルの切り替え': 'Control panels',
     '出力FPSの上限': 'Output FPS limit',
     '横長につないだ先頭の出力に合わせる': 'Uses the first output’s FPS limit',
     '実測': 'Measured',

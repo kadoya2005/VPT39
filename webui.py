@@ -62,11 +62,37 @@ def _thumb_path(rel):
 
 _pages = {}
 
+# Adobe Spectrum 2 のダークパレットを、PC とスマホの両方で使う。
+SPECTRUM_THEME = """
+:root {
+  color-scheme: dark;
+  --bg: #111111;
+  --surface: #1b1b1b;
+  --panel: #222222;
+  --panel2: #2c2c2c;
+  --hover: #323232;
+  --line: #393939;
+  --edge: #6d6d6d;
+  --text: #f3f3f3;
+  --dim: #afafaf;
+  --accent: #345bf8;
+  --accent-hover: #2549e5;
+  --focus: #8eb9fc;
+  --accent-subtle: #242e50;
+  --acc: #69d99d;
+  --warn: #f9bb64;
+  --red: #ff9d93;
+  --negative-subtle: #492923;
+  --font: "Adobe Clean Spectrum VF", "Adobe Clean", "Segoe UI", "Yu Gothic UI", sans-serif;
+  scrollbar-color: #6d6d6d #222222;
+}
+"""
+
 
 def page(src):
-    """ページに言語の切り替え（i18n.SCRIPT）を入れる"""
+    """ページに共通のテーマと翻訳スクリプトを入れる。"""
     if src not in _pages:
-        _pages[src] = src.replace('<!--I18N-->', i18n.script()).encode('utf-8')
+        _pages[src] = src.replace('/* SPECTRUM_THEME */', SPECTRUM_THEME).replace('<!--I18N-->', i18n.script()).encode('utf-8')
     return _pages[src]
 
 
@@ -343,31 +369,36 @@ PAGE = r"""<!DOCTYPE html>
 <title>VPT39 操作パネル</title>
 <!--I18N-->
 <style>
-:root{--bg:#0e1013;--panel:#171a1f;--panel2:#1f232a;--line:#2b3038;--text:#e6e8eb;--dim:#8a919c;
---acc:#3dd68c;--warn:#ffb020;--red:#ff4d4f;--blue:#4da3ff;
-/* 色のきまり：緑＝ふつうに動いている・選んでいる／薄い緑＝マウスを乗せた所／赤＝止めている・固定している状態（ミュート・編集中など）とエラー */
---hov:#a9ecc9;--hovtx:#06291a;--mag:var(--red);--magtx:#fff;--tw:136px;--lw:232px;--gap:8px}
+/* SPECTRUM_THEME */
+:root{--tw:144px;--lw:222px;--gap:8px;--sidebar:424px}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif;
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 var(--font);
 display:flex;flex-direction:column;overflow:hidden}
-header{flex:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:#0a0b0d;border-bottom:1px solid var(--line)}
-h1{font-size:24px;margin:0;letter-spacing:.06em;color:#e9edf4;font-weight:800;line-height:1}
-.master-control{display:flex;align-items:center;gap:8px;margin-inline-start:10px}
-#clearall{margin-inline-start:14px}
-button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
-button.on{background:var(--acc);color:#04120a;border-color:var(--acc);font-weight:600}
-/* 止めている・固定している状態 */
-button.lock.on,button.held,.lbtns .mut.on,.mbtn.on{background:var(--mag);border-color:var(--mag);color:var(--magtx);font-weight:700}
-/* マウスを乗せたとき：ふつうのボタンは薄い緑。
-   オン・固定中（緑・赤・黄）のボタンは色を変えずに薄い緑の縁だけ付ける（押した直後でも、切り替わったことが見えるように）*/
-button:hover:not(:disabled):not(.on):not(.held){background:var(--hov);border-color:var(--hov);color:var(--hovtx)}
-button.on:hover,button.held:hover{box-shadow:0 0 0 2px var(--hov);filter:brightness(1.08)}
+header{flex:none;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:21px;font-weight:800;line-height:1.25;letter-spacing:-.02em}
+.master-control{display:flex;align-items:center;gap:10px;margin-inline-start:8px;padding-inline:14px;border-inline-start:1px solid var(--line)}
+button{min-height:32px;background:var(--panel2);color:var(--text);border:1px solid transparent;border-radius:8px;
+padding:5px 10px;font:600 13px/1.35 var(--font);cursor:pointer}
+button:hover:not(:disabled){background:var(--hover)}
+button:active:not(:disabled){background:var(--line)}
+button.on{background:var(--line);border-color:var(--edge)}
+button.on:hover:not(:disabled){background:#444444}
+button.lock.on,button.held,.lbtns .mut.on,.mbtn.on,#panel-settings.on{background:var(--negative-subtle);border-color:var(--red);color:var(--red)}
+:is(button,a,input,select,summary):focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 button:disabled{opacity:.45;cursor:default}
-button.sm{padding:2px 7px;font-size:12px}
-input,select{background:#0c0e11;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:4px 6px;font:inherit}
-input[type=range]{padding:0;accent-color:var(--acc);width:120px}
+button.sm{min-height:26px;padding:2px 8px;font-size:12px}
+button.primary{background:var(--accent);color:#fff;border-radius:999px;padding-inline:14px}
+button.primary:not(.on):hover:not(:disabled){background:var(--accent-hover)}
+#quit,#clearall{background:transparent;color:var(--red)}
+#quit:hover,#clearall:hover{background:var(--negative-subtle)}
+input,select{min-width:0;background:var(--panel2);color:var(--text);border:1px solid var(--edge);border-radius:7px;
+padding:5px 8px;font:inherit}
+input::placeholder{color:var(--dim)}
+input[type=range]{padding:0;accent-color:var(--focus);width:120px}
+input[type=checkbox]{accent-color:var(--accent)}
 input[type=number]{width:62px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap;border:0}
 .grow{flex:1}
 .meta{color:var(--dim);font-size:12px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
@@ -375,27 +406,36 @@ input[type=number]{width:62px}
 .hint{color:var(--dim);font-size:12px}
 .msg{color:var(--acc);font-size:12px}
 .err{color:var(--red);font-size:12px}
-.tag{font-size:11px;padding:1px 6px;border-radius:4px;background:#2a2f37;color:var(--dim);white-space:nowrap}
+.tag{font-size:11px;padding:2px 7px;border-radius:4px;background:var(--panel2);color:var(--dim);white-space:nowrap}
 .tag.on{background:var(--acc);color:#04120a}
 
 /* ---- 全体：左＝レイヤー（自分だけスクロール）、右＝素材（固定）＋設定（自分だけスクロール）---- */
-main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 410px}
+main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) var(--sidebar)}
 .workspace{display:flex;flex-direction:column;min-width:0;min-height:0}
-.deck{flex:1;overflow:auto;min-width:0;position:relative;padding-bottom:30px}
-.deck-bar{display:flex;align-items:center;gap:8px;padding:7px 10px;border-top:1px solid var(--line);background:#0a0b0d}
-#show-decks{display:flex;gap:5px;overflow-x:auto;min-width:0;padding:2px}
-#show-decks button{flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:none;touch-action:none}
-aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(--line);background:#121418}
-.side-scroll{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
-@media(max-width:1000px){body{overflow:auto;display:block}main{display:block}.deck{overflow:visible}aside{border-left:0}.side-scroll{overflow:visible}}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.deck{flex:1;overflow:auto;min-width:0;position:relative;padding-bottom:24px;background:var(--surface)}
+.deck-bar{display:flex;align-items:center;padding:0 10px;border-top:1px solid var(--line);background:var(--panel)}
+#show-decks{display:flex;gap:6px;overflow-x:auto;min-width:0;padding:0 2px}
+#show-decks button{flex:none;min-height:40px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;user-select:none;touch-action:none}
+aside{display:flex;flex-direction:column;min-width:0;min-height:0;border-left:1px solid var(--line);background:var(--panel)}
+@media(max-width:980px){
+  body:not(.child){overflow:auto;display:block}
+  main{grid-template-columns:minmax(0,1fr)}
+  .deck{max-height:66vh}
+  body:not(.child) aside{border-left:0;border-top:1px solid var(--line)}
+}
+@media(max-width:600px){
+  :root{--lw:clamp(132px,38vw,204px);--tw:128px}
+  header{padding-inline:10px}
+  .master-control{margin:0;padding-inline:8px}
+}
+.card{padding:2px;display:flex;flex-direction:column;gap:12px}
 
 /* ---- レイヤーの行（VJアプリ風：左に名前と基本操作、右にクリップ）---- */
 .grid{display:inline-flex;flex-direction:column;min-width:100%}
-.colhead{position:sticky;top:0;z-index:6;display:flex;align-items:center;background:var(--bg);border-bottom:1px solid var(--line)}
-.colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--bg);min-height:24px;border-right:1px solid var(--line);align-self:stretch;cursor:context-menu}
+.colhead{position:sticky;top:0;z-index:6;display:flex;align-items:center;background:var(--panel);border-bottom:1px solid var(--line)}
+.colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--panel);min-height:24px;border-right:1px solid var(--line);align-self:stretch;cursor:context-menu}
 .colhead .cols{display:flex;gap:var(--gap);padding:6px var(--gap)}
-.colhead [data-col]{width:var(--tw);flex:none;padding:4px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.colhead [data-col]{width:var(--tw);flex:none;min-height:28px;padding:4px 8px;font-size:12px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-layer-drag],.colhead [data-col]{cursor:grab;user-select:none;touch-action:none}
 .grid-moving{background:#3b3020;outline:2px solid var(--warn);outline-offset:-2px;border-radius:5px;cursor:grabbing}
 .colhead .grid-target,#show-decks .grid-target{outline:2px solid var(--warn);outline-offset:-2px}
@@ -407,22 +447,23 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .lrow.grid-before>div{box-shadow:inset 0 4px var(--warn)}
 .lrow.grid-after>div{box-shadow:inset 0 -4px var(--warn)}
 .lrow{display:flex;border-bottom:1px solid var(--line)}
-.lhead{position:sticky;left:0;z-index:3;width:var(--lw);flex:none;background:var(--panel);padding:8px 10px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--line);cursor:default}
-.lrow.sel .lhead{background:#221d12;box-shadow:inset 4px 0 0 var(--warn)}
+.lhead{position:sticky;left:0;z-index:3;width:var(--lw);flex:none;background:var(--panel);padding:9px 11px;display:flex;flex-direction:column;gap:5px;border-right:1px solid var(--line);cursor:default}
+.lrow.sel .lhead{background:var(--accent-subtle);box-shadow:inset 3px 0 var(--focus)}
 .lrow.hidden .lhead .lname,.lrow.hidden .track{opacity:.5}
 .lname{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lhead .now{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar{height:3px;background:#22262d;border-radius:2px;overflow:hidden}
+.bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden}
 .bar i{display:block;height:100%;background:var(--acc);width:0}
 .lbtns{display:flex;gap:3px;flex-wrap:wrap}
-.lbtns button{padding:2px 6px;font-size:12px}
+.lbtns button{min-height:24px;padding:2px 7px;font-size:12px;border-radius:6px}
 .lop{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim)}
 .lop input{flex:1;width:auto;min-width:0}
 .track{display:flex;gap:var(--gap);padding:8px var(--gap);align-items:flex-start;min-height:100%}
 
 /* ---- クリップのタイル ---- */
-.clip{width:var(--tw);flex:none;background:#0b0d10;border:1px solid var(--line);border-radius:8px;overflow:hidden;display:flex;flex-direction:column;position:relative}
-.clip.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc)}
+.clip{width:var(--tw);flex:none;background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden;display:flex;flex-direction:column;position:relative}
+.clip.on{border-color:var(--acc);outline:1px solid var(--acc)}
+.clip.on.paused{border-color:var(--warn);outline-color:var(--warn)}
 .clip.ins::before,.clip.fdrop::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:2}
 .clip.ins:not(.empty)::before{border-left:5px solid var(--warn)}
 .clip.ins.empty::before,.clip.fdrop::before{border:3px solid var(--warn);border-radius:7px;background:#ffbe381a}
@@ -430,46 +471,55 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .th img{width:100%;height:100%;object-fit:cover;display:block}
 .clip .num{position:absolute;left:4px;top:3px;font-size:11px;font-weight:700;background:#000b;padding:0 5px;border-radius:4px}
 .clip.on .num{background:var(--acc);color:#04120a}
-.clip .md{position:absolute;right:3px;top:3px;font-size:12px;background:#000b;color:#fff;border:0;padding:0 5px;border-radius:4px;line-height:1.5}
-.clip .md:hover{background:var(--hov);color:var(--hovtx)}
+.clip.on.paused .num{background:var(--warn);color:#231c12}
+.clip .md{position:absolute;right:4px;top:4px;min-height:19px;font-size:12px;background:#000b;color:#fff;border:0;padding:0 5px;border-radius:5px;line-height:1.5}
+.clip .md:hover{background:var(--line)}
 .clip .cn{display:flex;align-items:center;gap:2px;font-size:11px;padding:3px 3px 4px 6px}
 .clip .cn span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.clip:not(.empty):not(.on):hover{border-color:var(--hov)}
-.clip.empty{border-style:dashed;background:transparent}
+.clip:not(.empty):not(.on):hover{border-color:var(--edge)}
+.clip.empty{border-style:dashed;border-color:var(--edge);background:transparent}
 .clip.empty .th{display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--dim);font-size:20px;background:transparent;cursor:default;aspect-ratio:auto;height:118px}
 .clip.empty small{font-size:11px;text-align:center;margin-top:4px;line-height:1.35}
 .tp{display:flex;gap:2px;align-items:center;padding:3px 4px 0}
-.tb{padding:0 5px;font-size:11px;line-height:1.5}
-.sc{height:11px;margin:4px 5px 0;background:#22262d;border-radius:3px;position:relative;cursor:ew-resize;touch-action:none;overflow:hidden}
+.tb{min-height:22px;min-width:23px;padding:0 4px;font-size:11px;line-height:1.5;border-radius:5px}
+.sc{height:8px;margin:4px 5px 0;background:var(--line);border-radius:4px;position:relative;cursor:ew-resize;touch-action:none;overflow:hidden}
 .sc i{position:absolute;left:0;top:0;bottom:0;background:var(--acc);width:0}
 .sc i::after{content:'';position:absolute;right:-1px;top:0;bottom:0;width:3px;background:#fff}
-.sc:hover{outline:1px solid var(--hov)}
+.sc:hover{outline:1px solid var(--edge)}
 .clip.paused .sc i{background:var(--warn)}
 .tt{font-size:10px;color:var(--dim);white-space:nowrap;margin-left:auto}
 .addrow{display:flex;gap:8px;padding:12px 10px}
 
 /* ---- 右：タブ（素材・レイヤー設定・ミキサー・出力）---- */
-.panel-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 10px;background:#0a0b0d;border-bottom:1px solid var(--line)}
-.panel-actions{display:flex;align-items:center;gap:8px}
-.panel-link{color:var(--dim);font-size:12px;white-space:nowrap}
+.panel-bar{flex:none;display:flex;align-items:center;justify-content:space-between;gap:4px;padding:0 9px;border-bottom:1px solid var(--line)}
+.panel-tabs{display:flex;align-items:stretch;min-width:0;overflow-x:auto;scrollbar-width:thin}
+.panel-tabs button,#show-decks button{background:transparent;color:var(--dim);border:0;border-radius:0;box-shadow:inset 0 -2px transparent}
+.panel-tabs button{flex:none;min-height:44px;padding:0 8px;white-space:nowrap}
+.panel-tabs button:hover,#show-decks button:hover{background:var(--hover);color:var(--text)}
+.panel-tabs [aria-selected=true],#show-decks button.on{color:var(--text);box-shadow:inset 0 -2px var(--text)}
+.panel-tabs button:focus-visible,#show-decks button:focus-visible{outline-offset:-3px}
+.panel-actions{display:flex;align-items:center;gap:2px}
+.panel-link{color:var(--focus);font-size:13px;white-space:nowrap}
 .panel-link:hover{color:var(--text)}
+.panel-actions :is(button,a){display:grid;place-items:center;min-height:28px;min-width:28px;padding:0;
+border:0;border-radius:6px;background:transparent;color:var(--dim);font-size:17px;text-decoration:none}
+.panel-actions :is(button,a):hover{background:var(--hover);color:var(--text)}
 body.panel-closed main{grid-template-columns:minmax(0,1fr)}
 body.panel-closed aside{display:none}
 #panel-settings{white-space:nowrap}
-.tabbody{flex:1;min-height:0;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+.tabbody{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
 .pane{display:none}
 .pane.act{display:flex}
 .media.pane.act{flex:1;min-height:0}
-.media{flex-direction:column;gap:6px}
-.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--mt,104px),1fr));gap:6px;flex:1;min-height:60px;overflow:auto;align-content:start}
+.media{flex-direction:column;gap:8px}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--mt,104px)),1fr));gap:8px;flex:1;min-height:60px;overflow:auto;align-content:start}
 #mfolder{max-width:130px;font-size:12px}
-.seg{display:flex}
-.seg button{border-radius:0;padding:3px 9px;font-size:12px}
-.seg button:first-child{border-radius:6px 0 0 6px}
-.seg button:last-child{border-radius:0 6px 6px 0}
+.seg{display:flex;gap:2px;padding:2px;background:var(--surface);border-radius:999px}
+.seg button{min-height:26px;border:0;border-radius:999px;padding:3px 10px;background:transparent;color:var(--dim);font-size:12px}
+.seg button.on{background:var(--line);color:var(--text)}
 .mh{grid-column:1/-1;font-size:12px;color:var(--dim);margin-top:6px;display:flex;gap:8px;align-items:center}
 .sp{white-space:pre-line;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;font-weight:600;padding:4px;line-height:1.3;color:#fff;height:100%;word-break:break-all}
-.sp.blank{background:repeating-linear-gradient(45deg,#15181d 0 8px,#1b1f25 8px 16px);color:var(--dim)}
+.sp.blank{background:repeating-linear-gradient(45deg,var(--surface) 0 8px,var(--panel) 8px 16px);color:var(--dim)}
 .sp.layer{background:linear-gradient(135deg,#123a2a,#0d241b)}
 .sp.camera{background:linear-gradient(135deg,#3a2a12,#241a0d)}
 .sp.window{background:linear-gradient(135deg,#12283a,#0d1a24)}
@@ -479,14 +529,16 @@ body.panel-closed aside{display:none}
 
 /* ---- 欄を別ウィンドウに切り離す ---- */
 .hide{display:none!important}
-#context-menu{position:fixed;z-index:40;display:grid;min-width:170px;max-width:calc(100vw - 12px);max-height:calc(100vh - 12px);overflow:auto;padding:4px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;box-shadow:0 6px 20px #0009}
-#context-menu button{border:0;background:transparent;padding:6px 9px;text-align:left}
-#context-menu button:hover,#context-menu button:focus-visible{background:var(--hov);color:var(--hovtx)}
-#context-menu .danger{color:#ff8d85}
+#context-menu{position:fixed;z-index:40;display:grid;min-width:184px;max-width:calc(100vw - 12px);max-height:calc(100vh - 12px);
+overflow:auto;padding:5px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px #000b}
+#context-menu button{border:0;background:transparent;padding:6px 10px;text-align:left;font-weight:400}
+#context-menu button:hover,#context-menu button:focus-visible{background:var(--line)}
+#context-menu button:focus-visible{outline-offset:-2px}
+#context-menu .danger{color:var(--red)}
 /* セッティングの窓（画面の上に重ねて出す）*/
 .dlg{position:fixed;inset:0;z-index:50;background:#000a;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px}
-.dlgbox{width:min(640px,100%);max-height:calc(100vh - 80px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px #000a}
-#clipdlg,#photodlg{padding:0;border:0;border-radius:12px;background:transparent;color:var(--text)}
+.dlgbox{width:min(640px,100%);max-height:calc(100vh - 80px);overflow:auto;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 40px #000a}
+#clipdlg,#photodlg{padding:0;border:0;border-radius:16px;background:transparent;color:var(--text)}
 #clipdlg::backdrop,#photodlg::backdrop{background:#000a}
 #clipdlg .dlgbox,#photodlg .dlgbox{width:min(420px,calc(100vw - 32px))}
 #clipdlg label,#photodlg label{display:flex;align-items:center;justify-content:space-between;gap:12px}
@@ -496,14 +548,14 @@ body.panel-closed aside{display:none}
 #clipdlg output{min-width:4.5ch;text-align:right;font-variant-numeric:tabular-nums}
 #clipdlg fieldset{display:grid;gap:8px;margin:0;padding:8px 10px 10px;border:1px solid var(--line);border-radius:6px}
 .setrow{display:flex;gap:6px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#0b0d10}
-.setrow.cur{border-color:var(--acc);box-shadow:inset 3px 0 0 var(--acc)}
+.setrow.cur{background:var(--accent-subtle);box-shadow:inset 3px 0 var(--focus)}
 .setrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .setrow .tm{color:var(--dim);font-size:12px;white-space:nowrap}
 .childbar{display:none}
 body.child header,body.child .workspace,body.child .panel-bar{display:none}
 body.child main{grid-template-columns:minmax(0,1fr)}
 body.child aside{border-left:0}
-body.child .childbar{display:flex;flex:none;gap:10px;align-items:center;padding:8px 14px;background:#0a0b0d;border-bottom:1px solid var(--line)}
+body.child .childbar{display:flex;flex:none;gap:10px;align-items:center;padding:10px 14px;background:var(--surface);border-bottom:1px solid var(--line)}
 @media(max-width:640px){.childbar .meta{display:none}}
 .chk{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}
 .chk label{display:flex;gap:4px;align-items:center;white-space:nowrap}
@@ -511,18 +563,17 @@ body.child .childbar{display:flex;flex:none;gap:10px;align-items:center;padding:
 .mtabs button{font-size:12px;padding:2px 8px}
 .wide{font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-left:4px}
 .wide input[type=number]{width:64px}
-.mtile{background:#0b0d10;border:1px solid var(--line);border-radius:6px;overflow:hidden;cursor:grab;padding-bottom:3px}
-.mtile:hover{border-color:var(--hov)}
+.mtile{background:var(--panel2);border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:grab;padding-bottom:3px}
+.mtile:hover{border-color:var(--edge)}
 .mtile{position:relative}
-.mtile .del{position:absolute;right:3px;top:3px;display:none;padding:0 6px;font-size:11px;line-height:1.5;border:0;background:#000c;color:#fff;border-radius:4px}
+.mtile .del{position:absolute;right:3px;top:3px;display:none;min-height:20px;padding:0 6px;font-size:11px;line-height:1.5;border:0;background:#000c;color:#fff;border-radius:5px}
 .mtile:hover .del{display:block}
 @media (hover:none){.mtile .del{display:block}}
 .media.fdrop .mgrid{outline:2px dashed var(--acc);outline-offset:-2px;background:#0f1a14}
 .mtile .cn{font-size:11px;padding:3px 5px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---- 右：レイヤー設定・マッピング ---- */
-.insp .ttl{display:flex;align-items:center;gap:8px}
-.insp .ttl b{font-size:15px}
+.insp #mapsel{color:var(--text);font-size:14px;font-weight:600}
 .set{display:grid;grid-template-columns:72px 1fr;gap:8px 10px;align-items:center}
 .set .lbl{min-width:0}
 .set input[type=range]{width:100%}
@@ -533,7 +584,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
 .orow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding:4px 0;border-top:1px solid var(--line)}
 .orow .meta{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 0}
 .mx{display:flex;flex-direction:column;gap:4px}
-.mxr{display:grid;grid-template-columns:minmax(0,1fr) 34px 110px 38px;gap:6px;align-items:center}
+.mxr{display:grid;grid-template-columns:minmax(0,1fr) 34px minmax(54px,110px) 38px;gap:6px;align-items:center}
 .mxr.o{margin-top:6px;padding-top:6px;border-top:1px solid var(--line)}
 .mxr.l .mn{padding-left:14px}
 .mxr .mn{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -541,12 +592,13 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
 .mxr input[type=range]{width:100%;min-width:0}
 .mxr .pct{font-size:11px;color:var(--dim);text-align:right}
 .mbtn{padding:1px 0;font-size:11px;font-weight:700}
-.meter{grid-column:1/-1;height:5px;background:#22262d;border-radius:2px;overflow:hidden;margin:0 0 2px 14px}
-.meter i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),#c8f060);transition:width .15s}
-.scr{position:relative;width:100%;background:#0b0d10;border:1px solid var(--line);border-radius:8px}
-.scr div{position:absolute;border:2px solid #4a515c;background:#1a1e24;border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;line-height:1.25}
+.meter{grid-column:1/-1;height:5px;background:var(--line);border-radius:2px;overflow:hidden;margin:0 0 2px 14px}
+.meter i{display:block;height:100%;width:0;background:var(--acc);transition:width .15s}
+@media(prefers-reduced-motion:reduce){.meter i{transition:none}}
+.scr{position:relative;width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+.scr div{position:absolute;border:2px solid var(--edge);background:var(--panel);border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;text-align:center;line-height:1.25}
 .scr div.has{border-color:var(--acc)}
-.scr div.pri{background:#20262e}
+.scr div.pri{background:var(--panel2)}
 .scr b{font-size:22px}
 .scr small{font-size:10px;color:var(--dim)}
 .scr em{font-size:10px;color:var(--acc);font-style:normal}
@@ -560,7 +612,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <span class="grow"></span>
   <span class="msg" id="msg"></span>
   <button id="lanbtn" title="スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）">スマホ</button>
-  <button type="button" id="panel-settings" aria-haspopup="menu" aria-controls="context-menu" aria-expanded="false">設定 ▾</button>
+  <button type="button" class="primary" id="panel-settings" aria-haspopup="menu" aria-controls="context-menu" aria-expanded="false">設定 ▾</button>
   <button id="quit">終了</button>
 </header>
 <div id="setdlg" class="dlg hide"><div class="dlgbox">
@@ -591,7 +643,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
       <label>フェードイン (秒)<input name="audio_fade_in" type="number" min="0" max="30" step="any" required></label>
       <label>フェードアウト (秒)<input name="audio_fade_out" type="number" min="0" max="30" step="any" required></label>
     </fieldset>
-    <div class="row"><span class="meta grow" id="clip-status" role="status"></span><button type="submit">閉じる</button></div>
+    <div class="row"><span class="meta grow" id="clip-status" role="status"></span><button class="primary" type="submit">閉じる</button></div>
   </form>
 </dialog>
 <dialog id="photodlg" aria-labelledby="photodlgtitle">
@@ -601,7 +653,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
     <label>写真1枚の表示時間（秒）<input name="interval" type="number" min="0" max="600" step="any" required></label>
     <div class="meta">0＝定期切り替えなし</div>
     <label>ループ再生<input name="loop" type="checkbox"></label>
-    <div class="row"><span class="meta grow" id="photo-status" role="status"></span><button id="photo-cancel" type="button">キャンセル</button><button id="photo-apply" type="submit">適用</button></div>
+    <div class="row"><span class="meta grow" id="photo-status" role="status"></span><button id="photo-cancel" type="button">キャンセル</button><button class="primary" id="photo-apply" type="submit">適用</button></div>
   </form>
 </dialog>
 <main>
@@ -619,14 +671,20 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   </div>
   <aside>
     <div class="panel-bar">
-      <b id="panel-title">素材</b>
+      <span class="sr-only" id="panel-tabs-label">パネルの切り替え</span>
+      <div class="panel-tabs" id="panel-tabs" role="tablist" aria-labelledby="panel-tabs-label">
+        <button type="button" id="tab-media" role="tab" data-panel="media" aria-controls="media-pane">素材</button>
+        <button type="button" id="tab-mixer" role="tab" data-panel="mixer" aria-controls="mixer">ミキサー</button>
+        <button type="button" id="tab-insp" role="tab" data-panel="insp" aria-controls="insp-pane">レイヤー設定</button>
+        <button type="button" id="tab-outs" role="tab" data-panel="outs" aria-controls="outs">出力設定</button>
+      </div>
       <div class="panel-actions">
-        <a class="panel-link" id="panel-link" href="/?view=media" target="_blank" rel="opener">別タブで開く ↗</a>
-        <button type="button" class="sm" id="panel-close" title="右側のパネルを閉じる"><span aria-hidden="true">×</span></button>
+        <a class="panel-link" id="panel-link" href="/?view=media" target="_blank" rel="opener" title="別タブで開く ↗"><span aria-hidden="true">↗</span><span class="sr-only">別タブで開く ↗</span></a>
+        <button type="button" id="panel-close" title="右側のパネルを閉じる"><span aria-hidden="true">×</span><span class="sr-only">右側のパネルを閉じる</span></button>
       </div>
     </div>
     <div class="tabbody">
-    <div class="media pane">
+    <div class="media pane" id="media-pane" role="tabpanel" aria-labelledby="tab-media">
       <div class="row"><div class="seg"><button id="mkf" class="on">ファイル</button><button id="mks">空白・レイヤー・入力</button></div>
         <span class="meta" id="mcount"></span><span class="grow"></span></div>
       <div class="meta" id="mtarget"></div>
@@ -639,8 +697,8 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
       <div class="mgrid" id="mediagrid"></div>
       <div class="hint">レイヤーの行へドラッグすると、好きな位置に追加。クリックで選んでいるレイヤーの最後に追加。パソコンの動画・画像をここへドロップすると media フォルダに取り込みます。✕ でごみ箱へ。</div>
     </div>
-      <div class="card insp pane">
-        <div class="ttl"><b>レイヤー設定</b><span class="meta grow" id="mapsel"></span></div>
+      <div class="card insp pane" id="insp-pane" role="tabpanel" aria-labelledby="tab-insp">
+        <div id="mapsel"></div>
         <div id="lset"></div>
         <div class="row"><b style="font-size:13px">マッピング</b><span class="grow"></span>
           <button class="sm lock" id="mapedit">編集</button><button class="sm lock" id="maptest">テスト表示</button><button class="sm" id="mapreset">四隅リセット</button></div>
@@ -648,8 +706,8 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
         <canvas id="map" width="800" height="450"></canvas>
         <div class="hint">角をドラッグして変形、内側をドラッグして全体を移動。</div>
       </div>
-      <div class="card pane" id="mixer"></div>
-      <div class="card pane" id="outs"></div>
+      <div class="card pane" id="mixer" role="tabpanel" aria-labelledby="tab-mixer"></div>
+      <div class="card pane" id="outs" role="tabpanel" aria-labelledby="tab-outs"></div>
     </div>
   </aside>
 </main>
@@ -662,7 +720,7 @@ function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 const PANELS={media:'素材',insp:'レイヤー設定',mixer:'ミキサー',outs:'出力設定'};
 const requestedView=new URLSearchParams(location.search).get('view');
 const VIEW=Object.hasOwn(PANELS,requestedView)?requestedView:null;
-function panelEl(p){return p==='media'?document.querySelector('.media'):p==='insp'?document.querySelector('.insp'):$(p);}
+const panelTabs=[...$('panel-tabs').querySelectorAll('[role=tab]')];
 let curTab=VIEW||lsGet('vpt39-tab');
 if(!Object.hasOwn(PANELS,curTab))curTab='media';
 if(VIEW){
@@ -693,11 +751,27 @@ function hidePanel(){
   $('panel-settings').focus({preventScroll:true});
 }
 function showPanel(){
-  Object.keys(PANELS).forEach(p=>panelEl(p).classList.toggle('act',p===curTab));
+  panelTabs.forEach(tab=>{
+    const active=tab.dataset.panel===curTab;
+    $(tab.getAttribute('aria-controls')).classList.toggle('act',active);
+    tab.setAttribute('aria-selected',active);
+    tab.tabIndex=active?0:-1;
+  });
   if(VIEW)return;
-  $('panel-title').textContent=PANELS[curTab];
   $('panel-link').href='/?view='+curTab;
 }
+panelTabs.forEach((tab,i)=>{
+  tab.onclick=()=>activatePanel(tab.dataset.panel);
+  tab.onkeydown=e=>{
+    const n=panelTabs.length;
+    const target={ArrowLeft:(i+n-1)%n,ArrowRight:(i+1)%n,Home:0,End:n-1}[e.key];
+    if(target===undefined)return;
+    e.preventDefault();
+    const next=panelTabs[target];
+    activatePanel(next.dataset.panel);
+    next.focus();
+  };
+});
 showPanel();
 $('panel-close').onclick=()=>{
   if(curTab==='insp')cmd({cmd:'edit',value:false});
@@ -1592,7 +1666,7 @@ function buildMixer(){
   if(key===mixKey) return; mixKey=key;
   const row=(cls,name,mid,fid,title)=>`<div class="mxr ${cls}"><span class="mn" title="${esc(title||name)}">${esc(name)}</span>
     <button class="sm mbtn" id="${mid}" title="ミュート">M</button><input type="range" min="0" max="1" step="0.01" id="${fid}"><span class="pct" id="${fid}p"></span></div>`;
-  let h=`<div class="row"><b>音声ミキサー</b></div><div class="mx">`;
+  let h='<div class="mx">';
   h+=row('m','音声マスター','mxmm','mxm');
   S.outputs.forEach((o,k)=>{
     h+=row('o',o.name,'mxom'+k,'mxo'+k,o.name+' に映しているレイヤー全部の音量');
@@ -1652,7 +1726,10 @@ function update(){
       $(`tt${i}_${j}`).textContent=on&&L.dur>0?`${fmt(L.pos)}/${fmt(L.dur)}`:'';
       $(`tg${i}_${j}`).textContent=on&&!L.paused?'⏸':'▶';
     });
-    if(L.kind==='photo') L.cues.forEach((c,j)=>{const b=$(`go${i}_${j}`); if(b) b.classList.toggle('on',L.playing===j);});
+    if(L.kind==='photo') L.cues.forEach((c,j)=>{
+      const b=$(`go${i}_${j}`); if(!b)return;
+      const on=L.playing===j; b.classList.toggle('on',on); b.classList.toggle('paused',on&&L.photo_state==='paused');
+    });
   });
   const sel=S.layers[S.selected];
   $('mtarget').textContent=sel?(sel.kind==='video'?`クリックで「L${S.selected+1} ${sel.name}」に追加`:`画像をクリックで写真ウォール「L${S.selected+1} ${sel.name}」に追加`):'レイヤーを選ぶと、クリックで追加できます';
