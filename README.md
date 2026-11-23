@@ -108,7 +108,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 ## Panels on the right
 
 - Choose **Media**, **Mixer**, **Edit mapping**, **Layer settings**, or **Output settings** from **Settings** in the upper-right toolbar.
-- Use **×** in the panel header to hide the right panel, or **Open in new tab ↗** to open it in another browser tab and hide it on the main screen. Choose a panel from **Settings** to show it again.
+- Use **×** in the panel header to hide the right panel. Choose a panel from **Settings** to show it again. **Open in new tab ↗** opens the panel in another browser tab and hides it on the main screen. **Main panel** closes the separate tab and restores the panel on the original main screen.
 - Use **Settings** to switch between Japanese and English.
 - Choose **Save now** to save the current state immediately, or **Save as** to choose a folder and file name in the Windows save dialog.
 - Choose **Open setup** to open a setup from the `settings` folder or browse for a file elsewhere. Changes to the active setup are saved automatically.
@@ -228,7 +228,9 @@ Press **Ctrl+S** while the output window has focus to save the current settings.
 
 In the "Folder" of the photo layer, choose a folder that receives approved photos (for example, an "approved" folder in Dropbox). When a new photo arrives, it is shown first within a few seconds. To avoid files that are still being written, it waits 1 second after a file is saved before loading it.
 
-If you drag images from your media onto the photo wall row, those images are shown from left to right instead of the folder (this runs separately from "Play column". If there is only one, it stays on. Click an image to show it immediately). Empty the row to go back to the photos in the folder.
+Drag images from your media onto the photo wall row to show them from left to right. Click an image to start from it. Empty the row to go back to the photos in the folder.
+
+Right-click the photo wall layer name to play, pause, play from the start, or stop. In **Photo playback settings**, set the time per photo and turn looping on or off. When looping is off, the last photo stays on screen. Set the time to 0 seconds to disable timed advances. Photo playback runs independently of **Play column**.
 
 ## Notes and limitations
 

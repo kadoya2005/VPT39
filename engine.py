@@ -69,7 +69,7 @@ def layer_defaults(kind='video', name=None):
         'output': 0,  # 出力番号（0=出力1）
     }
     if kind == 'photo':
-        d.update({'photo_folder': 'photos', 'photo_interval': 6.0,
+        d.update({'photo_folder': 'photos', 'photo_interval': 6.0, 'photo_loop': True,
                   'photo_border': 0.03, 'photo_newest': True, 'fade': 0.8,
                   'photo_trans': 'fade'})
     return d
@@ -161,7 +161,10 @@ class Layer:
         self.decks = []
         self.feeder = None
         self.feeder_key = None
-        self.next_photo_at = 0.0
+        self.photo_state = 'playing'
+        self.photo_advance = True
+        self.photo_paused_at = 0.0
+        self.photo_cue = None
         self.last_switch = 0.0
         self.error = ''
         self.gain = 0.0
@@ -185,8 +188,7 @@ class Layer:
             return
         if self.cfg['kind'] == 'photo':
             # 写真ウォール：行の i 番目の画像を、すぐ次に出す（そこから順番に続く）
-            if self.feeder is not None:
-                self.feeder.jump(i)
+            self.photo_cue = i
             self.skip_photo()
             return
         cue = cues[i]
@@ -302,8 +304,9 @@ class Layer:
                 return
 
     def clear(self):
-        # 写真ウォールは「次の写真 ▶」を押すまで新しい写真を出さない（消したのに次の写真が出てこないように）
-        self.photo_stopped = self.cfg['kind'] == 'photo'
+        if self.cfg['kind'] == 'photo':
+            self.photo_state = 'stopped'
+            self.photo_cue = None
         for d in self.decks:
             d.target = 0.0
             fade_out = self.cfg['fade'] if self.cfg['kind'] == 'photo' else d.mix['fade_out']
@@ -379,9 +382,23 @@ class Layer:
         return out
 
     def skip_photo(self):
-        self.photo_stopped = False
-        self.next_photo_at = 0.0
-        self.last_switch = 0.0
+        self.photo_state = 'playing'
+        self.photo_advance = True
+
+    def photo_transport(self, op):
+        if op == 'stop':
+            self.clear()
+        elif op == 'pause' and self.photo_state == 'playing':
+            self.photo_state = 'paused'
+            self.photo_paused_at = time.time()
+        elif op == 'restart' or (op == 'play' and self.photo_state in ('stopped', 'finished')):
+            if self.feeder is not None:
+                self.feeder.rewind()
+            self.photo_cue = None
+            self.skip_photo()
+        elif op == 'play' and self.photo_state == 'paused':
+            self.last_switch += time.time() - self.photo_paused_at
+            self.photo_state = 'playing'
 
     # ---- 毎フレーム ----
     def update(self, dt, now):
@@ -482,8 +499,10 @@ class Layer:
         listed = [self.app.media_path(q.get('file', '')) for q in c.get('cues', [])
                   if not is_special(q.get('file', '')) and is_image(q.get('file', ''))]
         if f.set_list(listed or None):
-            self.next_photo_at = 0.0  # 行の画像を変えたら、すぐ新しい並びで出し直す
-            self.photo_stopped = False
+            self.photo_advance = True  # 再生中なら新しい並びを先頭から出す
+        if self.photo_cue is not None:
+            f.jump(self.photo_cue)
+            self.photo_cue = None
         # 投影する四角形の縦横比に合わせて写真キャンバスを作る（写真が歪まないように）
         ow, oh = self.app.out_size(self)
         (x0, y0), (x1, y1), (x2, y2), (x3, y3) = c['corners']
@@ -500,32 +519,35 @@ class Layer:
                 f.w, f.h = max(64, int(base * aspect)), base
         if now - f.last_scan > 2.0:
             f.scan()
-        newest = c.get('photo_newest', True)
-        f.prepare(newest)
-        if f.ready is None or getattr(self, 'photo_stopped', False):
+        if self.photo_state != 'playing':
             return
+        newest = c.get('photo_newest', True)
+        loop = c['photo_loop']
+        f.prepare(newest, loop)
         # 切り替えの途中は次の写真を重ねない（間隔より切り替え時間が長いと、写真が何枚も積み重なってメモリを食うため）
         if any(d.target > 0 and d.alpha < d.target for d in self.decks):
             return
         interval = c.get('photo_interval', 6.0)
-        due = (interval > 0 and now >= self.next_photo_at) or self.next_photo_at == 0.0
-        urgent = newest and getattr(f, 'ready_new', False) and now - self.last_switch >= 3.0
-        # 行の画像が1枚だけで、もうそれを出しているなら、出し続ける（同じ写真へ切り替え直さない）
-        top = self.top_deck()
-        if f.fixed is not None and len(f.order) == 1 and top is not None and getattr(top, 'path', None) == f.order[0]:
-            if due:
-                self.next_photo_at = now + interval if interval > 0 else float('inf')
+        due = self.photo_advance or (interval > 0 and now - self.last_switch >= interval)
+        if f.ready is None:
+            if due and f.exhausted and not f.loading:
+                self.photo_state = 'finished'
             return
+        urgent = newest and f.ready_new and now - self.last_switch >= 3.0
         if due or urgent:
             path, data, w, h = f.take()
+            self.photo_advance = False
+            self.last_switch = now
+            # 画像が1枚だけなら、同じ写真を切り替え直さない。
+            top = self.top_deck()
+            if f.count() == 1 and top is not None and top.path == path and top.cue == f.cur_idx:
+                return
             d = Deck(ImageSource(path, w, h, data=data), os.path.basename(path),
                      cue=f.cur_idx if f.fixed is not None else -1)
             d.path = path
             if c['fade'] <= 0 or c.get('photo_trans') == 'cut':
                 d.alpha = 1.0
             self.decks.append(d)
-            self.last_switch = now
-            self.next_photo_at = now + interval if interval > 0 else float('inf')
 
     def release(self):
         for d in self.decks:

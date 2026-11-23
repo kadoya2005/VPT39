@@ -446,7 +446,6 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 .sc:hover{outline:1px solid var(--hov)}
 .clip.paused .sc i{background:var(--warn)}
 .tt{font-size:10px;color:var(--dim);white-space:nowrap;margin-left:auto}
-.photo{width:360px;flex:none;background:#0b0d10;border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:6px;font-size:12px}
 .addrow{display:flex;gap:8px;padding:12px 10px}
 
 /* ---- 右：タブ（素材・レイヤー設定・ミキサー・出力）---- */
@@ -487,11 +486,11 @@ body.panel-closed aside{display:none}
 /* セッティングの窓（画面の上に重ねて出す）*/
 .dlg{position:fixed;inset:0;z-index:50;background:#000a;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px}
 .dlgbox{width:min(640px,100%);max-height:calc(100vh - 80px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 40px #000a}
-#clipdlg{padding:0;border:0;border-radius:12px;background:transparent;color:var(--text)}
-#clipdlg::backdrop{background:#000a}
-#clipdlg .dlgbox{width:min(420px,calc(100vw - 32px))}
-#clipdlg label{display:flex;align-items:center;justify-content:space-between;gap:12px}
-#clipdlg input{width:84px}
+#clipdlg,#photodlg{padding:0;border:0;border-radius:12px;background:transparent;color:var(--text)}
+#clipdlg::backdrop,#photodlg::backdrop{background:#000a}
+#clipdlg .dlgbox,#photodlg .dlgbox{width:min(420px,calc(100vw - 32px))}
+#clipdlg label,#photodlg label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#clipdlg input,#photodlg input[type=number]{width:84px}
 #clipdlg input[type=range]{width:min(160px,35vw)}
 #clipdlg input[type=checkbox]{width:auto}
 #clipdlg output{min-width:4.5ch;text-align:right;font-variant-numeric:tabular-nums}
@@ -595,6 +594,16 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
     <div class="row"><span class="meta grow" id="clip-status" role="status"></span><button type="submit">閉じる</button></div>
   </form>
 </dialog>
+<dialog id="photodlg" aria-labelledby="photodlgtitle">
+  <form class="dlgbox" id="photoform">
+    <b id="photodlgtitle">写真の再生設定</b>
+    <div class="meta" id="photodlgname"></div>
+    <label>写真1枚の表示時間（秒）<input name="interval" type="number" min="0" max="600" step="any" required></label>
+    <div class="meta">0＝定期切り替えなし</div>
+    <label>ループ再生<input name="loop" type="checkbox"></label>
+    <div class="row"><span class="meta grow" id="photo-status" role="status"></span><button id="photo-cancel" type="button">キャンセル</button><button id="photo-apply" type="submit">適用</button></div>
+  </form>
+</dialog>
 <main>
   <div class="workspace">
   <section class="deck" id="deck">
@@ -612,7 +621,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
     <div class="panel-bar">
       <b id="panel-title">素材</b>
       <div class="panel-actions">
-        <a class="panel-link" id="panel-link" href="/?view=media" target="_blank" rel="noopener">別タブで開く ↗</a>
+        <a class="panel-link" id="panel-link" href="/?view=media" target="_blank" rel="opener">別タブで開く ↗</a>
         <button type="button" class="sm" id="panel-close" title="右側のパネルを閉じる"><span aria-hidden="true">×</span></button>
       </div>
     </div>
@@ -660,7 +669,18 @@ if(VIEW){
   document.body.classList.add('child');
   document.title='VPT39 '+PANELS[VIEW];
   $('childbar').innerHTML=`<b>VPT39</b><span>${PANELS[VIEW]}</span><span class="grow"></span>
-    <a class="panel-link" href="/">メイン画面へ</a>`;
+    <a class="panel-link" id="panel-return" href="/">メイン画面へ</a>`;
+  $('panel-return').addEventListener('click',e=>{
+    const main=window.opener;
+    try{
+      if(!main||main.closed||main.location.origin!==location.origin||
+         main.document.body.classList.contains('child')||typeof main.activatePanel!=='function')return;
+      main.activatePanel(VIEW);
+    }catch(e){return;}
+    e.preventDefault();
+    main.focus();
+    window.close();
+  });
 }
 function activatePanel(p){
   curTab=p;
@@ -1232,6 +1252,45 @@ function layerAddMenu(){
 }
 $('layer-footer').oncontextmenu=e=>openContextMenu(e,layerAddMenu());
 
+function openPhotoSettings(L){
+  const dialog=$('photodlg'), form=$('photoform'), fields=form.elements;
+  const cancel=$('photo-cancel'), apply=$('photo-apply'), status=$('photo-status');
+  $('photodlgname').textContent=L.name;
+  fields.interval.value=L.photo_interval;
+  fields.loop.checked=L.photo_loop;
+  status.textContent='';
+  cancel.onclick=()=>dialog.close();
+  dialog.oncancel=e=>{if(apply.disabled)e.preventDefault();};
+  form.onsubmit=async e=>{
+    e.preventDefault();
+    cancel.disabled=apply.disabled=true;
+    status.textContent='';
+    try{
+      const response=await post({cmd:'photo_settings',lid:L.id,interval:fields.interval.valueAsNumber,loop:fields.loop.checked});
+      if(!response.ok)throw new Error();
+      dialog.close();
+      setTimeout(poll,60);
+    }catch(e){
+      status.textContent=T('設定を送れませんでした');
+    }finally{
+      cancel.disabled=apply.disabled=false;
+    }
+  };
+  dialog.showModal();
+}
+
+function photoMenu(L){
+  const send=op=>cmd({cmd:'photo_transport',lid:L.id,op});
+  const playing=L.photo_state==='playing';
+  const actions=[];
+  if(!playing||!L.visible)actions.push(['写真を再生',()=>send('play')]);
+  if(playing)actions.push(['一時停止',()=>send('pause')]);
+  actions.push(['先頭から再生',()=>send('restart')]);
+  if(L.photo_state!=='stopped')actions.push(['停止（消す）',()=>send('stop')]);
+  actions.push(['写真の再生設定',()=>openPhotoSettings(L)]);
+  return actions;
+}
+
 // ---- レイヤーの行 ----
 // 特別なクリップの表示名
 // 同じ機種の2台目からは「名前 #1」…で届く → 「名前（2台目）」と表示
@@ -1346,12 +1405,8 @@ function build(){
       track=L.cues.map((c,j)=>clipTile(i,c,j)).join('')+
         `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><small>ファイルを<br>ここへドロップ</small></div></div>`;
     }else{
-      const listed=L.cues.length>0;
       track=L.cues.map((c,j)=>photoTile(i,c,j)).join('')+
-        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><small>画像を<br>ここへドラッグ${listed?'':'<br>（入れないときは<br>フォルダの写真）'}</small></div></div>`
-        +`<div class="photo"><div class="row"><b>写真ウォール</b><span class="meta" id="pc${i}"></span><span class="grow"></span><button class="sm" data-a="skip">次の写真 ▶</button></div>
-        <div class="meta">${listed?(L.cues.length===1?'この行の画像1枚を出し続けます':'この行の画像を左から順に出します（最後まで行ったら最初へ）'):'フォルダ：'+esc(L.photo_folder)+(L.photo_newest?'　新着優先':'')}</div>
-        <div class="meta">間隔：${L.photo_interval>0?L.photo_interval+'秒':'自動で切り替えない'}　列で再生とは別に動きます</div></div>`;
+        `<div class="clip empty" data-j="${L.cues.length}"><div class="th"><small>画像を<br>ここへドラッグ</small></div></div>`;
     }
     d.innerHTML=`<div class="lhead">
         <div class="row" data-layer-drag="${esc(L.id)}" style="gap:6px;flex-wrap:nowrap"><span class="lname grow" title="${esc(L.name)}">${esc(L.name)}</span><span class="tag">L${i+1} ${L.kind==='photo'?'写真':'動画'}</span></div>
@@ -1368,7 +1423,6 @@ function build(){
       if(t.dataset.cue!==undefined) return cmd({cmd:'go',layer:i,cue:+t.dataset.cue});
       const a=t.dataset.a;
       if(a==='clear') cmd({cmd:'clear',layer:i});
-      else if(a==='skip') cmd({cmd:'skip_photo',layer:i});
       // 表示・M は押した瞬間に見た目を切り替える（本体の返事を待つと、一瞬なにも起きないように見えるため）
       else if(a==='vis'){const v=!S.layers[i].visible; S.layers[i].visible=v; t.classList.toggle('on',v); t.classList.toggle('held',!v); t.textContent=v?'表示':'隠し中'; setv(i,'visible',v);}
       else if(a==='mute'){const v=!S.layers[i].audio; S.layers[i].audio=v; t.classList.toggle('on',!v); const m=$('mxlm'+i); if(m) m.classList.toggle('on',!v); setv(i,'audio',v);}
@@ -1389,7 +1443,9 @@ function build(){
         return openContextMenu(e,actions);
       }
       if(e.target.closest('.lhead')){
-        const actions=[['レイヤー名を変更',()=>{
+        const layer=S.layers.find(current=>current.id===L.id);
+        if(!layer)return;
+        const actions=[...(layer.kind==='photo'?photoMenu(layer):[]),['レイヤー名を変更',()=>{
           const name=prompt('レイヤー名',L.name);
           if(name?.trim())cmd({cmd:'set',lid:L.id,key:'name',value:name.trim()});
         }],...layerAddMenu()];
@@ -1431,7 +1487,6 @@ function buildLset(){
       <span class="meta" style="flex-basis:100%">複数にチェックすると、同じ映像を同時に映します（位置合わせは出力ごと）</span></div>`:''}
     ${L.kind==='photo'?`
     <span class="lbl">フォルダ</span><input data-k="photo_folder" value="${esc(L.photo_folder)}">
-    <span class="lbl">間隔(秒)</span><span class="row"><input type="number" step="0.5" min="0" data-k="photo_interval" value="${L.photo_interval}"><span class="meta">0＝自動で切り替えない</span></span>
     <span class="lbl">切り替え方</span><select data-k="photo_trans">${(S.transitions||[]).map(x=>`<option value="${x}" ${x===(L.photo_trans||'fade')?'selected':''}>${TRANS_NAME[x]||x}</option>`).join('')}</select>
     <span class="lbl">白フチ</span><input type="range" min="0" max="0.1" step="0.005" data-k="photo_border" value="${L.photo_border}">
     <span class="lbl"></span><label><input type="checkbox" data-k="photo_newest" ${L.photo_newest?'checked':''}> 新着を優先して表示</label>`:''}
@@ -1583,7 +1638,9 @@ function update(){
     row.classList.toggle('hidden',!L.visible);
     {const b=$('vis'+i); b.classList.toggle('on',L.visible); b.classList.toggle('held',!L.visible); b.textContent=L.visible?'表示':'隠し中';}
     const mu=$('mut'+i); if(mu) mu.classList.toggle('on',!L.audio);
-    $('now'+i).textContent=L.label?(`▶ ${L.label}`+(L.dur>0?`  ${fmt(L.pos)} / ${fmt(L.dur)}`:'')):'— 停止中';
+    const photoStatus=L.photo_state==='paused'?'一時停止':L.photo_state==='finished'?'再生終了':'';
+    $('now'+i).textContent=photoStatus?`${T(photoStatus)}${L.label?' · '+L.label:''}`:
+      L.label?(`▶ ${L.label}`+(L.dur>0?`  ${fmt(L.pos)} / ${fmt(L.dur)}`:'')):'— 停止中';
     $('bar'+i).style.width=(L.dur>0?Math.min(100,L.pos/L.dur*100):0)+'%';
     $('err'+i).textContent=L.error||(L.kind==='photo'&&!L.cues.length&&!L.photo_dir_ok?'フォルダが見つかりません':'');
     const op=$('op'+i); if(document.activeElement!==op) op.value=L.opacity;
@@ -1595,8 +1652,7 @@ function update(){
       $(`tt${i}_${j}`).textContent=on&&L.dur>0?`${fmt(L.pos)}/${fmt(L.dur)}`:'';
       $(`tg${i}_${j}`).textContent=on&&!L.paused?'⏸':'▶';
     });
-    if(L.kind==='photo'){const p=$('pc'+i); if(p) p.textContent=`${L.photo_count}枚`;
-      L.cues.forEach((c,j)=>{const b=$(`go${i}_${j}`); if(b) b.classList.toggle('on',L.playing===j);});}
+    if(L.kind==='photo') L.cues.forEach((c,j)=>{const b=$(`go${i}_${j}`); if(b) b.classList.toggle('on',L.playing===j);});
   });
   const sel=S.layers[S.selected];
   $('mtarget').textContent=sel?(sel.kind==='video'?`クリックで「L${S.selected+1} ${sel.name}」に追加`:`画像をクリックで写真ウォール「L${S.selected+1} ${sel.name}」に追加`):'レイヤーを選ぶと、クリックで追加できます';

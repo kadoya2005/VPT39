@@ -622,8 +622,18 @@ class App:
         elif cmd == 'clear_all':
             for x in self.layers:
                 x.clear()
-        elif cmd == 'skip_photo' and L:
+        elif cmd == 'skip_photo' and L and L.cfg['kind'] == 'photo':
             L.skip_photo()
+        elif cmd == 'photo_transport' and L and L.cfg['kind'] == 'photo':
+            op = c.get('op')
+            if op in ('play', 'restart') and not L.cfg['visible']:
+                self.set_layer_value(L, 'visible', True)
+            L.photo_transport(op)
+        elif cmd == 'photo_settings' and L and L.cfg['kind'] == 'photo':
+            interval, loop = c.get('interval'), c.get('loop')
+            if type(interval) in (int, float) and 0 <= interval <= 600 and type(loop) is bool:
+                L.cfg.update(photo_interval=interval, photo_loop=loop)
+                self.touch()
         elif cmd == 'master':
             self.proj['master'] = max(0.0, min(1.0, float(c['value'])))
             self.touch()
@@ -1425,6 +1435,7 @@ class App:
             if c['kind'] == 'photo':
                 item['photo_count'] = L.feeder.count() if L.feeder else 0
                 item['photo_dir_ok'] = os.path.isdir(self.resolve(c.get('photo_folder', 'photos')))
+                item['photo_state'] = L.photo_state
             ls.append(item)
         sel, _ = self.sel_corners()
         outs = []
