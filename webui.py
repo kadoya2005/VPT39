@@ -345,19 +345,18 @@ PAGE = r"""<!DOCTYPE html>
 <style>
 :root{--bg:#0e1013;--panel:#171a1f;--panel2:#1f232a;--line:#2b3038;--text:#e6e8eb;--dim:#8a919c;
 --acc:#3dd68c;--warn:#ffb020;--red:#ff4d4f;--blue:#4da3ff;
-/* 色のきまり：緑＝ふつうに動いている・選んでいる／薄い緑＝マウスを乗せた所／赤＝止めている・固定している状態（ミュート・編集中など）とエラー／黄色（オレンジ）＝BLACKOUT */
+/* 色のきまり：緑＝ふつうに動いている・選んでいる／薄い緑＝マウスを乗せた所／赤＝止めている・固定している状態（ミュート・編集中など）とエラー */
 --hov:#a9ecc9;--hovtx:#06291a;--mag:var(--red);--magtx:#fff;--tw:136px;--lw:232px;--gap:8px}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 "Segoe UI","Yu Gothic UI","Hiragino Sans",sans-serif;
 display:flex;flex-direction:column;overflow:hidden}
 header{flex:none;display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;background:#0a0b0d;border-bottom:1px solid var(--line)}
-h1{font-size:24px;margin:0;letter-spacing:.06em;color:var(--acc);font-weight:800;line-height:1}
-h1 small{color:var(--dim);font-weight:400;margin-left:8px;font-size:12px}
+h1{font-size:24px;margin:0;letter-spacing:.06em;color:#e9edf4;font-weight:800;line-height:1}
+.master-control{display:flex;align-items:center;gap:8px;margin-inline-start:10px}
+#clearall{margin-inline-start:14px}
 button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:inherit;cursor:pointer}
 button.on{background:var(--acc);color:#04120a;border-color:var(--acc);font-weight:600}
-button.bo{background:#3a2a08;border-color:var(--warn);color:#ffd27a;font-weight:700;padding:8px 16px}
-button.bo.on{background:var(--warn);border-color:var(--warn);color:#241600}
 /* 止めている・固定している状態 */
 button.lock.on,button.held,.lbtns .mut.on,.mbtn.on{background:var(--mag);border-color:var(--mag);color:var(--magtx);font-weight:700}
 /* マウスを乗せたとき：ふつうのボタンは薄い緑。
@@ -394,7 +393,7 @@ aside{display:flex;flex-direction:column;min-height:0;border-left:1px solid var(
 /* ---- レイヤーの行（VJアプリ風：左に名前と基本操作、右にクリップ）---- */
 .grid{display:inline-flex;flex-direction:column;min-width:100%}
 .colhead{position:sticky;top:0;z-index:6;display:flex;align-items:center;background:var(--bg);border-bottom:1px solid var(--line)}
-.colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--bg);padding:8px 10px;font-size:12px;color:var(--dim);border-right:1px solid var(--line);align-self:stretch;display:flex;align-items:center;justify-content:space-between;gap:4px}
+.colhead .lh{position:sticky;left:0;z-index:7;width:var(--lw);flex:none;background:var(--bg);min-height:24px;border-right:1px solid var(--line);align-self:stretch;cursor:context-menu}
 .colhead .cols{display:flex;gap:var(--gap);padding:6px var(--gap)}
 .colhead [data-col]{width:var(--tw);flex:none;padding:4px 6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 [data-layer-drag],.colhead [data-col]{cursor:grab;user-select:none;touch-action:none}
@@ -554,10 +553,11 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
 .scr em{font-size:10px;color:var(--acc);font-style:normal}
 </style></head><body>
 <header>
-  <h1>VPT39<small id="meta"></small></h1>
-  <span class="lbl" title="映像全体の明るさ（音量は右の「音声ミキサー」）">明るさ</span><input type="range" id="master" min="0" max="1" step="0.01">
-  <button id="bo" class="bo">BLACKOUT (B)</button>
-  <button id="clearall">全レイヤー消去</button>
+  <h1>VPT39</h1>
+  <div class="master-control">
+    <label class="lbl" for="master">全レイヤー明るさ</label><input type="range" id="master" min="0" max="1" step="0.01">
+  </div>
+  <button id="clearall">全レイヤー再生消去</button>
   <span class="grow"></span>
   <span class="msg" id="msg"></span>
   <button id="lanbtn" title="スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）">スマホ</button>
@@ -567,9 +567,9 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
 <div id="setdlg" class="dlg hide"><div class="dlgbox">
   <div class="row"><b style="font-size:15px">セッティング</b><span class="meta grow">会場・公演ごとの設定ファイル（曲順・クリップ・レイヤー・マッピング・音量・出力の設定）</span><button class="sm" id="setclose">閉じる</button></div>
   <div class="meta" id="setcur"></div>
-  <div class="row" style="flex-wrap:nowrap"><input id="setnew" class="grow" placeholder="新しい名前（例：2026-12 ライブ本番）" maxlength="60" style="min-width:0"><button id="setsaveas">名前を付けて保存</button></div>
+  <div class="row"><button id="setbrowse">ファイルから開く…</button></div>
   <div id="setlist"></div>
-  <div class="hint">開いているセッティングには、変えると2秒後に自動で上書き保存されます。ファイルは VPT39\settings フォルダにあり、Dropbox で同期すれば別のPCでも同じ一覧が使えます。別のPCで準備するときは、「出力」タブの「本番の解像度」を本番のプロジェクターに合わせておきます。</div>
+  <div class="hint">settings フォルダのセッティングが一覧に表示されます。開いているセッティングは変更すると自動保存されます。</div>
 </div></div>
 <div id="landlg" class="dlg hide"><div class="dlgbox" style="width:min(520px,100%)">
   <div class="row"><b style="font-size:15px">スマホから操作</b><span class="meta grow">スクリーンの前で四隅を合わせる（セッティング）</span><button class="sm" id="lanclose">閉じる</button></div>
@@ -599,10 +599,9 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
   <div class="workspace">
   <section class="deck" id="deck">
     <div class="grid">
-      <div class="colhead"><div class="lh" id="column-head" title="右クリックでコラムの操作">列で再生 →</div><div class="cols" id="cols"></div></div>
+      <div class="colhead"><div class="lh" id="column-head" title="右クリックでコラムの操作"></div><div class="cols" id="cols"></div></div>
       <div id="layers"></div>
-      <div class="addrow" id="layer-footer"><span class="hint">コラム・レイヤー・クリップの編集は右クリック</span>
-        <span class="hint">Space＝L1の次へ ／ B＝ブラックアウト ／ E＝マッピング編集</span></div>
+      <div class="addrow" id="layer-footer" title="右クリックでレイヤーを追加"></div>
     </div>
   </section>
     <div class="deck-bar">
@@ -635,7 +634,7 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
         <div class="ttl"><b>レイヤー設定</b><span class="meta grow" id="mapsel"></span></div>
         <div id="lset"></div>
         <div class="row"><b style="font-size:13px">マッピング</b><span class="grow"></span>
-          <button class="sm lock" id="mapedit">編集 (E)</button><button class="sm lock" id="maptest">テスト表示</button><button class="sm" id="mapreset">四隅リセット</button></div>
+          <button class="sm lock" id="mapedit">編集</button><button class="sm lock" id="maptest">テスト表示</button><button class="sm" id="mapreset">四隅リセット</button></div>
         <div class="mtabs" id="mtabs"></div>
         <canvas id="map" width="800" height="450"></canvas>
         <div class="hint">角をドラッグして変形、内側をドラッグして全体を移動。</div>
@@ -669,7 +668,7 @@ function activatePanel(p){
   document.body.classList.remove('panel-closed');
   showPanel();
 }
-function closePanel(){
+function hidePanel(){
   document.body.classList.add('panel-closed');
   $('panel-settings').focus({preventScroll:true});
 }
@@ -680,10 +679,20 @@ function showPanel(){
   $('panel-link').href='/?view='+curTab;
 }
 showPanel();
-$('panel-close').onclick=closePanel;
-$('panel-close').addEventListener('keydown',e=>{if(e.code==='Space')e.stopPropagation();});
-$('panel-link').addEventListener('click',closePanel);
-$('panel-link').addEventListener('auxclick',e=>{if(e.button===1)closePanel();});
+$('panel-close').onclick=()=>{
+  if(curTab==='insp')cmd({cmd:'edit',value:false});
+  hidePanel();
+};
+$('panel-link').addEventListener('click',hidePanel);
+$('panel-link').addEventListener('auxclick',e=>{if(e.button===1)hidePanel();});
+if(VIEW==='insp'){
+  window.addEventListener('pagehide',()=>{
+    const body=JSON.stringify({cmd:'edit',value:false});
+    if(!navigator.sendBeacon('/api/cmd',body)){
+      fetch('/api/cmd',{method:'POST',body,keepalive:true}).catch(()=>{});
+    }
+  });
+}
 function post(c){return fetch('/api/cmd',{method:'POST',body:JSON.stringify({deck:gridDeck??S?.active_deck,...c})});}
 function cmd(c){post(c).then(()=>setTimeout(poll,60));}
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
@@ -1104,7 +1113,7 @@ settingsButton.onclick=e=>{
   openContextMenu(e,[
     ['素材',()=>activatePanel('media')],
     ['ミキサー',()=>activatePanel('mixer')],
-    [S?.edit?'マッピング編集を終了':'マッピング編集 (E)',()=>{
+    [S?.edit?'マッピング編集を終了':'マッピング編集',()=>{
       if(!S)return;
       activatePanel('insp');
       cmd({cmd:'edit',value:!S.edit});
@@ -1112,11 +1121,11 @@ settingsButton.onclick=e=>{
     ['レイヤー設定',()=>activatePanel('insp')],
     ['出力設定',()=>activatePanel('outs')],
     ['今すぐ保存',()=>cmd({cmd:'save'})],
-    ['セッティング',openSettings],
+    ['名前を付けて保存',()=>cmd({cmd:'setting_save_dialog'})],
+    ['セッティングを開く',openSettings],
     [LANG==='en'?'日本語に切り替え':'English に切り替え',()=>cmd({cmd:'lang',value:LANG==='en'?'ja':'en'})]
   ],settingsButton);
 };
-settingsButton.addEventListener('keydown',e=>{if(e.code==='Space')e.stopPropagation();});
 function addDeckAction(label,anchor,after=false){
   return [label,()=>{
     const names=new Set(S.decks.map(d=>d.name));
@@ -1138,7 +1147,6 @@ function deckActions(deck){
   },true]);
   return actions;
 }
-$('show-decks').addEventListener('keydown',e=>{if(e.code==='Space')e.stopPropagation();});
 function buildDeckTabs(){
   const list=$('show-decks'), key=JSON.stringify([S.active_deck,S.decks]);
   if(list.dataset.key===key)return;
@@ -1498,7 +1506,7 @@ function buildOuts(){
       <button class="sm" id="ident" title="各画面の中央に番号を4秒間表示">識別</button>
       <button class="sm" id="dispset" title="Windows の「ディスプレイ」設定を開く">ディスプレイ設定…</button></div>
     ${scrHtml}
-    <div class="hint">出力ウィンドウを投影したい画面へドラッグしてから「フルスクリーン」（出力ウィンドウ上の F キー・ダブルクリックでも）。緑の枠＝出力ウィンドウがある画面。プロジェクターは拡大率 100% が確実。</div>`;
+    <div class="hint">出力ウィンドウを投影したい画面へドラッグしてから「フルスクリーン」（出力ウィンドウ上の F・F11・ダブルクリックでも）。緑の枠＝出力ウィンドウがある画面。プロジェクターは拡大率 100% が確実。</div>`;
   box.querySelectorAll('[data-ofs]').forEach(b=>b.onclick=()=>cmd({cmd:'out_fullscreen',output:+b.dataset.ofs}));
   box.querySelectorAll('[data-ores]').forEach(s=>s.onchange=()=>{const k=+s.dataset.ores, v=s.value;
     if(v==='auto') return cmd({cmd:'out_res',output:k,value:null});
@@ -1529,7 +1537,7 @@ function buildMixer(){
   if(key===mixKey) return; mixKey=key;
   const row=(cls,name,mid,fid,title)=>`<div class="mxr ${cls}"><span class="mn" title="${esc(title||name)}">${esc(name)}</span>
     <button class="sm mbtn" id="${mid}" title="ミュート">M</button><input type="range" min="0" max="1" step="0.01" id="${fid}"><span class="pct" id="${fid}p"></span></div>`;
-  let h=`<div class="row"><b>音声ミキサー</b><span class="meta grow">映像の表示切替やブラックアウトでは音は止まりません</span></div><div class="mx">`;
+  let h=`<div class="row"><b>音声ミキサー</b></div><div class="mx">`;
   h+=row('m','音声マスター','mxmm','mxm');
   S.outputs.forEach((o,k)=>{
     h+=row('o',o.name,'mxom'+k,'mxo'+k,o.name+' に映しているレイヤー全部の音量');
@@ -1562,12 +1570,13 @@ function update(){
     const el=$('output-rate-'+k), rate=o.fps?`${o.fps} FPS`:'—';
     if(el&&el.textContent!==rate)el.textContent=rate;
   });
-  $('meta').textContent=`${S.backend} ・ 出力 ${S.outputs.length>1?S.outputs.length+'画面':S.size[0]+'×'+S.size[1]} ・ ${S.fps}fps${S.dirty?' ・ 未保存':''}`;
   buildLan();
   if(document.activeElement!==$('master')) $('master').value=S.master;
-  $('bo').classList.toggle('on',S.blackout);
-  $('panel-settings').classList.toggle('on',S.edit); $('mapedit').classList.toggle('on',S.edit);
-  $('msg').textContent=S.message||'';
+  $('panel-settings').classList.toggle('on',S.edit);
+  $('mapedit').classList.toggle('on',S.edit);
+  const mapLabel=T(S.edit?'編集を終了':'編集');
+  if($('mapedit').textContent!==mapLabel)$('mapedit').textContent=mapLabel;
+  $('msg').textContent=S.message||(S.dirty?'未保存':'');
   S.layers.forEach((L,i)=>{
     const row=$('row'+i); if(!row)return;
     row.classList.toggle('sel',i===S.selected);
@@ -1662,9 +1671,8 @@ $('map').addEventListener('pointercancel',()=>endDragMap(true));
 $('map').addEventListener('lostpointercapture',()=>{ if(dragging) endDragMap(true); });
 
 $('master').addEventListener('input',e=>cmd({cmd:'master',value:parseFloat(e.target.value)}));
-$('bo').onclick=()=>cmd({cmd:'blackout',value:!S.blackout});
 $('clearall').onclick=()=>cmd({cmd:'clear_all'});
-$('mapedit').onclick=()=>cmd({cmd:'edit',value:!S.edit});
+$('mapedit').onclick=()=>{if(S)cmd({cmd:'edit',value:!S.edit});};
 
 // ---- スマホから操作（オン・オフと QR コード）----
 let lanKey='';
@@ -1697,32 +1705,23 @@ let setKey='';
 function buildSettings(){
   if($('setdlg').classList.contains('hide')) return;
   const nm=S.setting_name||'';
-  const k=JSON.stringify([nm,S.settings]); if(k===setKey) return; setKey=k;
+  const managed=S.setting_external?'':nm;
+  const k=JSON.stringify([nm,managed,S.settings]); if(k===setKey) return; setKey=k;
   $('setcur').innerHTML=nm?T(`いま開いている：<b style="color:var(--acc)">${esc(nm)}</b>（変えると自動で上書き保存）`):
     'いまの状態には名前が付いていません。残しておくなら、名前を付けて保存してください。';
   const L=S.settings||[];
-  $('setlist').innerHTML=L.length?L.map(r=>`<div class="setrow ${r.name===nm?'cur':''}"><span class="nm" title="${esc(r.name)}">${esc(r.name)}</span>
+  $('setlist').innerHTML=L.length?L.map(r=>`<div class="setrow ${r.name===managed?'cur':''}"><span class="nm" title="${esc(r.name)}">${esc(r.name)}</span>
       <span class="tm">${fmtTime(r.time)}</span>
-      ${r.name===nm?'<span class="tag on">開いている</span>':`<button class="sm" data-sopen="${esc(r.name)}">開く</button>`}
-      <button class="sm" data-sdup="${esc(r.name)}" title="このセッティングを元に、新しい名前で作る">複製</button>
+      ${r.name===managed?'<span class="tag on">開いている</span>':`<button class="sm" data-sopen="${esc(r.name)}">開く</button>`}
+      ${r.name===managed?'<button class="sm" data-sdup title="このセッティングを元に、新しい名前で作る">複製</button>':''}
       <button class="sm" data-sdel="${esc(r.name)}" title="ごみ箱へ移す">✕</button></div>`).join('')
-    :'<div class="meta">まだありません。上で名前を入れて「名前を付けて保存」。</div>';
+    :'<div class="meta">settings フォルダに保存したセッティングはありません。</div>';
   $('setlist').querySelectorAll('[data-sopen]').forEach(b=>b.onclick=()=>{const n=b.dataset.sopen;
     const note=nm?`いまの「${nm}」は保存されています。`:'いまの状態には名前がないので、開くと置き換わります（残すなら先に名前を付けて保存）。';
     if(confirm(`セッティング「${n}」を開きますか？\n\n${note}\nレイヤー・クリップ・マッピング・出力ウィンドウが切り替わります。`)){cmd({cmd:'setting_open',name:n}); closeSettings();}});
-  $('setlist').querySelectorAll('[data-sdup]').forEach(b=>b.onclick=()=>{const src=b.dataset.sdup;
-    if(src!==nm){alert('複製は、いま開いているセッティングから作ります。先に「'+src+'」を開いてください。');return;}
-    const n=prompt('新しい名前（いまの内容をこの名前で保存して、こちらを開いた状態にします）',T(src+' のコピー'));
-    if(n) saveAs(n);});
+  $('setlist').querySelectorAll('[data-sdup]').forEach(b=>b.onclick=()=>cmd({cmd:'setting_save_dialog',copy:true}));
   $('setlist').querySelectorAll('[data-sdel]').forEach(b=>b.onclick=()=>{const n=b.dataset.sdel;
-    if(confirm(`セッティング「${n}」をごみ箱へ移しますか？（ごみ箱から戻せます）`+(n===nm?'\n\nいま開いているセッティングです。いまの状態は残りますが、名前なしになります。':''))) cmd({cmd:'setting_delete',name:n});});
-}
-function saveAs(n){
-  n=(n||'').trim(); if(!n)return;
-  if(/[\\/:*?"<>|]/.test(n)){alert('\\ / : * ? " < > | は名前に使えません');return;}
-  const exists=(S.settings||[]).some(r=>r.name===n);
-  if(exists&&n!==S.setting_name&&!confirm(`「${n}」はもうあります。いまの状態で上書きしますか？`))return;
-  cmd({cmd:'setting_save_as',name:n,overwrite:exists}); $('setnew').value='';
+    if(confirm(`セッティング「${n}」をごみ箱へ移しますか？（ごみ箱から戻せます）`+(n===managed?'\n\nいま開いているセッティングです。いまの状態は残りますが、名前なしになります。':''))) cmd({cmd:'setting_delete',name:n});});
 }
 function openSettings(){
   if(!S)return;
@@ -1737,8 +1736,10 @@ function closeSettings(){
 }
 $('setclose').onclick=closeSettings;
 $('setdlg').addEventListener('click',e=>{ if(e.target.id==='setdlg') closeSettings(); });
-$('setsaveas').onclick=()=>saveAs($('setnew').value);
-$('setnew').addEventListener('keydown',e=>{ if(e.key==='Enter') saveAs($('setnew').value); });
+$('setbrowse').onclick=()=>{
+  closeSettings();
+  cmd({cmd:'setting_open_dialog'});
+};
 $('quit').onclick=()=>{ if(confirm('VPT39 を終了しますか？（設定は保存されます）')) cmd({cmd:'quit'}); };
 $('mfilter').addEventListener('input',()=>{ if(S) buildMedia(); });
 $('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
@@ -1748,20 +1749,17 @@ $('msize').addEventListener('input',e=>{setThumbSize(e.target.value); lsSet('vpt
 $('maptest').onclick=()=>setv(S.selected,'test',!S.layers[S.selected].test);
 $('mapreset').onclick=()=>{ if(confirm('このレイヤーの四隅を、画面いっぱいの四角に戻しますか？')) cmd({cmd:'reset_corners',layer:S.selected,output:S.map_out}); };
 document.addEventListener('keydown',e=>{
-  if(gridDrag&&e.key==='Escape'){finishGridDrag();return;}
-  if(!S||$('clipdlg').open)return;
-  // 文字を打つ欄と選択欄だけはキーを奪わない。スライダーやボタンを触った直後でも Space / B / E が効く
-  const a=document.activeElement, tag=a?a.tagName:'';
-  if(!$('setdlg').classList.contains('hide')){ if(e.key==='Escape') closeSettings(); return; }
-  if(!$('landlg').classList.contains('hide')){ if(e.key==='Escape') $('landlg').classList.add('hide'); return; }  // セッティングの窓を開いている間は、本番のキーは効かない
-  if(tag==='TEXTAREA'||tag==='SELECT'||(tag==='INPUT'&&!/^(range|checkbox|button)$/.test(a.type)))return;
-  if(e.ctrlKey||e.metaKey||e.altKey) return;  // Ctrl+B などはブラウザの操作に任せる
-  if(e.code!=='Space'&&!/^[be]$/i.test(e.key))return;
-  if(e.repeat){ if(e.code==='Space') e.preventDefault(); return; }
-  if(tag==='INPUT'||tag==='BUTTON') a.blur();
-  if(e.code==='Space'){e.preventDefault();cmd({cmd:'next',layer:0});}
-  else if(e.key==='b'||e.key==='B') cmd({cmd:'blackout',value:!S.blackout});
-  else if(e.key==='e'||e.key==='E') cmd({cmd:'edit',value:!S.edit});
+  if($('clipdlg').open)return;
+  if(!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.toLowerCase()==='e'
+      &&S?.edit&&$('setdlg').classList.contains('hide')&&$('landlg').classList.contains('hide')
+      &&!e.target.closest('input,textarea,select,[contenteditable]')){
+    cmd({cmd:'edit',value:false});
+    return;
+  }
+  if(e.key!=='Escape')return;
+  if(gridDrag)finishGridDrag();
+  else if(!$('setdlg').classList.contains('hide'))closeSettings();
+  else if(!$('landlg').classList.contains('hide'))$('landlg').classList.add('hide');
 });
 
 async function poll(){
@@ -1791,7 +1789,7 @@ async function poll(){
     if(mkind==='s') buildMedia();
     buildLset();
     update();
-  }catch(e){ $('meta').textContent='（本体と接続できません）'; if(VIEW) $('childbar').firstChild.textContent='VPT39（本体と接続できません）'; }
+  }catch(e){ $('msg').textContent='（本体と接続できません）'; if(VIEW) $('childbar').firstChild.textContent='VPT39（本体と接続できません）'; }
 }
 setInterval(poll,300); poll();
 </script></body></html>

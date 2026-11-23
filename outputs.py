@@ -169,7 +169,7 @@ class OutputWindow:
         return f'出力{self.index + 1}'
 
     def title(self):
-        return tr(f'VPT39 {self.name()}（投影したい画面へ移動して「フルスクリーン」／F キー／ダブルクリック）')
+        return tr(f'VPT39 {self.name()}（投影したい画面へ移動して「フルスクリーン」／F・F11／ダブルクリック）')
 
     def size(self):
         w, h = glfw.get_framebuffer_size(self.win)
@@ -338,8 +338,23 @@ class OutputWindow:
         return u0 + nx * (u1 - u0), ny
 
     def _on_key(self, win, key, sc, action, mods):
-        if action in (glfw.PRESS, glfw.REPEAT):
-            self.app.on_key(self, key, mods, action == glfw.REPEAT)
+        if action != glfw.PRESS:
+            return
+        if key == glfw.KEY_S and mods & glfw.MOD_CONTROL:
+            self.app.save()
+        elif key in (glfw.KEY_F, glfw.KEY_F11):
+            self.set_fullscreen(not self.fullscreen)
+            self.app.touch(True)
+        elif self.app.edit and not mods & (glfw.MOD_CONTROL | glfw.MOD_ALT | glfw.MOD_SUPER):
+            if key == glfw.KEY_E:
+                self.app.set_edit(False)
+            elif key == glfw.KEY_T:
+                layer = self.app.layer(self.app.selected)
+                if layer is not None:
+                    self.app.set_layer_value(layer, 'test', not layer.cfg['test'])
+            elif key == glfw.KEY_R:
+                self.app.handle({'cmd': 'reset_corners', 'layer': self.app.selected,
+                                 'output': self.app.map_out})
 
     def _on_button(self, win, button, action, mods):
         if button != glfw.MOUSE_BUTTON_LEFT:

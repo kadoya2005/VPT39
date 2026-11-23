@@ -5,17 +5,19 @@
 
 出力ウィンドウは VPT と同じ使い方:
   小さなウィンドウで開く → 投影したい画面（プロジェクター）へドラッグ →
-  「フルスクリーン」ボタン / F キー / ダブルクリック で、その画面いっぱいに表示
+  「フルスクリーン」ボタン、F／F11、ダブルクリックで、その画面いっぱいに表示
 """
 import os
 import sys
 import json
+import hashlib
 import math
 import time
 import queue
 import shutil
 import argparse
 import threading
+import tempfile
 import subprocess
 import webbrowser
 from collections import Counter
@@ -146,6 +148,24 @@ def clean_setting_name(name):
     return n
 
 
+def choose_setup_file(action, folder, suggested):
+    import tkinter as tk
+    from tkinter import filedialog
+
+    root = tk.Tk()
+    try:
+        root.withdraw()
+        root.attributes('-topmost', True)
+        options = {'parent': root, 'initialdir': folder,
+                   'filetypes': [('VPT39 JSON', '*.json')], 'defaultextension': '.json'}
+        if action == 'save':
+            return filedialog.asksaveasfilename(title=tr('名前を付けて保存'), initialfile=suggested,
+                                                 confirmoverwrite=True, **options)
+        return filedialog.askopenfilename(title=tr('セッティングを開く'), **options)
+    finally:
+        root.destroy()
+
+
 def _font(size):
     for name in ('arial.ttf', 'segoeui.ttf', 'DejaVuSans.ttf'):
         try:
@@ -167,6 +187,8 @@ class App:
         normalize_project(self.proj)
         self.settings_dir = os.path.join(self.base, 'settings')
         self._settings_cache = (0.0, [])
+        self._setup_file_result = queue.SimpleQueue()
+        self._setup_dialog_open = False
         self.window_override = bool(args.window)
         os.makedirs(self.resolve(self.proj['media_dir']), exist_ok=True)
 
@@ -476,6 +498,12 @@ class App:
 
     def set_edit(self, v):
         self.edit = bool(v)
+        if not self.edit:
+            self.drag = None
+            for layer in self.layers:
+                if layer.cfg['test']:
+                    layer.cfg['test'] = False
+                    self.touch()
         for o in self.outs:
             o.update_cursor()
 
@@ -976,6 +1004,8 @@ class App:
             self.set_lan(True)  # Wi-Fi を変えたときなど、アドレスを調べ直す
         elif cmd == 'setting_save_as':
             self.setting_save_as(c.get('name'), bool(c.get('overwrite')))
+        elif cmd in ('setting_save_dialog', 'setting_open_dialog'):
+            self.show_setup_dialog('save' if cmd == 'setting_save_dialog' else 'open', c.get('copy') is True)
         elif cmd == 'setting_open':
             self.setting_open(c.get('name'))
         elif cmd == 'setting_delete':
@@ -1099,20 +1129,22 @@ class App:
     def save(self):
         """project.json（いまの状態）に保存。セッティングを開いているときは、そのファイルにも保存（上書き保存）"""
         self._write_json(self.project_path, self.proj)
-        name = self.proj.get('setting_name')
-        if name and clean_setting_name(name):
-            self.backup_setting(name)
-            self._write_json(self.setting_path(name), self.proj)
+        path = self.active_setting_path()
+        if path:
+            self.backup_setting(path)
+            self._write_json(path, {k: v for k, v in self.proj.items() if k != 'setting_file'})
         self.dirty = False
 
     BACKUP_EVERY = 600   # 同じセッティングのバックアップは10分に1回まで
     BACKUP_KEEP = 10     # セッティングごとに残す数（古いものから消す）
 
-    def backup_setting(self, name):
+    def backup_setting(self, p):
         """上書きする前のセッティングを settings\\_backup に残す（自動保存で本番用の設定を変えてしまっても戻せるように）"""
-        p = self.setting_path(name)
         if not os.path.isfile(p):
             return
+        name = os.path.splitext(os.path.basename(p))[0]
+        if self.managed_setting_name(p) is None:
+            name = 'external-' + hashlib.sha256(os.path.normcase(p).encode('utf-8')).hexdigest()[:16]
         last = getattr(self, '_backup_at', {})
         self._backup_at = last
         now = time.time()
@@ -1134,14 +1166,81 @@ class App:
 
     @staticmethod
     def _write_json(path, data):
-        tmp = path + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2, allow_nan=False)
-        os.replace(tmp, path)
+        tmp = None
+        try:
+            with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', suffix='.tmp',
+                                             dir=os.path.dirname(os.path.abspath(path)), delete=False) as f:
+                tmp = f.name
+                json.dump(data, f, ensure_ascii=False, indent=2, allow_nan=False)
+            os.replace(tmp, path)
+            tmp = None
+        finally:
+            if tmp is not None:
+                os.remove(tmp)
 
-    # ---- セッティング（会場・公演ごとの設定ファイル。settings フォルダに1つずつ）----
+    # ---- セッティング（会場・公演ごとの設定ファイル）----
     def setting_path(self, name):
         return os.path.join(self.settings_dir, name + '.json')
+
+    def managed_setting_name(self, path):
+        name = clean_setting_name(os.path.splitext(os.path.basename(path))[0])
+        if name and os.path.normcase(path) == os.path.normcase(self.setting_path(name)):
+            return name
+        return None
+
+    def valid_setting_path(self, path):
+        return (isinstance(path, str) and os.path.isabs(path) and path.lower().endswith('.json')
+                and os.path.normcase(os.path.realpath(path)) != os.path.normcase(os.path.realpath(self.project_path)))
+
+    def active_setting_path(self):
+        path = self.proj.get('setting_file')
+        if path and self.valid_setting_path(path):
+            return path
+        name = clean_setting_name(self.proj.get('setting_name'))
+        path = self.setting_path(name) if name else None
+        return path if self.valid_setting_path(path) else None
+
+    def set_setting_path(self, project, path):
+        project['setting_name'] = os.path.splitext(os.path.basename(path))[0]
+        project.pop('setting_file', None)
+        if self.managed_setting_name(path) is None:
+            project['setting_file'] = path
+
+    def show_setup_dialog(self, action, duplicate=False):
+        if self._setup_dialog_open:
+            return
+        os.makedirs(self.settings_dir, exist_ok=True)
+        current = self.active_setting_path()
+        folder = os.path.dirname(current) if current else self.settings_dir
+        suggested = os.path.basename(current) if current else ''
+        if duplicate and suggested:
+            suggested = tr(f'{os.path.splitext(suggested)[0]} のコピー') + '.json'
+        self._setup_dialog_open = True
+
+        def choose():
+            try:
+                path = choose_setup_file(action, folder, suggested)
+                self._setup_file_result.put((action, path, None))
+            except Exception as ex:
+                self._setup_file_result.put((action, None, str(ex)))
+
+        threading.Thread(target=choose, daemon=True).start()
+
+    def collect_setup_file(self):
+        if not self._setup_dialog_open:
+            return
+        try:
+            action, path, error = self._setup_file_result.get_nowait()
+        except queue.Empty:
+            return
+        self._setup_dialog_open = False
+        if error is not None:
+            self.message = f'ファイル選択画面を開けませんでした（{error}）'
+        elif path:
+            if action == 'open':
+                self.open_setting_file(os.path.abspath(path))
+            else:
+                self.save_setting_file(os.path.abspath(path))
 
     def list_settings(self):
         """[{name, time}]（新しい順）。Dropbox の中なので、調べるのは2秒に1回まで"""
@@ -1167,13 +1266,28 @@ class App:
             return
         os.makedirs(self.settings_dir, exist_ok=True)
         p = self.setting_path(n)
-        if os.path.exists(p) and not overwrite and n != self.proj.get('setting_name'):
+        if os.path.exists(p) and not overwrite and self.managed_setting_name(self.active_setting_path() or '') != n:
             self.message = f'「{n}」はもうあります（上書きするときは確認のあと保存）'
             return
-        self.proj['setting_name'] = n
-        self.save()
+        self.save_setting_file(p)
+
+    def save_setting_file(self, path):
+        name = os.path.splitext(os.path.basename(path))[0]
+        if not self.valid_setting_path(path):
+            self.message = 'セッティングには project.json とは別の JSON ファイルを選んでください'
+            return
+        project = self.proj.copy()
+        self.set_setting_path(project, path)
+        try:
+            self.backup_setting(path)
+            self._write_json(path, {k: v for k, v in project.items() if k != 'setting_file'})
+            self._write_json(self.project_path, project)
+        except (OSError, ValueError) as ex:
+            self.message = f'保存できませんでした: {name}（{ex}）'
+            return
+        self.proj = project
         self._settings_cache = (0.0, [])
-        self.message = f'セッティング「{n}」に保存しました'
+        self.message = f'セッティング「{name}」に保存しました'
         self.touch(True)
         self.dirty = False
 
@@ -1183,9 +1297,19 @@ class App:
         if not p or not os.path.isfile(p):
             self.message = f'セッティングが見つかりません: {name}'
             return
+        self.open_setting_file(p)
+
+    def open_setting_file(self, p):
+        n = os.path.splitext(os.path.basename(p))[0]
+        if not self.valid_setting_path(p):
+            self.message = 'セッティングには project.json とは別の JSON ファイルを選んでください'
+            return
         try:
             with open(p, encoding='utf-8-sig') as f:
-                newp = normalize_project(json.load(f))
+                newp = json.load(f)
+            if not isinstance(newp, dict) or 'layers' not in newp:
+                raise ValueError(tr('VPT39 の設定ファイルではありません'))
+            normalize_project(newp)
         except Exception as ex:
             self.message = f'開けませんでした: {n}（{ex}）'
             return
@@ -1195,7 +1319,7 @@ class App:
         for k in ('web_port', 'allow_lan'):
             if k in self.proj:
                 newp[k] = self.proj[k]
-        newp['setting_name'] = n
+        self.set_setting_path(newp, p)
         self.apply_project(newp)
         self.message = f'セッティング「{n}」を開きました' + ('（' + ' ／ '.join(self.warnings) + '）' if self.warnings else '')
 
@@ -1207,8 +1331,10 @@ class App:
         if not webui._to_recycle_bin(p) or os.path.exists(p):
             self.message = f'ごみ箱へ移せませんでした: {n}'
             return
-        if self.proj.get('setting_name') == n:
+        active = self.active_setting_path()
+        if active and os.path.normcase(active) == os.path.normcase(p):
             self.proj.pop('setting_name', None)
+            self.proj.pop('setting_file', None)
             self.touch(True)
         self._settings_cache = (0.0, [])
         self.message = f'セッティング「{n}」をごみ箱へ移しました'
@@ -1243,7 +1369,8 @@ class App:
             pass
         self.last_media_scan = 0.0
         self.touch(True)
-        self.save()
+        self._write_json(self.project_path, self.proj)
+        self.dirty = False
 
     # ---- 素材一覧 ----
     def scan_media(self, wait=False):
@@ -1332,6 +1459,7 @@ class App:
         st['lan_urls'] = self.lan_urls
         st['allow_lan'] = bool(self.proj.get('allow_lan'))
         st['setting_name'] = self.proj.get('setting_name') or ''
+        st['setting_external'] = bool(self.proj.get('setting_file'))
         st['settings'] = self.list_settings()
         st['lang'] = i18n.get_lang()
         data = json.dumps(st, ensure_ascii=False).encode('utf-8')
@@ -1398,39 +1526,6 @@ class App:
                 self.touch()
                 return
 
-    # ---- キーボード・マウス（出力ウィンドウ）----
-    def on_key(self, O, k, mods, repeat):
-        ctrl = mods & glfw.MOD_CONTROL
-        if ctrl and k == glfw.KEY_Q:
-            self.running = False
-        elif ctrl and k == glfw.KEY_S:
-            self.save()
-        elif k in (glfw.KEY_F, glfw.KEY_F11) and not repeat:
-            O.set_fullscreen(not O.fullscreen)
-            self.touch(True)
-        elif k == glfw.KEY_SPACE and not repeat:
-            self.layers[0].next()
-        elif k == glfw.KEY_B and not repeat:
-            self.blackout = not self.blackout
-        elif k == glfw.KEY_E and not repeat:
-            self.set_edit(not self.edit)
-        elif k == glfw.KEY_ESCAPE:
-            self.set_edit(False)
-        elif glfw.KEY_1 <= k <= glfw.KEY_9:
-            i = k - glfw.KEY_1
-            if i < len(self.layers):
-                self.selected = i
-        elif self.edit:
-            L, C = self.sel_corners()
-            if L is None:
-                return
-            if k == glfw.KEY_T and not repeat:
-                L.cfg['test'] = not L.cfg['test']
-                self.touch()
-            elif k == glfw.KEY_R and not repeat:
-                C[:] = [list(p) for p in DEFAULT_CORNERS]
-                self.touch()
-
     def nudge(self, dx, dy, step=1):
         """スマホから、選んだ角または全体を出力の画素単位で動かす。"""
         L, C = self.sel_corners()
@@ -1444,6 +1539,7 @@ class App:
             p[1] += dy
         self.touch()
 
+    # ---- マウス（出力ウィンドウ）----
     def on_mouse_down(self, O, x, y):
         if not self.edit:
             return
@@ -1561,6 +1657,8 @@ class App:
                     self.handle(c)
                 except Exception as ex:
                     print('コマンドエラー:', c, ex)
+            if self._setup_dialog_open:
+                self._safe_call('セッティング', self.collect_setup_file)
 
             now = time.perf_counter()
             dt = min(now - last, 0.1)

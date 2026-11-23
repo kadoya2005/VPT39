@@ -183,9 +183,6 @@ document.querySelectorAll('[data-d]').forEach(b=>{
   ['pointerup','pointercancel','lostpointercapture'].forEach(n=>b.addEventListener(n,stop));
 });
 document.addEventListener('contextmenu',e=>e.preventDefault());  // 長押しでメニューが出ないように
-// スマホでもキーボードがつながっていれば矢印キーで
-document.addEventListener('keydown',e=>{const d={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[e.key];
-  if(d){e.preventDefault(); post({cmd:'nudge',dx:d[0],dy:d[1],step:e.shiftKey?10:step}); fast=Date.now()+2500;}});
 window.addEventListener('resize',()=>S&&draw());
 loop();
 // 開いたらスクリーンに枠を出す（位置合わせのための画面なので）

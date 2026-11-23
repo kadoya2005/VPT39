@@ -18,10 +18,9 @@ LANGS = ('ja', 'en')
 EN = {
     # ---- 上のバー ----
     'VPT39 操作パネル': 'VPT39 Control Panel',
-    '映像全体の明るさ（音量は右の「音声ミキサー」）': 'Brightness of the whole picture (volume is in the "Audio mixer")',
-    '明るさ': 'Brightness',
-    '全レイヤー消去': 'Clear all',
-    'マッピング編集 (E)': 'Edit mapping (E)',
+    '全レイヤー明るさ': 'All-layer brightness',
+    '全レイヤー再生消去': 'Stop playback on all layers',
+    'マッピング編集': 'Edit mapping',
     'スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）':
         'Adjust corners from a phone (on/off and the QR code to scan)',
     'スマホ': 'Phone',
@@ -31,9 +30,7 @@ EN = {
     '終了': 'Quit',
     '（本体と接続できません）': '(cannot connect to VPT39)',
     'VPT39（本体と接続できません）': 'VPT39 (cannot connect to VPT39)',
-    '{0} ・ 出力 {1} ・ {2}fps{3}': '{0} · {1} · {2}fps{3}',
     '{#0}画面': '{0} outputs',
-    '・ 未保存': '· unsaved',
     '未保存': 'unsaved',
     '日本語に切り替え': 'Switch to Japanese (日本語)',
 
@@ -44,6 +41,14 @@ EN = {
     '閉じる': 'Close',
     '新しい名前（例：2026-12 ライブ本番）': 'New name (e.g. 2026-12 live show)',
     '名前を付けて保存': 'Save as',
+    'セッティングを開く': 'Open setup',
+    'ファイルから開く…': 'Open from file…',
+    'settings フォルダのセッティングが一覧に表示されます。開いているセッティングは変更すると自動保存されます。':
+        'The list shows setups in the settings folder. Changes to the open setup are saved automatically.',
+    'settings フォルダに保存したセッティングはありません。': 'There are no setups in the settings folder.',
+    'ファイル選択画面を開けませんでした（{0}）': 'Could not open the file dialog ({0})',
+    'セッティングには project.json とは別の JSON ファイルを選んでください':
+        'Choose a JSON file other than project.json for the setup.',
     '開いているセッティングには、変えると2秒後に自動で上書き保存されます。ファイルは VPT39\\settings フォルダにあり、Dropbox で同期すれば別のPCでも同じ一覧が使えます。別のPCで準備するときは、「出力」タブの「本番の解像度」を本番のプロジェクターに合わせておきます。':
         'Changes to the open setup are saved automatically 2 seconds later. The files are in the VPT39\\settings folder; '
         'sync it with Dropbox to use the same list on another PC. When you prepare on another PC, set "Show resolution" '
@@ -117,11 +122,10 @@ EN = {
         'Could not open the connection for phones (check that the PC is on Wi-Fi or wired LAN)',
 
     # ---- レイヤー ----
-    '列で再生 →': 'Play column →',
     '{#0}番目のクリップを全部の動画レイヤーで一斉に再生': 'Play clip {0} on all video layers at once',
     '＋動画レイヤー': '+ Video layer',
     '＋写真ウォール': '+ Photo wall',
-    'Space＝L1の次へ ／ B＝ブラックアウト ／ E＝マッピング編集': 'Space = L1 next / B = blackout / E = edit mapping',
+    '右クリックでレイヤーを追加': 'Right-click to add a layer',
     '写真': 'Photo',
     '動画': 'Video',
     'L{#0} {1}': 'L{0} {1}',
@@ -245,7 +249,6 @@ EN = {
     'デッキが切り替わりました。もう一度操作してください': 'The active deck changed. Try again.',
     'デッキ一覧が変わりました。もう一度操作してください': 'The deck list changed. Try again.',
     '素材に保存しましたが、操作先のデッキが切り替わりました': 'The media was imported, but the destination deck is no longer selected.',
-    'コラム・レイヤー・クリップの編集は右クリック': 'Right-click to edit columns, layers, or clips',
     '動画レイヤーを追加': 'Add video layer',
     '写真ウォールを追加': 'Add photo wall',
     '空白クリップを追加': 'Add blank clip',
@@ -340,7 +343,8 @@ EN = {
 
     # ---- レイヤー設定 ----
     'マッピング': 'Mapping',
-    '編集 (E)': 'Edit (E)',
+    '編集': 'Edit',
+    '編集を終了': 'Finish editing',
     'テスト表示': 'Test pattern',
     '四隅リセット': 'Reset corners',
     '矢印キーで動かす所：': 'Arrow keys move:',
@@ -351,9 +355,6 @@ EN = {
     '右下': 'Bottom right',
     '左下': 'Bottom left',
     '全体': 'All',
-    '角をドラッグで変形、内側をドラッグで移動。「編集 (E)」中は矢印キーで1pxずつ（Shiftで10px）動かせます（この画面でも出力ウィンドウ上でも）。':
-        'Drag a corner to reshape, drag inside to move. While "Edit (E)" is on, the arrow keys move 1 px '
-        '(10 px with Shift), here or on the output window.',
     '位置合わせする出力：': 'Output to adjust:',
     'このレイヤーの四隅を、画面いっぱいの四角に戻しますか？': "Reset this layer's corners to fill the screen?",
     '名前': 'Name',
@@ -419,8 +420,8 @@ EN = {
     '各画面の中央に番号を4秒間表示': 'Show a number in the middle of each display for 4 seconds',
     'ディスプレイ設定…': 'Display settings…',
     'Windows の「ディスプレイ」設定を開く': 'Open the Windows "Display" settings',
-    '出力ウィンドウを投影したい画面へドラッグしてから「フルスクリーン」（出力ウィンドウ上の F キー・ダブルクリックでも）。緑の枠＝出力ウィンドウがある画面。プロジェクターは拡大率 100% が確実。':
-        'Drag the output window to the display you want, then press "Fullscreen" (or press F or double-click on the '
+    '出力ウィンドウを投影したい画面へドラッグしてから「フルスクリーン」（出力ウィンドウ上の F・F11・ダブルクリックでも）。緑の枠＝出力ウィンドウがある画面。プロジェクターは拡大率 100% が確実。':
+        'Drag the output window to the display you want, then choose "Fullscreen" (or use F, F11, or double-click on the '
         'output window). Green frame = a display with an output window. Scale 100% is the safest for projectors.',
     '出力{#0}': 'Output {0}',
     '（横長）': ' (wide)',
@@ -441,14 +442,13 @@ EN = {
         'Display {0} was not found, so Output {1} opened as a window',
     '{0}：前回フルスクリーンにしていた画面が見つからないため、ウィンドウで表示しています':
         '{0}: the display it was fullscreen on last time was not found, so it is shown as a window',
-    'VPT39 {0}（投影したい画面へ移動して「フルスクリーン」／F キー／ダブルクリック）':
-        'VPT39 {0} (move it to the display you want, then "Fullscreen" / F key / double-click)',
+    'VPT39 {0}（投影したい画面へ移動して「フルスクリーン」／F・F11／ダブルクリック）':
+        'VPT39 {0} (move it to the display you want, then choose "Fullscreen", use F or F11, or double-click)',
     '出力ウィンドウは×では閉じません。減らすときは操作パネルの「出力」から削除してください':
         'Output windows do not close with ×. To remove one, delete it in the "Outputs" tab of the control panel.',
 
     # ---- ミキサー ----
     'ミュート': 'Mute',
-    '映像の表示切替やブラックアウトでは音は止まりません': 'Hiding a picture or blackout does not stop the sound',
     '音声マスター': 'Audio master',
     '{0} に映しているレイヤー全部の音量': 'Volume of all layers shown on {0}',
 

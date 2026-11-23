@@ -46,7 +46,7 @@ Note: tested on Windows 11.
 - **Move photos in real time**: even during the show, you can adjust the position of photos and videos with the mouse or a phone.
 - **Prepare on another PC**: if you set the "Show resolution" for each output, the shapes you adjust in a small window can be used as they are in the show.
 - **Setup files**: for each venue or show, save the running order, mapping, volume and outputs together and switch between them.
-- **Safeguards for the show**: auto-save, output windows do not close with ×, outputs open fullscreen on the same display at the next start, BLACKOUT button.
+- **Safeguards for the show**: auto-save, output windows do not close with ×, outputs open fullscreen on the same display at the next start.
 - **Browser control panel**: tabs can be split into separate windows, and it comes with a manual whose numbers match the screen.
 - **Media formats**: animated GIF, APNG and WebP, and transparent PNG can be used as they are.
 - **Free, MIT license**: written in Python, so anyone can modify it.
@@ -64,7 +64,7 @@ Note: tested on Windows 11.
 
 | Feature | Description |
 |---|---|
-| Cue playback | Line up videos and still images per layer in running order, and switch with a click or the Space key |
+| Cue playback | Line up videos and still images per layer in running order, and click to switch clips |
 | Clip list | Like a VJ app, each layer's clips are shown as tiles with thumbnails. Drag to add and reorder; "Play column" plays the clips with the same number on all layers at once |
 | Mini controls | Under each thumbnail: pause, restart, stop, and drag the playback position bar (seek) |
 | Multiple outputs | Add as many output windows as you like, each fullscreen on any display. One layer can be shown on several outputs at the same time (mapping is set per output) |
@@ -84,7 +84,7 @@ Note: tested on Windows 11.
 | Audio mixer | Plays the sound of all layers and all outputs at the same time. Faders and mute for the audio master → each output → each layer, with level meters |
 | Display layout and identify | Shows a diagram of the connected displays with their arrangement, resolution and scale. "Identify" shows a number on each display; "Display settings…" opens the Windows settings |
 | Saving | Settings are saved automatically to `project.json` (2 seconds after a change) |
-| Setup | For each venue or show, save, open, duplicate and delete named setups with the running order, clips, mapping, volume and output settings (`settings` folder) |
+| Setup | Save each venue or show's running order, clips, mapping, volume and output settings to a folder you choose. Manage files in VPT39's `settings` folder from the setup list |
 | Show resolution | Set the resolution of the show projector for each output. Even if you prepare on another PC in a small window, it can be used as it is in the show |
 
 ## Setup (Windows, first time only)
@@ -110,7 +110,8 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - Choose **Media**, **Mixer**, **Edit mapping**, **Layer settings**, or **Output settings** from **Settings** in the upper-right toolbar.
 - Use **×** in the panel header to hide the right panel, or **Open in new tab ↗** to open it in another browser tab and hide it on the main screen. Choose a panel from **Settings** to show it again.
 - Use **Settings** to switch between Japanese and English.
-- Choose **Save now** to save the current state immediately, or **Setup** to save, open, duplicate, or delete named setups.
+- Choose **Save now** to save the current state immediately, or **Save as** to choose a folder and file name in the Windows save dialog.
+- Choose **Open setup** to open a setup from the `settings` folder or browse for a file elsewhere. Changes to the active setup are saved automatically.
 
 ## Decks
 
@@ -140,7 +141,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 ## Controls during the show
 
 - Click a **clip thumbnail** to switch to that media.
-- Right-click a clip to clear only its slot. Right-click **Play column →** to append a column, or right-click a column number to rename it, insert before or after it, or delete it.
+- Right-click a clip to clear its slot. Right-click the blank space to the left of the column numbers to append a column, or right-click a column number to rename it, insert before or after it, or delete it.
 - Right-click the layer name area to rename, add, or delete a layer.
 - Right-click a clip and choose **Clip settings** to adjust volume (0–100%) and separate video and audio fades (0–30 seconds each). Changes apply during playback and save automatically.
 - Use **Flip** in **Layer settings** to flip the layer horizontally or vertically. This applies to the layer across all decks and to photo walls.
@@ -150,10 +151,8 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
   - Playback position bar: shows progress in green while playing and orange while paused. **Drag it to move the playback position**
   - ⏮: restart (go back to the beginning and play)　▶ / ⏸: play / pause　⏹: stop (clear that layer)
   - Dragging the bar or pressing ⏮ on a clip that is not playing starts playing that clip
-- **Space** moves layer 1 to the next cue.
 - Choose a number under **Layer order** in **Layer settings**. Position 1 is the back of the output stack. The layer list stays in its original order.
-- **BLACKOUT (B key)**: fades everything to black in 0.5 seconds. Press it again to bring it back.
-- **Brightness** (top bar): brightness of the whole picture. Volume is adjusted in the "Audio mixer".
+- Use **All-layer brightness** in the top bar to adjust the whole picture. Adjust volume in the audio mixer.
 
 ## Audio mixer
 
@@ -161,19 +160,19 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - Volume is multiplied in this order: **Audio master** → **each output** (Output 1, Output 2…) → **each layer**.
   - Each fader sets the volume, and the **M** button mutes (red = muted).
   - The green bar under each layer shows the current playback volume.
-- Turning a picture's "Show" off or blackout **does not stop the sound** (so the sound does not cut out during a live show). To stop the sound, use the M button.
+- Hiding a picture keeps its sound playing. Use the **M** button to mute it.
 - The previous clip keeps playing until the first frame of the new clip is ready. Picture and sound then switch together.
 - Audio is output with Windows DirectSound (to allow a separate volume for each layer).
 
 ## Mapping (adjusting the four corners)
 
-1. Choose **Edit mapping (E)** from **Settings** in the upper-right toolbar.
+1. Choose **Edit mapping** from **Settings** in the upper-right toolbar.
 2. In the diagram on the right of the control panel, drag the corners of the selected layer. Drag inside to move the whole picture.
 3. For final fine-tuning, working **on the output window** is the most accurate.
    - Drag a corner with the mouse
-   - `1`–`9`: select a layer
-   - `T`: test pattern　`R`: reset corners　`E`: finish editing
 4. "Test pattern" shows a grid, diagonals and circles, which you can use to check for distortion.
+5. Use **Finish editing**, or close the right panel or its separate tab, to clear the mapping outlines and test pattern.
+   - While editing, press **T** on the output window to toggle the test pattern, **R** to reset the corners, or **E** to finish. **E** also finishes editing from the control panel.
 
 ## Output windows (used the same way as in VPT)
 
@@ -182,7 +181,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 1. In Windows "Display settings", choose "Extend these displays".
 2. When VPT39 starts, a small window called "VPT39 Output 1" opens. **Drag it to the display (projector) you want to project on.**
-3. Press "**Fullscreen**" under "**Output windows**" at the bottom right of the control panel, and the window fills the display it is on. You can also switch with the **F key** or a **double-click** on the output window. Press it again to go back to the small window.
+3. Press **Fullscreen** under **Output settings** to fill the display. With the output window focused, you can also press **F** or **F11**, or double-click the output window. Repeat the action to return to the smaller window.
 4. To add displays, open Output 2, Output 3… with "**+ Add output**", then move each one to the display you want and make it fullscreen in the same way.
 5. Choose which output a layer is shown on with "Layers shown" in the "**Outputs**" tab, or with the "**Outputs**" checkboxes in "Layer settings". If you check more than one output, the same picture is shown on each at the same time.
 6. The mapping diagram and the four-corner adjustment are per output. For a layer shown on several outputs, switch with "Output to adjust" above the diagram (grabbing a corner on an output window also switches to that output).
@@ -208,18 +207,9 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - "**Display settings…**": opens the Windows "Display" settings. Change scale, resolution and display arrangement there (changing them during the show shifts the outputs, so do it before the rehearsal).
 - Setting projector displays to 100% scale is the safest.
 
-## Output window keys (when the output window has focus)
-
-| Key | Action |
-|---|---|
-| F / F11 / double-click | Toggle fullscreen for that output window |
-| Space | Move layer 1 to the next cue |
-| B | Blackout |
-| E / Esc | Mapping edit on / off |
-| Ctrl+S | Save |
-| Ctrl+Q | Quit |
-
 ## Main settings in project.json
+
+Press **Ctrl+S** while the output window has focus to save the current settings.
 
 ```json
 "outputs": [{"rect": [80, 80, 960, 540], "fullscreen": true, "fs_rect": [1920, 0, 1920, 1080], "volume": 1.0, "mute": false}],
