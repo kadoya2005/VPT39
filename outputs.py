@@ -22,19 +22,9 @@ void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }
 BLIT_FS = """
 #version 330
 uniform sampler2D t;
-uniform vec2 span;     // 横長キャンバスのうち、このウィンドウが映す範囲（左端, 右端）0〜1
-uniform vec2 blend;    // 左・右の重なり幅（このウィンドウの幅に対する割合）
-uniform vec2 gamma;    // 左・右のつなぎ目のガンマ（重なりの明るさをそろえる。つなぎ目ごとに別の値）
 in vec2 uv;
 out vec4 o;
-void main(){
-    vec3 c = texture(t, vec2(mix(span.x, span.y, uv.x), uv.y)).rgb;
-    float wl = 1.0, wr = 1.0;
-    if (blend.x > 0.0) wl = smoothstep(0.0, 1.0, clamp(uv.x / blend.x, 0.0, 1.0));
-    if (blend.y > 0.0) wr = smoothstep(0.0, 1.0, clamp((1.0 - uv.x) / blend.y, 0.0, 1.0));
-    // 光の量で足して 1 になるように：映像信号は w^(1/gamma) 倍
-    o = vec4(c * pow(wl, 1.0 / max(gamma.x, 0.1)) * pow(wr, 1.0 / max(gamma.y, 0.1)), 1.0);
-}
+void main(){ o = vec4(texture(t, uv).rgb, 1.0); }
 """
 
 
@@ -120,7 +110,6 @@ class OutputWindow:
         self.tex = None
         self.fbo = None
         self.ext = None
-        self.ext_key = None
         self.last_click = 0.0
         self.mouse = (0.0, 0.0)
         self.next_frame = 0.0
@@ -173,7 +162,7 @@ class OutputWindow:
 
     def size(self):
         w, h = glfw.get_framebuffer_size(self.win)
-        if w < 2 or h < 2:  # 最小化中は 0×0 になる → 最後の大きさのまま描く（横長のつながりや微調整がくずれないように）
+        if w < 2 or h < 2:  # 最小化中は最後の大きさのまま描く
             return getattr(self, '_last_size', (max(1, w), max(1, h)))
         self._last_size = (w, h)
         return w, h
@@ -271,9 +260,8 @@ class OutputWindow:
         glfw.set_input_mode(self.win, glfw.CURSOR, glfw.CURSOR_HIDDEN if hide else glfw.CURSOR_NORMAL)
 
     # ---- 描画 ----
-    def ensure_target(self, main_ctx, size=None):
-        """メイン側の描画先（出力の解像度。横長につないだときはキャンバス全体）を用意"""
-        size = size or self.size()
+    def ensure_target(self, main_ctx, size):
+        """メイン側に、この出力の描画先を用意する。"""
         if self.tex is None or self.tex.size != size:
             if self.fbo is not None:
                 self.fbo.release()
@@ -284,16 +272,12 @@ class OutputWindow:
             self.ext = None
         return self.fbo, size
 
-    def present(self, src=None, span=(0.0, 1.0), blend=(0.0, 0.0), gamma=(2.2, 2.2)):
-        """src: 映すテクスチャ（横長につないだ出力は、先頭の出力のキャンバスを切り出して映す）"""
-        src = src or self.tex
-        if src is None:
-            return
+    def present(self):
+        """この出力に描いたテクスチャをウィンドウに映す。"""
         glfw.make_context_current(self.win)
-        if self.ext is None or self.ext_key != (src.glo, src.size):
-            self.ext = self.ctx.external_texture(src.glo, src.size, 4, 0, 'f1')
+        if self.ext is None:
+            self.ext = self.ctx.external_texture(self.tex.glo, self.tex.size, 4, 0, 'f1')
             self.ext.filter = (moderngl.LINEAR, moderngl.LINEAR)
-            self.ext_key = (src.glo, src.size)
         w, h = self.size()
         self.ctx.screen.use()
         x0, y0, vw, vh = self.view_rect(w, h)
@@ -301,26 +285,19 @@ class OutputWindow:
             self.ctx.viewport = (0, 0, w, h)
             self.ctx.clear(0.0, 0.0, 0.0, 1.0)
         self.ctx.viewport = (x0, h - y0 - vh, vw, vh)
-        self.prog['span'].value = tuple(span)
-        self.prog['blend'].value = tuple(blend)
-        self.prog['gamma'].value = (float(gamma[0]), float(gamma[1]))
         self.ext.use(0)
         self.vao.render(moderngl.TRIANGLE_STRIP)
         glfw.swap_buffers(self.win)
         self.presented_frames += 1
 
-    def drop_target(self):
-        """横長の2台目以降になったら、自分用の描画先は不要"""
+    def destroy(self):
         if self.fbo is not None:
             self.fbo.release()
             self.tex.release()
         self.fbo = self.tex = None
-
-    def destroy(self):
-        self.drop_target()
         try:  # このウィンドウで作った描画用の部品も片付ける（出力を消すたびに残らないように）
             glfw.make_context_current(self.win)
-            for o in (self.vao, self.vbo, self.prog):  # ext は他の出力の描画先を借りているだけなので消さない
+            for o in (self.vao, self.vbo, self.prog):  # ext はメイン側のテクスチャを参照しているだけなので消さない
                 if o is not None:
                     o.release()
         except Exception:
@@ -333,9 +310,7 @@ class OutputWindow:
         """ウィンドウ上の位置 → 映像（キャンバス）上の位置 0〜1"""
         w, h = glfw.get_window_size(self.win)
         x0, y0, vw, vh = self.view_rect(w, h)  # 黒い帯の分をのぞく
-        nx, ny = (x - x0) / max(1, vw), (y - y0) / max(1, vh)
-        u0, u1 = self.app.span_of(self)
-        return u0 + nx * (u1 - u0), ny
+        return (x - x0) / max(1, vw), (y - y0) / max(1, vh)
 
     def _on_key(self, win, key, sc, action, mods):
         if action != glfw.PRESS:

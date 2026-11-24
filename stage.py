@@ -223,7 +223,6 @@ class App:
         self.mstate_json = b'{}'
         self.lan_urls = []
         self.web_port = 8080
-        self._grp = None
 
         self._init_gl()
         self.outs = []
@@ -249,23 +248,27 @@ class App:
         self.max_tex = self.ctx.info.get('GL_MAX_TEXTURE_SIZE', 16384)
 
     def _migrate_outputs(self):
-        """旧形式（output.displays / output.display）を出力ウィンドウ形式に変換"""
-        if 'outputs' in self.proj and self.proj['outputs']:
-            self.proj.pop('output', None)
-            return
+        """旧形式の出力設定を、独立した出力ウィンドウ形式に変換する。"""
         old = self.proj.pop('output', None) or {}
-        ds = old.get('displays') or ([old['display']] if 'display' in old else [])
-        ms = monitors()
-        outs = []
-        for d in ds:
-            oc = {}
-            if old.get('mode', 'fullscreen') != 'window':
-                if 0 <= int(d) < len(ms):
-                    oc = {'fullscreen': True, 'fs_rect': list(ms[int(d)])}
-                else:
-                    self.warn(f'画面{int(d) + 1}が見つからないため、出力{len(outs) + 1}はウィンドウで開きました')
-            outs.append(oc)
-        self.proj['outputs'] = outs or [{}]
+        if not self.proj.get('outputs'):
+            ds = old.get('displays') or ([old['display']] if 'display' in old else [])
+            ms = monitors()
+            outs = []
+            for d in ds:
+                oc = {}
+                if old.get('mode', 'fullscreen') != 'window':
+                    if 0 <= int(d) < len(ms):
+                        oc = {'fullscreen': True, 'fs_rect': list(ms[int(d)])}
+                    else:
+                        self.warn(f'画面{int(d) + 1}が見つからないため、出力{len(outs) + 1}はウィンドウで開きました')
+                outs.append(oc)
+            self.proj['outputs'] = outs or [{}]
+        was_joined = any(o.get('join') for o in self.proj['outputs'][1:])
+        for o in self.proj['outputs']:
+            for key in ('join', 'overlap', 'gamma'):
+                o.pop(key, None)
+        if was_joined:
+            self.warn('以前の横長設定を解除しました。レイヤーの出力先を確認してください')
 
     def warn(self, msg):
         print(msg)
@@ -279,72 +282,16 @@ class App:
         return rel if os.path.isabs(rel) else os.path.join(self.resolve(self.proj['media_dir']), rel)
 
     # ---- 出力 ----
-    # 横長（ビッグモニター）：出力の設定 join=True で「左どなりの出力の右につなぐ」。
-    # つないだ出力のまとまりは、先頭の出力が横長のキャンバス全体を描き、各ウィンドウはその一部を映す。
-    def groups(self):
-        """[{host, members, xs, ws, W, H, gamma}]（毎フレーム計算。ウィンドウの大きさで変わる）"""
-        if self._grp is not None:
-            return self._grp
-        gs = []
-        for k, o in enumerate(self.outs):
-            w, h = o.render_size()
-            if k > 0 and o.cfg.get('join') and gs:
-                g = gs[-1]
-                ov = max(0, min(int(o.cfg.get('overlap', 0)), min(w, g['ws'][-1]) - 1))
-                x = g['xs'][-1] + g['ws'][-1] - ov
-                g['members'].append(k)
-                g['xs'].append(x)
-                g['ws'].append(w)
-                g['ovs'].append(ov)
-                # このつなぎ目（左どなりとの重なり）のガンマ。まだ決めていなければ先頭の出力の値（以前の設定）
-                g['gms'].append(self.seam_gamma(k))
-                g['W'] = x + w
-            else:
-                gs.append({'host': k, 'members': [k], 'xs': [0], 'ws': [w], 'ovs': [0], 'W': w, 'H': h,
-                           'gms': [2.2]})
-        self._grp = gs
-        return gs
-
-    def seam_gamma(self, k):
-        """出力 k とその左どなりのつなぎ目のガンマ"""
-        g = self.outs[k].cfg.get('gamma')
-        if g is None:
-            for j in range(k - 1, -1, -1):  # 以前はまとまりの先頭の出力に1つだけ持っていた
-                if not self.outs[j].cfg.get('join') or j == 0:
-                    g = self.outs[j].cfg.get('gamma', 2.2)
-                    break
-        return float(g if g is not None else 2.2)
-
-    def group_of(self, k):
-        for g in self.groups():
-            if k in g['members']:
-                return g
-        return self.groups()[0]
-
-    def host_of(self, k):
-        return self.group_of(k)['host']
-
-    def span_of(self, O):
-        g = self.group_of(O.index)
-        i = g['members'].index(O.index)
-        return g['xs'][i] / g['W'], (g['xs'][i] + g['ws'][i]) / g['W']
-
     def target_size(self, k):
-        g = self.group_of(k)
-        return max(1, min(g['W'], self.max_tex)), max(1, g['H'])
-
-    def target_name(self, k):
-        g = self.group_of(k)
-        if len(g['members']) > 1:
-            return '＋'.join(f'出力{m + 1}' for m in g['members']) + '（横長）'
-        return f'出力{k + 1}'
+        w, h = self.outs[k].render_size()
+        return min(w, self.max_tex), h
 
     def norm_out(self, v):
         try:
             i = int(v)
         except (TypeError, ValueError):
             i = 0
-        return self.host_of(max(0, min(len(self.outs) - 1, i)))
+        return max(0, min(len(self.outs) - 1, i))
 
     def out_index(self, L):
         return self.norm_out(L.cfg.get('output', 0))
@@ -353,13 +300,13 @@ class App:
         return self.target_size(self.out_index(L))
 
     def layer_places(self, L):
-        """[(出力のまとまりの先頭番号, 四隅)]（同じまとまりへの重複は1つ目だけ）"""
+        """[(出力番号, 四隅)]（同じ出力への重複は1つ目だけ）"""
         seen, out = set(), []
         for k, c in L.places():
-            h = self.norm_out(k)
-            if h not in seen:
-                seen.add(h)
-                out.append((h, c))
+            k = self.norm_out(k)
+            if k not in seen:
+                seen.add(k)
+                out.append((k, c))
         return out
 
     def layer_by_id(self, lid):
@@ -385,10 +332,10 @@ class App:
         k = self.norm_out(k)
         cfg = L.cfg
         more = cfg.setdefault('more', [])
-        hosts = [h for h, _ in self.layer_places(L)]
-        if on and k not in hosts:
+        outputs = [i for i, _ in self.layer_places(L)]
+        if on and k not in outputs:
             more.append({'output': k, 'corners': [list(p) for p in DEFAULT_CORNERS]})
-        elif not on and k in hosts and len(hosts) > 1:
+        elif not on and k in outputs and len(outputs) > 1:
             if self.norm_out(cfg.get('output', 0)) == k:
                 m = more.pop(0)
                 cfg['output'], cfg['corners'] = m['output'], m['corners']
@@ -436,16 +383,15 @@ class App:
                     d.tex = ent[0] if ent else None
 
     def _fix_places(self):
-        """出力をつないだ・消したあと、レイヤーの出力番号をまとまりの先頭にそろえ、重複を消す"""
-        self._grp = None
+        """出力を消したあと、レイヤーの出力番号を直し、重複を消す。"""
         for x in self.proj['layers']:
             x['output'] = self.norm_out(x.get('output', 0))
             seen, more = {x['output']}, []
             for m in x.get('more', []):
-                h = self.norm_out(m['output'])
-                if h not in seen:
-                    seen.add(h)
-                    more.append({'output': h, 'corners': m['corners']})
+                k = self.norm_out(m['output'])
+                if k not in seen:
+                    seen.add(k)
+                    more.append({'output': k, 'corners': m['corners']})
             x['more'] = more
 
     def scan_inputs(self):
@@ -997,16 +943,6 @@ class App:
             self.proj['outputs'].append(oc)
             self.outs.append(OutputWindow(self, oc, len(self.outs)))
             glfw.make_context_current(self.main_win)
-            self._grp = None
-            self.touch(True)
-        elif cmd == 'out_join' and O and self.outs.index(O) > 0:
-            # 横長：左どなりの出力の右につなぐ／切り離す
-            O.cfg['join'] = bool(c.get('value'))
-            O.cfg.setdefault('overlap', 0)
-            self._grp = None
-            self._fix_places()
-            for out in self.outs:
-                out.next_frame = 0.0
             self.touch(True)
         elif cmd == 'lan':
             self.set_lan(bool(c.get('value')))
@@ -1030,7 +966,6 @@ class App:
                 if not (16 <= w <= 16384 and 16 <= h <= 16384):
                     return
                 O.cfg['res'] = [w, h]
-            self._grp = None
             self.touch(True)
         elif cmd == 'out_fps' and O:
             limit = c.get('value')
@@ -1038,23 +973,15 @@ class App:
                 O.cfg['fps_limit'] = limit
                 O.next_frame = 0.0
                 self.touch()
-        elif cmd == 'out_blend' and O:
-            if 'overlap' in c:
-                O.cfg['overlap'] = max(0, min(2000, int(c['overlap'])))
-            if 'gamma' in c:
-                O.cfg['gamma'] = max(1.0, min(3.0, float(c['gamma'])))
-            self._grp = None
-            self.touch()
         elif cmd == 'out_remove' and O and len(self.outs) > 1:
             i = self.outs.index(O)
+            self.drag = None
             O.destroy()
             self.outs.pop(i)
             self.proj['outputs'].pop(i)
             for k, o in enumerate(self.outs):
                 o.index = k
                 glfw.set_window_title(o.win, o.title())
-            if self.outs and self.outs[0].cfg.get('join'):
-                self.outs[0].cfg['join'] = False
             fix = lambda n: 0 if n == i else (n - 1 if n > i else n)
             for x in self.proj['layers']:
                 x['output'] = fix(int(x.get('output', 0)))
@@ -1062,7 +989,6 @@ class App:
                     m['output'] = fix(int(m['output']))
             glfw.make_context_current(self.main_win)
             self.map_out = fix(self.map_out)
-            self._grp = None
             self._fix_places()
             self.touch(True)
         elif cmd == 'lang':
@@ -1371,7 +1297,6 @@ class App:
         self.selected, self.map_out, self.sel_corner = 0, 0, 0
         self.corner_hist = []
         self.drag = None
-        self._grp = None
         self.hud_text = None
         try:
             os.makedirs(self.resolve(self.proj['media_dir']), exist_ok=True)
@@ -1439,17 +1364,14 @@ class App:
             ls.append(item)
         sel, _ = self.sel_corners()
         outs = []
-        for k, o in enumerate(self.outs):
+        for o in self.outs:
             outs.append({'name': o.name(), 'size': list(o.render_size()), 'win': list(o.size()),
                          'res': o.cfg.get('res'), 'fullscreen': o.fullscreen,
                          'fps_limit': o.fps_limit, 'fps': round(o.fps),
-                         'monitor': o.monitor_index(), 'host': self.host_of(k),
-                         'target': self.target_name(k), 'join': bool(o.cfg.get('join')) and k > 0,
-                         'overlap': int(o.cfg.get('overlap', 0)), 'gamma': self.seam_gamma(k),
+                         'monitor': o.monitor_index(),
                          'volume': float(o.cfg.get('volume', 1.0)), 'mute': bool(o.cfg.get('mute'))})
         screens = self.screens()
-        targets = [{'output': g['host'], 'name': self.target_name(g['host']), 'size': [g['W'], g['H']]}
-                   for g in self.groups()]
+        targets = [{'output': k, 'name': o['name'], 'size': o['size']} for k, o in enumerate(outs)]
         st = {
             'rev': self.rev, 'boot': self.boot, 'backend': backend_name(), 'fps': round(self.fps),
             'master': self.proj['master'], 'blackout': self.blackout, 'edit': self.edit,
@@ -1554,50 +1476,37 @@ class App:
     def on_mouse_down(self, O, x, y):
         if not self.edit:
             return
-        oi = self.host_of(O.index)
+        oi = O.index
         w, h = self.target_size(oi)
         cs = {i: c for i, L in enumerate(self.layers) for k, c in self.layer_places(L) if k == oi}
         mine = list(cs)
         order = ([self.selected] if self.selected in mine else []) + [i for i in mine if i != self.selected]
-        best = None
+        self.drag = None
         for li in order:
-            for ci, (cx, cy) in enumerate(cs[li]):
-                d = (((cx - x) * w) ** 2 + ((cy - y) * h) ** 2) ** 0.5
-                if d < 22 and (best is None or d < best[0]):
-                    best = (d, li, ci)
-            if best:
-                break
-        if best:
-            _, li, ci = best
-            self.selected, self.sel_corner, self.map_out = li, ci, oi
+            corners = cs[li]
+            distance, corner = min((max(abs(cx - x) * w, abs(cy - y) * h), ci)
+                                   for ci, (cx, cy) in enumerate(corners))
+            if distance > 6:
+                if not self._inside(corners, x, y):
+                    continue
+                corner = 4
+            self.selected, self.map_out, self.sel_corner = li, oi, corner
             self.remember_corners(self.layers[li], oi)
-            self.drag = ('corner', li, ci, None, cs[li])
-        else:
-            for li in order:
-                if self._inside(cs[li], x, y):
-                    self.selected, self.map_out, self.sel_corner = li, oi, 4
-                    self.remember_corners(self.layers[li], oi)
-                    self.drag = ('move', li, 0, (x, y), cs[li])
-                    break
+            self.drag = (O, corners, corner, (x, y), [tuple(p) for p in corners])
+            break
 
     def on_mouse_up(self, O):
-        self.drag = None
+        if self.drag and self.drag[0] is O:
+            self.drag = None
 
     def on_mouse_move(self, O, x, y):
-        if not (self.edit and self.drag):
+        if not (self.edit and self.drag and self.drag[0] is O):
             return
-        kind, li, ci, last, C = self.drag
-        if li >= len(self.layers):
-            self.drag = None
-            return
-        if kind == 'corner':
-            C[ci] = [x, y]
-        else:
-            dx, dy = x - last[0], y - last[1]
-            for p in C:
-                p[0] += dx
-                p[1] += dy
-            self.drag = (kind, li, ci, (x, y), C)
+        _, corners, corner, (start_x, start_y), original = self.drag
+        dx, dy = x - start_x, y - start_y
+        for i in range(4) if corner == 4 else (corner,):
+            px, py = original[i]
+            corners[i] = [px + dx, py + dy]
         self.touch()
 
     @staticmethod
@@ -1718,7 +1627,7 @@ class App:
                 if self.message and int(wall) % 4 == 0:
                     self.message = ''
             # 操作・再生の更新間隔より先に描画の時刻が来るなら、その時刻に起きる。
-            wake_at = min([now + 1 / 240, *(self.outs[g['host']].next_frame for g in self.groups())])
+            wake_at = min([now + 1 / 240, *(o.next_frame for o in self.outs)])
             delay = wake_at - time.perf_counter()
             if delay > 0:
                 time.sleep(delay)
@@ -1751,44 +1660,30 @@ class App:
     def _draw_frame(self):
         # メイン側で出力ごとに描く → 各ウィンドウに貼る
         now = time.perf_counter()
-        self._grp = None
-        groups = self.groups()
-        due = [g for g in groups if now >= self.outs[g['host']].next_frame]
+        due = [o for o in self.outs if now >= o.next_frame]
         if not due and not self.snap_path:
             return
-        for g in due:
-            self.outs[g['host']].advance_frame(now)
+        for o in due:
+            o.advance_frame(now)
         glfw.make_context_current(self.main_win)
         used = self._layer_refs()
         self.renderer.upload_all(self.layers, used)
         self._render_layer_sources(used)
         hud = self.hud() if self.edit else None
         ordered_layers = self.layers_in_output_order()
-        for g in groups if self.snap_path else due:
-            host = self.outs[g['host']]
-            fbo, size = host.ensure_target(self.ctx, self.target_size(g['host']))
+        for o in self.outs if self.snap_path else due:
+            fbo, size = o.ensure_target(self.ctx, self.target_size(o.index))
             mine = [(li, L, cc) for li, L in ordered_layers
-                    for k, cc in self.layer_places(L) if k == g['host']]
+                    for k, cc in self.layer_places(L) if k == o.index]
             self.renderer.render_output(fbo, size, mine, self.master_eff, self.edit,
                                         self.selected, self.sel_corner,
-                                        hud if self.map_out == g['host'] else None)
-            for m in g['members'][1:]:
-                self.outs[m].drop_target()
+                                        hud if self.map_out == o.index else None)
         if self.snap_path:
             self.snapshot()
         if due:
             self.ctx.finish()
-        for g in due:
-            src = self.outs[g['host']].tex
-            n = len(g['members'])
-            for i, m in enumerate(g['members']):
-                w = g['ws'][i]
-                bl = g['ovs'][i] / w if i > 0 else 0.0
-                br = g['ovs'][i + 1] / w if i + 1 < n else 0.0
-                gl = g['gms'][i] if i > 0 else 2.2          # 左のつなぎ目
-                gr = g['gms'][i + 1] if i + 1 < n else 2.2  # 右のつなぎ目
-                self.outs[m].present(src, (g['xs'][i] / g['W'], (g['xs'][i] + w) / g['W']),
-                                     (bl, br), (gl, gr))
+        for o in due:
+            o.present()
         glfw.make_context_current(self.main_win)
 
 

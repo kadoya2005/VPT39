@@ -82,7 +82,7 @@ body.lost main{opacity:.35;pointer-events:none}
 <div id="toast"></div>
 <script>
 const $=id=>document.getElementById(id);
-let S=null, lastOk=0, fast=0, drag=null, step=1, lastSend=0;
+let S=null, lastOk=0, fast=0, step=1;
 const LCOL=['#ff5a5a','#59ccff','#73ff73','#ffd94d','#d980ff','#4dffe6'];
 function post(c){return fetch('/api/cmd',{method:'POST',body:JSON.stringify(c)});}
 function cmd(c){fast=Date.now()+2500; post(c).then(()=>setTimeout(poll,80)).catch(()=>{});}
@@ -124,44 +124,47 @@ function render(){
 function esc(s){return String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
 
 // ---- 配置図 ----
+/* MAP_DRAG_SCRIPT */
+const handleRadius=()=>11*devicePixelRatio;
 function draw(){
   const cv=$('map'), [tw,th]=S.size||[1920,1080];
-  const W=cv.clientWidth*devicePixelRatio, H=Math.round(W*th/tw);
+  const W=Math.max(1,Math.round(cv.clientWidth*devicePixelRatio)), H=Math.max(1,Math.round(W*th/tw));
   if(cv.width!==W||cv.height!==H){cv.width=W; cv.height=H;}
   const g=cv.getContext('2d'); g.clearRect(0,0,W,H);
   g.strokeStyle='#222'; g.lineWidth=1;
   for(let i=1;i<4;i++){g.beginPath();g.moveTo(W*i/4,0);g.lineTo(W*i/4,H);g.moveTo(0,H*i/4);g.lineTo(W,H*i/4);g.stroke();}
+  const drag=mapDrag.current;
   S.layers.forEach((l,i)=>{
     const p=l.places.find(p=>p.output===S.map_out); if(!p)return;
-    const sel=i===S.selected, c=(drag&&sel)?drag.pts:p.corners, col=LCOL[i%LCOL.length];
+    const sel=i===S.selected, c=(drag&&drag.lid===l.id&&drag.o===p.output)?drag.pts:p.corners, col=LCOL[i%LCOL.length];
     g.globalAlpha=sel?1:.35; g.strokeStyle=col; g.fillStyle=col+(sel?'26':'10'); g.lineWidth=(sel?3:1.5)*devicePixelRatio;
     g.beginPath(); c.forEach((q,k)=>k?g.lineTo(q[0]*W,q[1]*H):g.moveTo(q[0]*W,q[1]*H)); g.closePath(); g.fill(); g.stroke();
     if(sel){
       if(S.sel_corner===4){g.strokeStyle='#ff4d4f'; g.lineWidth=4*devicePixelRatio; g.stroke();}
-      c.forEach((q,k)=>{const r=11*devicePixelRatio, x=Math.min(W-r,Math.max(r,q[0]*W)), y=Math.min(H-r,Math.max(r,q[1]*H));
+      c.forEach((q,k)=>{const r=handleRadius(), [x,y]=mapHandle(q,W,H,r);
         g.fillStyle=k===S.sel_corner?'#ff4d4f':'#fff'; g.fillRect(x-r,y-r,2*r,2*r); g.strokeStyle=col; g.lineWidth=2*devicePixelRatio; g.strokeRect(x-r,y-r,2*r,2*r);});
     }
     g.globalAlpha=1;
   });
 }
-function mpos(e){const r=$('map').getBoundingClientRect(); return [(e.clientX-r.left)/r.width,(e.clientY-r.top)/r.height];}
-function inside(poly,x,y){let o=false;for(let i=0,j=3;i<4;j=i++){const[a,b]=poly[i],[c,d]=poly[j];if((b>y)!==(d>y)&&x<(c-a)*(y-b)/(d-b+1e-12)+a)o=!o;}return o;}
-$('map').addEventListener('pointerdown',e=>{
-  const p=place(); if(!p)return; const [x,y]=mpos(e), cv=$('map');
-  let best=-1,bd=1e9; p.corners.forEach((q,k)=>{const d=Math.hypot((q[0]-x)*cv.clientWidth,(q[1]-y)*cv.clientHeight); if(d<bd){bd=d;best=k;}});
-  const pts=p.corners.map(q=>q.slice()), lid=L().id, o=S.map_out;
-  if(bd<34) drag={k:best,pts,lid,o}; else if(inside(pts,x,y)) drag={k:-1,pts,lid,o,last:[x,y]}; else return;
-  S.sel_corner=bd<34?best:4; post({cmd:'sel_corner',value:S.sel_corner});
-  cv.setPointerCapture(e.pointerId); e.preventDefault(); render();
+const mapDrag=bindMapDrag($('map'),{
+  target:()=>{
+    const p=place();
+    return p&&{lid:L().id,o:p.output,corners:p.corners};
+  },
+  redraw:draw,post,radius:handleRadius,interval:60,
+  onStart:corner=>{
+    S.sel_corner=corner;
+    cmd({cmd:'sel_corner',value:corner});
+    render();
+  },
+  onFinish:(d,sent)=>{
+    const p=S.layers.find(l=>l.id===d.lid)?.places.find(p=>p.output===d.o);
+    if(p)p.corners=d.pts;
+    fast=Date.now()+2500;
+    sent.then(()=>setTimeout(poll,100));
+  }
 });
-$('map').addEventListener('pointermove',e=>{
-  if(!drag)return; const [x,y]=mpos(e);
-  if(drag.k>=0) drag.pts[drag.k]=[x,y]; else{const dx=x-drag.last[0],dy=y-drag.last[1]; drag.pts.forEach(q=>{q[0]+=dx;q[1]+=dy;}); drag.last=[x,y];}
-  draw(); const t=performance.now(); if(t-lastSend>60){lastSend=t; sendDrag();}
-});
-function sendDrag(){const k=S.layers.findIndex(l=>l.id===drag.lid); if(k>=0) post({cmd:'corners',layer:k,output:drag.o,value:drag.pts});}
-function endDrag(){ if(!drag)return; sendDrag(); const p=place(); if(p) p.corners=drag.pts; drag=null; fast=Date.now()+2500; setTimeout(poll,100);}
-['pointerup','pointercancel','lostpointercapture'].forEach(n=>$('map').addEventListener(n,endDrag));
 
 // ---- ボタン ----
 $('layer').onchange=()=>cmd({cmd:'select',layer:+$('layer').value});

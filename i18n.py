@@ -20,7 +20,6 @@ EN = {
     'VPT39 操作パネル': 'VPT39 Control Panel',
     '全レイヤー明るさ': 'All-layer brightness',
     '全レイヤー再生消去': 'Stop playback on all layers',
-    'マッピング編集': 'Edit mapping',
     'スマホから四隅を合わせる（オン・オフと、スマホで読み取る QR コード）':
         'Adjust corners from a phone (on/off and the QR code to scan)',
     'スマホ': 'Phone',
@@ -138,7 +137,7 @@ EN = {
     '消す': 'Clear',
     '映す／隠す（音は止まらない）': 'Show / hide (the sound keeps playing)',
     '表示': 'Show',
-    '隠し中': 'Hidden',
+    '非表示中': 'Hidden',
     'このレイヤーの音をミュート': 'Mute this layer',
     '奥へ（上の行へ）': 'Back (move up a row)',
     '手前へ（下の行へ）': 'Front (move down a row)',
@@ -207,14 +206,14 @@ EN = {
     '素材': 'Media',
     'ファイル': 'Files',
     '空白・レイヤー・入力': 'Blank, layers, inputs',
+    'テスト用': 'Test media',
+    'テスト用の素材がありません': 'No test media',
+    '一致する素材がありません': 'No matching media',
     'フォルダで絞り込み': 'Filter by folder',
     'すべてのフォルダ': 'All folders',
     '（media の直下）': '(top of media)',
     'ファイル名で絞り込み': 'Filter by file name',
     'サムネイルの大きさ': 'Thumbnail size',
-    'レイヤーの行へドラッグすると、好きな位置に追加。クリックで選んでいるレイヤーの最後に追加。パソコンの動画・画像をここへドロップすると media フォルダに取り込みます。✕ でごみ箱へ。':
-        'Drag onto a layer row to add it at any position. Click to add it at the end of the selected layer. '
-        'Drop videos or images from your PC here to copy them into the media folder. ✕ moves to the Recycle Bin.',
     'クリックで「L{#0} {1}」に追加': 'Click to add to "L{0} {1}"',
     '画像をクリックで写真ウォール「L{#0} {1}」に追加': 'Click an image to add it to the photo wall "L{0} {1}"',
     'レイヤーを選ぶと、クリックで追加できます': 'Select a layer, then click to add',
@@ -278,9 +277,7 @@ EN = {
     '出力設定': 'Output settings',
     'パネルの切り替え': 'Control panels',
     '出力FPSの上限': 'Output FPS limit',
-    '横長につないだ先頭の出力に合わせる': 'Uses the first output’s FPS limit',
     '実測': 'Measured',
-    'マッピング編集を終了': 'Exit mapping edit',
     '別タブで開く ↗': 'Open in new tab ↗',
     '右側のパネルを閉じる': 'Close the right panel',
     'メイン画面へ': 'Main panel',
@@ -312,8 +309,7 @@ EN = {
     '空白': 'Blank',
     '空白（何も映さない・音も止める）': 'Blank (shows nothing and stops the sound)',
     '（空白）': '(blank)',
-    'レイヤーの映像（同じ映像を同じタイミングで、別の場所・別の出力に）':
-        'Layer picture (the same picture at the same time, in another place or output)',
+    'レイヤーの映像': 'Layer picture',
     'L{#0} {1} の映像': 'Picture of L{0} {1}',
     'L{#0}の映像': 'Picture of L{0}',
     'レイヤー映像': 'Layer picture',
@@ -324,10 +320,6 @@ EN = {
     '見つかりません（つないでから「一覧を更新」）': 'None found (connect, then press "Refresh list")',
     'ウィンドウ（映像のみ。最小化すると止まることがあります）': 'Windows (picture only; may stop when minimized)',
     'ありません': 'None',
-    'Spout（TouchDesigner・OBS・VJアプリなどから。遅れなし・透明あり）':
-        'Spout (from TouchDesigner, OBS, VJ apps and so on; no delay, with transparency)',
-    '送られていません（送る側で Spout 出力をオンにしてから「一覧を更新」）':
-        'Nothing is being sent (turn on Spout output in the sending app, then press "Refresh list")',
     '{0}（{#1}台目）': '{0} (#{1})',
     'カメラ': 'Camera',
     'ウィンドウ': 'Window',
@@ -372,9 +364,7 @@ EN = {
     '加算': 'Add',
     'スクリーン': 'Screen',
     '乗算': 'Multiply',
-    '映す出力': 'Outputs',
-    '複数にチェックすると、同じ映像を同時に映します（位置合わせは出力ごと）':
-        'Check more than one to show the same picture on each (mapping is set per output)',
+    '出力先': 'Output destinations',
     'このレイヤーの出力はここだけなので外せません（他の出力にチェックを入れてから外せます）':
         'This is the only output of this layer, so it cannot be unchecked (check another output first)',
     'フェード': 'Fade',
@@ -406,34 +396,24 @@ EN = {
     '手元に戻す': 'Bring back',
     'この出力を削除': 'Delete this output',
     '{0} を削除しますか？（その出力のレイヤーは出力1に移ります）': 'Delete {0}? (Its layers move to Output 1.)',
-    '本番で使うプロジェクターの解像度。決めておくと、準備用の別のPC（小さいウィンドウ）でも本番と同じ大きさで描くので、四隅や重なりがそのまま使える':
+    '本番で使うプロジェクターの解像度。決めておくと、準備用の別のPC（小さいウィンドウ）でも本番と同じ大きさで描くので、四隅の位置がそのまま使える':
         'The resolution of the projector used in the show. With this set, another PC used for preparation '
-        '(a small window) draws at the same size, so the corners and overlaps can be used as they are.',
+        '(a small window) draws at the same size, so the corner positions carry over.',
     '本番の解像度': 'Show resolution',
     '自動（ウィンドウの大きさ・いま {0}×{1}）': 'Auto (window size, now {0}×{1})',
     'いまの画面の大きさにする': 'Use the current window size',
     '自分で入れる…': 'Enter…',
     '（いまのウィンドウ {0}×{1} に縮小して表示）': '(scaled down to the current window, {0}×{1})',
     '本番の解像度（幅×高さ）を入れてください。例：1920x1080': 'Enter the show resolution (width x height). Example: 1920x1080',
-    '2台のプロジェクターで1枚の横長の映像にする': 'Make one wide picture with two projectors',
-    '出力{#0}の右につなげて横長にする': 'Join to the right of Output {0} (wide)',
-    '重なり': 'Overlap',
-    'px（ぼかしてつなぐ幅）': 'px (width of the soft blend)',
-    'ガンマ': 'Gamma',
-    '出力{#0}と出力{#1}のつなぎ目の明るさがそろわないときに調整（つなぎ目が明るすぎる→大きく、暗すぎる→小さく）':
-        'Adjust when the seam between Output {0} and Output {1} is uneven (seam too bright → larger, too dark → smaller)',
-    '（このつなぎ目だけ）': '(this seam only)',
+    '以前の横長設定を解除しました。レイヤーの出力先を確認してください':
+        'The old wide-output setting was removed. Check each layer’s output destinations.',
     '映すレイヤー：': 'Layers shown:',
     '画面の配置': 'Display layout',
     '識別': 'Identify',
     '各画面の中央に番号を4秒間表示': 'Show a number in the middle of each display for 4 seconds',
     'ディスプレイ設定…': 'Display settings…',
     'Windows の「ディスプレイ」設定を開く': 'Open the Windows "Display" settings',
-    '出力ウィンドウを投影したい画面へドラッグしてから「フルスクリーン」（出力ウィンドウ上の F・F11・ダブルクリックでも）。緑の枠＝出力ウィンドウがある画面。プロジェクターは拡大率 100% が確実。':
-        'Drag the output window to the display you want, then choose "Fullscreen" (or use F, F11, or double-click on the '
-        'output window). Green frame = a display with an output window. Scale 100% is the safest for projectors.',
     '出力{#0}': 'Output {0}',
-    '（横長）': ' (wide)',
     '＋': '+',
     '（フルスクリーン）': ' (fullscreen)',
     'メイン': 'main',

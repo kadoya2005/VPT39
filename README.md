@@ -35,8 +35,6 @@ Note: tested on Windows 11.
 4. **Window capture**
    Any window on the same PC can be used directly as media, even from apps that do not support Spout (Zoom, a browser and so on). Receiving from Spout (TouchDesigner, Processing and so on) is also supported.
    Note: window audio cannot be captured at the moment (picture only).
-5. **Wide picture (virtual big monitor)**
-   Connect two or more projectors or monitors to make one wide picture (e.g. 1920×2 = 3840×1080). Overlapping areas are blended smoothly, and the brightness can be matched at each seam. No splitter or other extra hardware is needed.
 
 ### Other features
 
@@ -68,7 +66,6 @@ Note: tested on Windows 11.
 | Clip list | Like a VJ app, each layer's clips are shown as tiles with thumbnails. Drag to add and reorder; "Play column" plays the clips with the same number on all layers at once |
 | Mini controls | Under each thumbnail: pause, restart, stop, and drag the playback position bar (seek) |
 | Multiple outputs | Add as many output windows as you like, each fullscreen on any display. One layer can be shown on several outputs at the same time (mapping is set per output) |
-| Wide (big monitor) | Connect two or more projectors to make one wide picture. Overlapping areas are blended softly (edge blend) |
 | Blank clip | A clip that shows nothing and also stops the sound. Lets a layer rest while other layers play |
 | Layer picture | Uses another layer's picture as media. Shows the same picture at the same time in another place or on another output |
 | Camera input | Brings in cameras and capture boards (picture and sound of another PC) with low latency. OBS Virtual Camera also works |
@@ -107,7 +104,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Panels on the right
 
-- Use the tabs on the right to switch between **Media**, **Mixer**, **Layer settings**, and **Output settings**. The toolbar’s **Settings** menu also lists the panels and includes **Edit mapping**.
+- Use the tabs on the right to switch between **Media**, **Mixer**, **Layer settings**, and **Output settings**. The toolbar’s **Settings** menu also lists the panels.
 - Use **×** in the panel header to hide the right panel. Choose a panel from **Settings** to show it again. **↗** opens the panel in another browser tab and hides it on the main screen. **Main panel** closes the separate tab and restores the panel on the original main screen.
 - Use **Settings** to switch between Japanese and English.
 - Choose **Save now** to save the current state immediately, or **Save as** to choose a folder and file name in the Windows save dialog.
@@ -166,7 +163,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Mapping (adjusting the four corners)
 
-1. Choose **Edit mapping** from **Settings** in the upper-right toolbar.
+1. Open **Layer settings** and select **Edit** under **Mapping**.
 2. In the diagram on the right of the control panel, drag the corners of the selected layer. Drag inside to move the whole picture.
 3. For final fine-tuning, working **on the output window** is the most accurate.
    - Drag a corner with the mouse
@@ -176,23 +173,17 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Output windows (used the same way as in VPT)
 
-- In **Settings → Output settings**, set each output’s **Output FPS limit** to **30 FPS** or **60 FPS** (default). Joined outputs follow the first output’s limit.
+- In **Settings → Output settings**, set each output’s **Output FPS limit** to **30 FPS** or **60 FPS** (default).
 - At a 60 FPS output limit, a 30 FPS clip holds each frame until the next source frame arrives. Playback speed and audio stay the same.
 
 1. In Windows "Display settings", choose "Extend these displays".
 2. When VPT39 starts, a small window called "VPT39 Output 1" opens. **Drag it to the display (projector) you want to project on.**
 3. Press **Fullscreen** under **Output settings** to fill the display. With the output window focused, you can also press **F** or **F11**, or double-click the output window. Repeat the action to return to the smaller window.
 4. To add displays, open Output 2, Output 3… with "**+ Add output**", then move each one to the display you want and make it fullscreen in the same way.
-5. Choose which output a layer is shown on with "Layers shown" in the "**Outputs**" tab, or with the "**Outputs**" checkboxes in "Layer settings". If you check more than one output, the same picture is shown on each at the same time.
+5. Choose where a layer is shown with **Layers shown** under **Output settings**, or with **Output destinations** under **Layer settings**.
 6. The mapping diagram and the four-corner adjustment are per output. For a layer shown on several outputs, switch with "Output to adjust" above the diagram (grabbing a corner on an output window also switches to that output).
 
-### Wide picture (one picture with two projectors)
-
-1. Prepare two outputs and make each one fullscreen on the left and right projector.
-2. In the "Outputs" tab, check "**Join to the right of Output 1 (wide)**" for Output 2. Output 1 and Output 2 become one wide picture (e.g. 1920+1920), and layers are shown on this wide picture.
-3. If the projector pictures overlap a little, enter the overlap width (px) in "**Overlap**". The overlapping area shows the same picture on both outputs and is blended smoothly.
-4. If the overlap is too bright or too dark, adjust "**Gamma**" (too bright → larger, too dark → smaller; usually 2.2).
-- Three or more can also be joined (set Output 3 to "join to the right of Output 2"). Use the same resolution for the left and right projectors.
+- Opening an older wide-output setup makes each window an independent output. Review each layer’s **Output destinations**.
 
 - The output resolution is normally the size of its window (the display's resolution when fullscreen). If you choose a "**Show resolution**" in the "Outputs" tab, it draws at that size regardless of the window size (if the shape differs, it is shown scaled down with black bars). The four corner positions are stored as proportions, so the shape stays the same when you change the window size.
 - The display used for fullscreen is remembered, so the next time you start with `run.bat --fullscreen`, it opens fullscreen on the same display.
@@ -241,6 +232,8 @@ Right-click the photo wall layer name to play, pause, play from the start, or st
 - Window capture: audio is not captured. Copy-protected video (such as streaming services) may appear black.
 
 ## Test media
+
+Choose **Test media** in the Media panel to access the included test videos and images.
 
 `media\テスト用` contains videos for testing (count + sound, a 60fps grid, color bars, wide 3840×1080, left/right sound), an animated GIF and a transparent PNG, pure white and pure black (to check the brightest and darkest), white and black with grids and checkerboards (for calibration), and a moon (perfectly round, to check the aspect ratio). `photos\テスト用` contains photos of different shapes and the moon. To rebuild them, run `.venv\Scripts\python.exe tools\make_test_media.py` (requires the ffmpeg component `imageio-ffmpeg`).
 
