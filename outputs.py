@@ -110,13 +110,19 @@ class OutputWindow:
         self.tex = None
         self.fbo = None
         self.ext = None
+        self.win = None
+        self.ndi_sender = None
         self.last_click = 0.0
         self.mouse = (0.0, 0.0)
         self.next_frame = 0.0
-        self.presented_frames = 0
+        self.frame_count = 0
         self.fps = 0.0
         cfg['fps_limit'] = self.fps_limit
+        if not cfg.get('ndi_only'):
+            self.open_window()
 
+    def open_window(self):
+        cfg, app, index = self.cfg, self.app, self.index
         gl_hints(visible=False)
         rect = cfg.get('rect')
         if not rect:
@@ -124,6 +130,8 @@ class OutputWindow:
             rect = [mx + 80 + 40 * index, my + 80 + 40 * index, 960, 540]
             cfg['rect'] = rect
         self.win = glfw.create_window(int(rect[2]), int(rect[3]), self.title(), None, app.main_win)
+        if not self.win:
+            raise RuntimeError('出力ウィンドウを作れません')
         glfw.set_window_pos(self.win, int(rect[0]), int(rect[1]))
         self._ensure_on_screen()
 
@@ -160,7 +168,13 @@ class OutputWindow:
     def title(self):
         return tr(f'VPT39 {self.name()}（投影したい画面へ移動して「フルスクリーン」／F・F11／ダブルクリック）')
 
+    def update_title(self):
+        if self.win:
+            glfw.set_window_title(self.win, self.title())
+
     def size(self):
+        if not self.win:
+            return 1920, 1080
         w, h = glfw.get_framebuffer_size(self.win)
         if w < 2 or h < 2:  # 最小化中は最後の大きさのまま描く
             return getattr(self, '_last_size', (max(1, w), max(1, h)))
@@ -204,6 +218,8 @@ class OutputWindow:
         return (ww - vw) // 2, (wh - vh) // 2, vw, vh
 
     def monitor_index(self):
+        if not self.win:
+            return -1
         x, y = glfw.get_window_pos(self.win)
         w, h = glfw.get_window_size(self.win)
         return monitor_at(x + w / 2, y + h / 2)
@@ -218,6 +234,8 @@ class OutputWindow:
 
     def bring_back(self):
         """手元（メイン画面）にウィンドウで戻す"""
+        if not self.win:
+            return
         if self.fullscreen:
             self.set_fullscreen(False)
         mx, my, mw, mh = monitors()[0]
@@ -226,6 +244,8 @@ class OutputWindow:
         glfw.set_window_pos(self.win, mx + (mw - w) // 2, my + (mh - h) // 2)
 
     def set_fullscreen(self, on, monitor=None):
+        if not self.win:
+            return
         if on == self.fullscreen and monitor is None:
             return
         if on:
@@ -256,6 +276,8 @@ class OutputWindow:
         self.app.touch()
 
     def update_cursor(self):
+        if not self.win:
+            return
         hide = self.fullscreen and not self.app.edit
         glfw.set_input_mode(self.win, glfw.CURSOR, glfw.CURSOR_HIDDEN if hide else glfw.CURSOR_NORMAL)
 
@@ -288,13 +310,11 @@ class OutputWindow:
         self.ext.use(0)
         self.vao.render(moderngl.TRIANGLE_STRIP)
         glfw.swap_buffers(self.win)
-        self.presented_frames += 1
+        self.frame_count += 1
 
-    def destroy(self):
-        if self.fbo is not None:
-            self.fbo.release()
-            self.tex.release()
-        self.fbo = self.tex = None
+    def close_window(self):
+        if not self.win:
+            return
         try:  # このウィンドウで作った描画用の部品も片付ける（出力を消すたびに残らないように）
             glfw.make_context_current(self.win)
             for o in (self.vao, self.vbo, self.prog):  # ext はメイン側のテクスチャを参照しているだけなので消さない
@@ -304,6 +324,17 @@ class OutputWindow:
             pass
         glfw.make_context_current(self.app.main_win)
         glfw.destroy_window(self.win)
+        self.win = self.ext = self.ctx = self.vao = self.vbo = self.prog = None
+        self.fullscreen = False
+
+    def destroy(self):
+        if self.ndi_sender is not None:
+            self.ndi_sender.close()
+        self.close_window()
+        if self.fbo is not None:
+            self.fbo.release()
+            self.tex.release()
+        self.fbo = self.tex = None
 
     # ---- 入力 ----
     def _norm(self, x, y):

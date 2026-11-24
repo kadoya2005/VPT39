@@ -198,6 +198,18 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 - "**Display settings…**": opens the Windows "Display" settings. Change scale, resolution and display arrangement there (changing them during the show shifts the outputs, so do it before the rehearsal).
 - Setting projector displays to 100% scale is the safest.
 
+### NDI output
+
+1. When copying VPT39 to another sending PC, include the `runtime/ndi` folder. VPT39 loads the NDI runtime from that folder. For a Git checkout without that folder, use the [NDI 6 Runtime](https://ndi.link/NDIRedistV6) or [NDI Tools](https://ndi.video/tools/).
+2. In **Output settings**, choose **+ NDI output** to send without a local window, or change an existing output's type to **NDI only**.
+3. Enter the source name under **NDI sender settings**. It takes effect when the field loses focus or you press Enter. Assign layers to each named source using the layer's **Output destinations** or the layer checklist in **Output settings**.
+
+Choose **Output windows** to switch to a local display.
+
+On a PC on the same network, select the source names in a receiver such as NDI Studio Monitor. Each source carries one composited video at its output's resolution and frame rate. Audio plays on the sending PC.
+
+[NDI website](https://ndi.video/) · [Runtime files and distribution terms](THIRD_PARTY.md#ndi-について)
+
 ## Main settings in project.json
 
 Press **Ctrl+S** while the output window has focus to save the current settings.

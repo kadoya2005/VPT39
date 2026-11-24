@@ -1,8 +1,7 @@
 # VPT39 が使っている部品とライセンス
 
-VPT39 は、次の部品を **使うだけ** で、部品そのものはこのフォルダや配布用 ZIP に入っていません。
-`setup.bat` を実行すると、各部品の公式の配布元（PyPI）から、使う人のPCに直接入ります。
-VLC メディアプレイヤーも、使う人が公式サイトから自分で入れます。
+Python の部品は `setup.bat` を実行すると、公式の配布元（PyPI）から入ります。
+VLC メディアプレイヤーは公式サイトから入れます。NDI ランタイムの同梱については下記を参照してください。
 
 | 部品 | 使いみち | ライセンス |
 |---|---|---|
@@ -16,9 +15,18 @@ VLC メディアプレイヤーも、使う人が公式サイトから自分で�
 | sounddevice | カメラ・キャプチャーボードの音声 | MIT |
 | windows-capture | ウィンドウ取り込み | MIT |
 | SpoutGL | Spout の受け取り | BSD-3-Clause |
+| NDI 6 Runtime（任意） | NDI 映像送信 | [NDI の配布条件](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution) |
 | pygrabber / comtypes | カメラの一覧 | MIT |
 | qrcode | スマホで開くアドレスの QR コード | BSD |
 | imageio-ffmpeg（tools のみ） | テスト用素材を作るときだけ | BSD-2-Clause（中の ffmpeg は GPL。VPT39 本体は使わない） |
+
+## NDI について
+
+`runtime/ndi` に公式の `Processing.NDI.Lib.x64.dll` と `Processing.NDI.Lib.Licenses.txt` がある場合、VPT39 はその DLL を使います。このフォルダは Git の管理対象外です。NDI のファイルには VPT39 本体の MIT ライセンスとは別の条件が適用されます。
+
+第三者向けに DLL を同梱して配布する場合は、NDI SDK のライセンスと配布条件に従い、第三者ライブラリのライセンス文書も添付してください。
+
+[NDI公式サイト](https://ndi.video/) · [SDKライセンス](https://docs.ndi.video/all/developing-with-ndi/sdk/licensing) · [配布条件](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution) · [第三者ライブラリ](https://docs.ndi.video/all/developing-with-ndi/sdk/3rd-party-rights)
 
 ## VLC について
 - VPT39 は、使う人のPCに入っている VLC（libVLC）を、実行するときに呼び出しているだけです。VLC のプログラムを改造したり、VPT39 に組み込んで配ったりはしていません。

@@ -6,16 +6,13 @@
 """
 import os
 import hashlib
+import io
 import threading
+import time
 
-import numpy as np
+from PIL import Image, ImageOps
 
-from sources import is_video, is_image
-
-try:
-    import cv2
-except Exception:
-    cv2 = None
+from sources import HAS_VLC, VlcVideoSource, is_video, is_image, opencv, vlc
 
 TW, TH = 320, 180
 _sem = threading.Semaphore(2)
@@ -23,23 +20,47 @@ _lock = threading.Lock()
 _mem = {}  # key -> jpeg bytes（最近使ったもの）
 
 
-def _fit(img):
-    """BGR 画像を TW×TH の黒背景に縦横比を保って収める"""
-    h, w = img.shape[:2]
-    s = min(TW / w, TH / h)
-    nw, nh = max(1, int(w * s)), max(1, int(h * s))
-    small = cv2.resize(img, (nw, nh), interpolation=cv2.INTER_AREA)
-    out = np.zeros((TH, TW, 3), np.uint8)
-    x, y = (TW - nw) // 2, (TH - nh) // 2
-    out[y:y + nh, x:x + nw] = small
-    return out
+def _vlc_video_frame(path):
+    source = VlcVideoSource(path, TW, TH, 'hold', options=[':no-audio'])
+    try:
+        deadline = time.monotonic() + 3.0
+        image = None
+        size = (TW, TH)
+        while time.monotonic() < deadline:
+            frame = source.frame()
+            if frame is not None:
+                if image is not None:
+                    return Image.frombytes('RGB', (TW, TH), frame[2], 'raw', 'BGRX'), size
+                image = Image.frombytes('RGB', (TW, TH), frame[2], 'raw', 'BGRX')
+                try:
+                    w, h = source.player.video_get_size(0)
+                    if w and h:
+                        size = (w, h)
+                except vlc.VLCException:
+                    pass
+                _, duration = source.position()
+                if not duration or not source.player.is_seekable():
+                    break
+                source.seek(min(0.1, 3.0 / duration))
+                deadline = min(deadline, time.monotonic() + 0.5)
+            elif source.failed:
+                break
+            time.sleep(0.02)
+        return image, size
+    finally:
+        source.release()
 
 
 def _video_frame(path):
+    if HAS_VLC:
+        return _vlc_video_frame(path)
+    cv2 = opencv()
+    if cv2 is None:
+        return None, None
     cap = cv2.VideoCapture(path)
     try:
         if not cap.isOpened():
-            return None
+            return None, None
         fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
         n = cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0
         if n > 0:
@@ -48,27 +69,34 @@ def _video_frame(path):
         if not ok:  # 位置指定に失敗したら先頭
             cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
             ok, img = cap.read()
-        return img if ok else None
+        if not ok:
+            return None, None
+        image = Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
+        return image, image.size
     finally:
         cap.release()
 
 
-def _image_frame(path):
-    from PIL import Image, ImageOps
-    im = ImageOps.exif_transpose(Image.open(path)).convert('RGB')
-    im.thumbnail((TW * 2, TH * 2))
-    return np.asarray(im)[:, :, ::-1].copy()  # RGB→BGR
-
-
 def make(path):
     """サムネイルの JPEG バイト列（作れなければ None）"""
-    if cv2 is None:
+    if is_video(path):
+        image, size = _video_frame(path)
+        if image is None:
+            return None
+    elif is_image(path):
+        with Image.open(path) as original:
+            image = ImageOps.exif_transpose(original).convert('RGB')
+        size = image.size
+    else:
         return None
-    img = _video_frame(path) if is_video(path) else _image_frame(path) if is_image(path) else None
-    if img is None:
-        return None
-    ok, buf = cv2.imencode('.jpg', _fit(img), [cv2.IMWRITE_JPEG_QUALITY, 82])
-    return buf.tobytes() if ok else None
+    w, h = size
+    scale = min(TW / w, TH / h)
+    nw, nh = max(1, int(w * scale)), max(1, int(h * scale))
+    out = Image.new('RGB', (TW, TH))
+    out.paste(image.resize((nw, nh), Image.Resampling.LANCZOS), ((TW - nw) // 2, (TH - nh) // 2))
+    data = io.BytesIO()
+    out.save(data, 'JPEG', quality=82)
+    return data.getvalue()
 
 
 def get(path, cache_dir):

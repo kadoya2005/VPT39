@@ -3,6 +3,7 @@ import os
 import time
 import ctypes
 import threading
+from functools import lru_cache
 
 import numpy as np
 from PIL import Image, ImageOps
@@ -34,18 +35,19 @@ except Exception:
     _vlc_inst = None
 HAS_VLC = _vlc_inst is not None
 
-try:
-    import cv2
-    HAS_CV = True
-except Exception:
-    cv2 = None
-    HAS_CV = False
+@lru_cache(maxsize=1)
+def opencv():
+    try:
+        import cv2
+        return cv2
+    except Exception:
+        return None
 
 
 def backend_name():
     if HAS_VLC:
         return 'VLC（音声あり）' if AOUT == 'directsound' else 'VLC（音声あり・音量は全レイヤー共通）'
-    if HAS_CV:
+    if opencv() is not None:
         return 'OpenCV（音声なし）'
     return 'なし'
 
@@ -264,6 +266,7 @@ class VlcVideoSource(Source):
 class CvVideoSource(Source):
     def __init__(self, path, w, h, mode='loop'):
         self.mode = mode
+        self.cv2 = cv2 = opencv()
         self.cap = cv2.VideoCapture(path)
         self.fps = self.cap.get(cv2.CAP_PROP_FPS) or 30.0
         n = self.cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0
@@ -313,7 +316,7 @@ class CvVideoSource(Source):
             if self._seek is not None:
                 idx = int(self._seek * self.n)
                 self._seek = None
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+                self.cap.set(self.cv2.CAP_PROP_POS_FRAMES, idx)
                 start = time.perf_counter() - idx / self.fps
                 self.ended = False
                 show_one = True
@@ -333,10 +336,10 @@ class CvVideoSource(Source):
                         self.ended = True
                         continue
                     time.sleep(0.05)
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
+                    self.cap.set(self.cv2.CAP_PROP_POS_FRAMES, idx)
                     continue
                 if self.mode == 'loop':
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    self.cap.set(self.cv2.CAP_PROP_POS_FRAMES, 0)
                     start = time.perf_counter()
                     idx = 0
                     continue
@@ -1072,7 +1075,7 @@ def make_source(path, w, h, mode='loop'):
         return ImageSource(path, w, h)
     if HAS_VLC:
         return VlcVideoSource(path, w, h, mode)
-    if HAS_CV:
+    if opencv() is not None:
         return CvVideoSource(path, w, h, mode)
     raise RuntimeError('動画再生ライブラリがありません')
 

@@ -32,6 +32,7 @@ from sources import backend_name, is_video, is_image, list_cameras, list_mics, l
 from outputs import OutputWindow, gl_hints, monitors, monitor_info
 import webui
 import i18n
+from ndi_output import NdiSender, source_name
 from i18n import tr
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -223,12 +224,14 @@ class App:
         self.mstate_json = b'{}'
         self.lan_urls = []
         self.web_port = 8080
+        self.ndi_workers = {}
 
         self._init_gl()
         self.outs = []
         self._migrate_outputs()
         for i, oc in enumerate(self.proj['outputs']):
             self.outs.append(OutputWindow(self, oc, i))
+        self.restore_ndi()
         glfw.make_context_current(self.main_win)
         self.font = _font(20)
         self.hud_tex = None
@@ -249,6 +252,7 @@ class App:
 
     def _migrate_outputs(self):
         """旧形式の出力設定を、独立した出力ウィンドウ形式に変換する。"""
+        self.proj.pop('video_wall', None)
         old = self.proj.pop('output', None) or {}
         if not self.proj.get('outputs'):
             ds = old.get('displays') or ([old['display']] if 'display' in old else [])
@@ -267,6 +271,8 @@ class App:
         for o in self.proj['outputs']:
             for key in ('join', 'overlap', 'gamma'):
                 o.pop(key, None)
+            if not o.get('ndi_only') and o.get('ndi_enabled') is True:
+                o['ndi_enabled'] = False
         if was_joined:
             self.warn('以前の横長設定を解除しました。レイヤーの出力先を確認してください')
 
@@ -282,6 +288,62 @@ class App:
         return rel if os.path.isabs(rel) else os.path.join(self.resolve(self.proj['media_dir']), rel)
 
     # ---- 出力 ----
+    @staticmethod
+    def ndi_name(out):
+        return source_name(out.cfg.get('ndi_name')) or f'VPT39 Output {out.index + 1}'
+
+    def enable_ndi_output(self, out):
+        if out.cfg.get('ndi_enabled') is True:
+            return
+        taken = {self.ndi_name(o).casefold() for o in self.outs
+                 if o is not out and o.cfg.get('ndi_enabled') is True}
+        name = self.ndi_name(out)
+        number = out.index + 1
+        while name.casefold() in taken:
+            name = f'VPT39 NDI {number}'
+            number += 1
+        self.set_ndi(out, {'enabled': True, 'name': name})
+
+    def start_ndi(self, out, name):
+        if out.ndi_sender is not None:
+            out.ndi_sender.close()
+        self.ndi_workers = {key: worker for key, worker in self.ndi_workers.items() if worker.is_alive()}
+        key = name.casefold()
+        out.ndi_sender = NdiSender(name, self.ndi_workers.get(key))
+        self.ndi_workers[key] = out.ndi_sender
+
+    def restore_ndi(self):
+        names = set()
+        for out in self.outs:
+            if out.cfg.get('ndi_enabled') is not True:
+                continue
+            name = self.ndi_name(out)
+            if name.casefold() in names:
+                out.cfg['ndi_enabled'] = False
+                self.warn('NDIソース名が重複した出力を停止しました')
+                continue
+            out.cfg['ndi_name'] = name
+            names.add(name.casefold())
+            self.start_ndi(out, name)
+
+    def set_ndi(self, out, command):
+        enabled = command.get('enabled') is True
+        name = source_name(command.get('name'))
+        if enabled and not name:
+            self.message = 'NDIソース名を入力してください'
+            return
+        if enabled and any(o is not out and o.cfg.get('ndi_enabled') is True and
+                           self.ndi_name(o).casefold() == name.casefold() for o in self.outs):
+            self.message = '出力ごとに異なるNDIソース名を指定してください'
+            return
+        out.cfg.update(ndi_enabled=enabled, ndi_name=name or self.ndi_name(out))
+        if enabled:
+            self.start_ndi(out, name)
+        elif out.ndi_sender is not None:
+            out.ndi_sender.close()
+            out.ndi_sender = None
+        self.touch()
+
     def target_size(self, k):
         w, h = self.outs[k].render_size()
         return min(w, self.max_tex), h
@@ -939,11 +1001,31 @@ class App:
             O.bring_back()
             self.touch(True)
         elif cmd == 'out_add':
-            oc = {}
+            ndi_only = c.get('type') == 'ndi'
+            oc = {'ndi_only': True} if ndi_only else {}
+            out = OutputWindow(self, oc, len(self.outs))
             self.proj['outputs'].append(oc)
-            self.outs.append(OutputWindow(self, oc, len(self.outs)))
-            glfw.make_context_current(self.main_win)
+            self.outs.append(out)
+            if ndi_only:
+                self.enable_ndi_output(out)
             self.touch(True)
+        elif cmd == 'out_type' and O and c.get('type') in ('window', 'ndi'):
+            kind = c['type']
+            if kind == 'ndi' and O.win:
+                O.close_window()
+                O.cfg['ndi_only'] = True
+            elif kind == 'window' and not O.win:
+                O.open_window()
+                O.cfg.pop('ndi_only', None)
+            if kind == 'window' and O.cfg.get('ndi_enabled') is True:
+                self.set_ndi(O, {'enabled': False, 'name': self.ndi_name(O)})
+            elif kind == 'ndi':
+                self.enable_ndi_output(O)
+            self.touch(True)
+        elif cmd == 'out_ndi_name' and O:
+            name = source_name(c.get('name'))
+            if name != self.ndi_name(O):
+                self.set_ndi(O, {'enabled': O.cfg.get('ndi_enabled') is True, 'name': name})
         elif cmd == 'lan':
             self.set_lan(bool(c.get('value')))
         elif cmd == 'lan_refresh' and self.proj.get('allow_lan'):
@@ -981,7 +1063,7 @@ class App:
             self.proj['outputs'].pop(i)
             for k, o in enumerate(self.outs):
                 o.index = k
-                glfw.set_window_title(o.win, o.title())
+                o.update_title()
             fix = lambda n: 0 if n == i else (n - 1 if n > i else n)
             for x in self.proj['layers']:
                 x['output'] = fix(int(x.get('output', 0)))
@@ -994,7 +1076,7 @@ class App:
         elif cmd == 'lang':
             i18n.set_lang(c.get('value'))
             for o in self.outs:
-                glfw.set_window_title(o.win, o.title())
+                o.update_title()
             self.rev += 1
         elif cmd == 'save':
             self.save()
@@ -1292,6 +1374,7 @@ class App:
         self.outs = []
         for i, oc in enumerate(self.proj['outputs']):
             self.outs.append(OutputWindow(self, oc, i))
+        self.restore_ndi()
         glfw.make_context_current(self.main_win)
         self.master_eff = 0.0 if self.blackout else self.proj.get('master', 1.0)
         self.selected, self.map_out, self.sel_corner = 0, 0, 0
@@ -1365,11 +1448,14 @@ class App:
         sel, _ = self.sel_corners()
         outs = []
         for o in self.outs:
-            outs.append({'name': o.name(), 'size': list(o.render_size()), 'win': list(o.size()),
+            ndi = o.ndi_sender.state() if o.ndi_sender else {'status': 'off', 'receivers': 0, 'source': ''}
+            name = o.name() if o.win else f'NDI · {self.ndi_name(o)}'
+            outs.append({'name': name, 'size': list(o.render_size()), 'win': list(o.size()) if o.win else None,
                          'res': o.cfg.get('res'), 'fullscreen': o.fullscreen,
                          'fps_limit': o.fps_limit, 'fps': round(o.fps),
                          'monitor': o.monitor_index(),
-                         'volume': float(o.cfg.get('volume', 1.0)), 'mute': bool(o.cfg.get('mute'))})
+                         'volume': float(o.cfg.get('volume', 1.0)), 'mute': bool(o.cfg.get('mute')),
+                         'ndi': {'enabled': o.cfg.get('ndi_enabled') is True, 'name': self.ndi_name(o), **ndi}})
         screens = self.screens()
         targets = [{'output': k, 'name': o['name'], 'size': o['size']} for k, o in enumerate(outs)]
         st = {
@@ -1610,8 +1696,8 @@ class App:
             if now - fps_t >= 1.0:
                 fps_sample_at = time.perf_counter()
                 for out in self.outs:
-                    out.fps = out.presented_frames / (fps_sample_at - fps_t)
-                    out.presented_frames = 0
+                    out.fps = out.frame_count / (fps_sample_at - fps_t)
+                    out.frame_count = 0
                 self.fps = max((out.fps for out in self.outs), default=0.0)
                 fps_t = fps_sample_at
             if wall - self.last_media_scan > 3.0:
@@ -1639,6 +1725,9 @@ class App:
         for o in self.outs:
             o.destroy()
         glfw.terminate()
+        deadline = time.monotonic() + 1.0
+        for worker in self.ndi_workers.values():
+            worker.join(max(0, deadline - time.monotonic()))
 
     def _report(self, where, ex):
         """エラーを記録（同じ場所のエラーは5秒に1回だけ表示）"""
@@ -1658,13 +1747,17 @@ class App:
             return False
 
     def _draw_frame(self):
-        # メイン側で出力ごとに描く → 各ウィンドウに貼る
+        # メイン側で描き、出力ウィンドウや NDI に渡す。
         now = time.perf_counter()
         due = [o for o in self.outs if now >= o.next_frame]
         if not due and not self.snap_path:
             return
         for o in due:
             o.advance_frame(now)
+        ndi_due = {o for o in due if o.ndi_sender is not None and o.ndi_sender.wants_frame()}
+        windows = [o for o in due if o.win]
+        if not windows and not ndi_due and not self.snap_path:
+            return
         glfw.make_context_current(self.main_win)
         used = self._layer_refs()
         self.renderer.upload_all(self.layers, used)
@@ -1672,17 +1765,30 @@ class App:
         hud = self.hud() if self.edit else None
         ordered_layers = self.layers_in_output_order()
         for o in self.outs if self.snap_path else due:
+            if not self.snap_path and not o.win and o not in ndi_due:
+                continue
             fbo, size = o.ensure_target(self.ctx, self.target_size(o.index))
             mine = [(li, L, cc) for li, L in ordered_layers
                     for k, cc in self.layer_places(L) if k == o.index]
             self.renderer.render_output(fbo, size, mine, self.master_eff, self.edit,
                                         self.selected, self.sel_corner,
                                         hud if self.map_out == o.index else None)
+            if o in ndi_due:
+                # 4:2:2 に変換できるように偶数サイズで読み出す。
+                width, height = size[0] & ~1, size[1] & ~1
+                if width and height:
+                    try:
+                        pixels = fbo.read(viewport=(0, size[1] - height, width, height), components=4, alignment=1)
+                        o.ndi_sender.put(width, height, o.fps_limit, pixels)
+                        if not o.win:
+                            o.frame_count += 1
+                    except Exception as ex:
+                        o.ndi_sender.fail_readback(ex)
         if self.snap_path:
             self.snapshot()
-        if due:
+        if windows:
             self.ctx.finish()
-        for o in due:
+        for o in windows:
             o.present()
         glfw.make_context_current(self.main_win)
 

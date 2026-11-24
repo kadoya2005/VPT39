@@ -696,6 +696,12 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
 .scr b{font-size:22px}
 .scr small{font-size:10px;color:var(--dim)}
 .scr em{font-size:10px;color:var(--acc);font-style:normal}
+.ndi-settings{margin:8px 0;padding:6px 10px;border:1px solid var(--line);border-radius:8px}
+.ndi-settings summary{cursor:pointer}
+.ndi-output{display:grid;gap:8px;margin-top:8px}
+.ndi-output label:has(input[type=text]){display:grid;gap:4px;flex:1 1 145px;min-width:0}
+.ndi-output input[type=text]{width:100%}
+.ndi-source{overflow-wrap:anywhere}
 </style></head><body>
 <header>
   <h1>VPT39</h1>
@@ -811,10 +817,11 @@ function lsGet(k){try{return localStorage.getItem(k);}catch(e){return null;}}
 function lsSet(k,v){try{localStorage.setItem(k,v);}catch(e){}}
 // パネルを右側に表示するか、専用 URL をブラウザの別タブで開く。
 const PANELS={media:'素材',insp:'レイヤー設定',mixer:'ミキサー',outs:'出力設定'};
-const requestedView=new URLSearchParams(location.search).get('view');
+const panelName=p=>p==='ndi'?'outs':p;
+const requestedView=panelName(new URLSearchParams(location.search).get('view'));
 const VIEW=Object.hasOwn(PANELS,requestedView)?requestedView:null;
 const panelTabs=[...$('panel-tabs').querySelectorAll('[role=tab]')];
-let curTab=VIEW||lsGet('vpt39-tab');
+let curTab=VIEW||panelName(lsGet('vpt39-tab'));
 if(!Object.hasOwn(PANELS,curTab))curTab='media';
 if(VIEW){
   document.body.classList.add('child');
@@ -1693,16 +1700,17 @@ const RES_LIST=[[1920,1080],[1280,720],[3840,2160],[2560,1440],[1920,1200],[1280
 function resSelect(o,k){
   const cur=o.res?o.res.join('x'):'auto', has=RES_LIST.some(r=>r.join('x')===cur);
   return `<select data-ores="${k}">
-    <option value="auto" ${cur==='auto'?'selected':''}>自動（ウィンドウの大きさ・いま ${o.win[0]}×${o.win[1]}）</option>
+    <option value="auto" ${cur==='auto'?'selected':''}>${o.win?`自動（ウィンドウの大きさ・いま ${o.win[0]}×${o.win[1]}）`:'標準（1920×1080）'}</option>
     ${RES_LIST.map(r=>`<option value="${r.join('x')}" ${cur===r.join('x')?'selected':''}>${r[0]}×${r[1]}</option>`).join('')}
     ${!has&&cur!=='auto'?`<option value="${cur}" selected>${o.res[0]}×${o.res[1]}</option>`:''}
-    <option value="win">いまの画面の大きさにする</option><option value="custom">自分で入れる…</option></select>`;
+    ${o.win?'<option value="win">いまの画面の大きさにする</option>':''}<option value="custom">自分で入れる…</option></select>`;
 }
 function buildOuts(){
   const box=$('outs'); if(!box)return;
-  const key=JSON.stringify([S.outputs.map(o=>[o.name,o.size,o.win,o.res,o.fps_limit,o.fullscreen,o.monitor]),S.screens,S.out_warning,
+  const key=JSON.stringify([S.outputs.map(o=>[o.name,o.size,o.win,o.res,o.fps_limit,o.fullscreen,o.monitor,o.ndi.name,o.ndi.enabled]),S.screens,S.out_warning,
     S.layers.map(L=>[L.name,L.places.map(p=>p.output)])]);
   if(key===outsKey||editingIn('#outs')) return; outsKey=key;
+  const ndiOpen=new Map([...box.querySelectorAll('[data-ndi-settings]')].map(d=>[+d.dataset.ndiSettings,d.open]));
   const sc=S.screens||[];
   let x0=Math.min(...sc.map(m=>m.rect[0])),y0=Math.min(...sc.map(m=>m.rect[1]));
   let x1=Math.max(...sc.map(m=>m.rect[0]+m.rect[2])),y1=Math.max(...sc.map(m=>m.rect[1]+m.rect[3]));
@@ -1715,32 +1723,45 @@ function buildOuts(){
   const layerChecks=k=>`<div class="chk">${S.layers.map((L,i)=>{const on=L.places.some(p=>p.output===k);
       const only=on&&L.places.length===1;
       return `<label title="${only?'このレイヤーの出力はここだけなので外せません（他の出力にチェックを入れてから外せます）':''}"><input type="checkbox" data-pl="${i}" data-po="${k}" ${on?'checked':''} ${only?'disabled':''}>L${i+1} ${esc(L.name)}</label>`;}).join('')}</div>`;
-  box.innerHTML=`<div class="row"><b>出力ウィンドウ</b><span class="meta grow">画面 ${S.monitors} 台接続中</span>
-      <button class="sm" id="oadd">＋出力を追加</button></div>
+  box.innerHTML=`<div class="row"><span class="meta grow">画面 ${S.monitors} 台接続中</span>
+      <button class="sm" id="oadd">＋出力ウィンドウ</button>
+      <button class="sm" id="oaddndi">＋NDI出力</button></div>
     ${S.outputs.map((o,k)=>`<div class="orow">
       <span class="tag ${o.fullscreen?'on':''}">${esc(o.name)}</span>
-      <span class="meta grow">${o.size[0]}×${o.size[1]}・画面${o.monitor+1}${o.monitor===0?'（メイン）':''}</span>
-      <button class="${o.fullscreen?'on':''}" data-ofs="${k}">${o.fullscreen?'フルスクリーン中':'フルスクリーン'}</button>
-      <button class="sm" data-oback="${k}" title="ウィンドウに戻してメイン画面の中央へ">手元に戻す</button>
+      <span class="meta grow">${o.size[0]}×${o.size[1]}${o.win?`・画面${o.monitor+1}${o.monitor===0?'（メイン）':''}`:''}</span>
+      ${o.win?`<button class="${o.fullscreen?'on':''}" data-ofs="${k}">${o.fullscreen?'フルスクリーン中':'フルスクリーン'}</button>
+      <button class="sm" data-oback="${k}" title="ウィンドウに戻してメイン画面の中央へ">手元に戻す</button>`:''}
       ${S.outputs.length>1?`<button class="sm" data-orm="${k}" title="この出力を削除">✕</button>`:''}</div>
-      <div class="wide"><span title="本番で使うプロジェクターの解像度。決めておくと、準備用の別のPC（小さいウィンドウ）でも本番と同じ大きさで描くので、四隅の位置がそのまま使える">本番の解像度</span>${resSelect(o,k)}${o.res&&(o.win[0]!==o.res[0]||o.win[1]!==o.res[1])?`<span class="meta">（いまのウィンドウ ${o.win[0]}×${o.win[1]} に縮小して表示）</span>`:''}</div>
+      <div class="wide"><label for="output-type-${k}">出力方式</label>
+        <select id="output-type-${k}" data-otype="${k}">
+          ${!o.win&&!o.ndi.enabled?'<option selected disabled>停止中</option>':''}
+          <option value="window" ${o.win?'selected':''}>出力ウィンドウ</option>
+          <option value="ndi" ${!o.win&&o.ndi.enabled?'selected':''}>NDIのみ</option>
+        </select></div>
+      <div class="wide"><span>本番の解像度</span>${resSelect(o,k)}${o.win&&o.res&&(o.win[0]!==o.res[0]||o.win[1]!==o.res[1])?`<span class="meta">（いまのウィンドウ ${o.win[0]}×${o.win[1]} に縮小して表示）</span>`:''}</div>
       <div class="wide"><label for="output-fps-${k}">出力FPSの上限</label>
         <select id="output-fps-${k}" data-ofps="${k}">${[30,60].map(fps=>`<option value="${fps}" ${fps===o.fps_limit?'selected':''}>${fps} FPS</option>`).join('')}</select>
         <span class="meta">実測 <span id="output-rate-${k}"></span></span></div>
-      <div class="wide"><span class="meta">映すレイヤー：</span></div>${layerChecks(k)}`).join('')}
+      <div class="wide"><span class="meta">映すレイヤー：</span></div>${layerChecks(k)}
+      ${o.win?'':ndiSettings(o.ndi,k,ndiOpen.get(k) ?? true)}`).join('')}
     ${S.out_warning?`<div class="err">${esc(S.out_warning)}</div>`:''}
     <div class="row" style="margin-top:4px"><b>画面の配置</b><span class="grow"></span>
       <button class="sm" id="ident" title="各画面の中央に番号を4秒間表示">識別</button>
       <button class="sm" id="dispset" title="Windows の「ディスプレイ」設定を開く">ディスプレイ設定…</button></div>
-    ${scrHtml}`;
+    ${scrHtml}
+    <div class="row"><a class="meta" href="https://ndi.video/" target="_blank" rel="noopener noreferrer">ndi.video</a></div>`;
   box.querySelectorAll('[data-ofs]').forEach(b=>b.onclick=()=>cmd({cmd:'out_fullscreen',output:+b.dataset.ofs}));
   box.querySelectorAll('[data-ores]').forEach(s=>s.onchange=()=>{const k=+s.dataset.ores, v=s.value;
     if(v==='auto') return cmd({cmd:'out_res',output:k,value:null});
     if(v==='win') return cmd({cmd:'out_res',output:k,value:S.outputs[k].win});
-    if(v==='custom'){const a=prompt('本番の解像度（幅×高さ）を入れてください。例：1920x1080',(S.outputs[k].res||S.outputs[k].win).join('x'));
+    if(v==='custom'){const a=prompt('本番の解像度（幅×高さ）を入れてください。例：1920x1080',S.outputs[k].size.join('x'));
       const m=a&&/^\s*(\d{2,5})\s*[x×*,]\s*(\d{2,5})\s*$/i.exec(a); if(m) return cmd({cmd:'out_res',output:k,value:[+m[1],+m[2]]}); outsKey=''; return buildOuts();}
     const [w,h]=v.split('x').map(Number); cmd({cmd:'out_res',output:k,value:[w,h]});});
   box.querySelectorAll('[data-oback]').forEach(b=>b.onclick=()=>cmd({cmd:'out_bring_back',output:+b.dataset.oback}));
+  box.querySelectorAll('[data-otype]').forEach(s=>s.onchange=()=>{
+    cmd({cmd:'out_type',output:+s.dataset.otype,type:s.value});
+    s.blur();
+  });
   box.querySelectorAll('[data-ofps]').forEach(s=>s.onchange=()=>{
     cmd({cmd:'out_fps',output:+s.dataset.ofps,value:+s.value});
     s.blur();
@@ -1748,8 +1769,49 @@ function buildOuts(){
   box.querySelectorAll('[data-orm]').forEach(b=>b.onclick=()=>{ if(confirm(`${S.outputs[+b.dataset.orm].name} を削除しますか？（その出力のレイヤーは出力1に移ります）`)) cmd({cmd:'out_remove',output:+b.dataset.orm}); });
   box.querySelectorAll('[data-pl]').forEach(c=>c.onchange=()=>cmd({cmd:'place',layer:+c.dataset.pl,output:+c.dataset.po,value:c.checked}));
   $('oadd').onclick=()=>cmd({cmd:'out_add'});
+  $('oaddndi').onclick=()=>cmd({cmd:'out_add',type:'ndi'});
   $('ident').onclick=()=>cmd({cmd:'identify'});
   $('dispset').onclick=()=>cmd({cmd:'open_display_settings'});
+  box.querySelectorAll('[data-ndi-name]').forEach(input=>{
+    input.onchange=renameNdi;
+    input.onkeydown=e=>{if(e.key==='Enter'&&!e.isComposing)input.blur();};
+  });
+}
+
+const ndiStatus={off:'停止中',starting:'準備中',missing:'NDI 6 Runtime が見つかりません',error:'NDI送信を開始できませんでした'};
+function ndiSettings(ndi,k,open){
+  return `<details class="ndi-settings" data-ndi-settings="${k}" ${open?'open':''}>
+    <summary><span>NDI送信設定</span> <span class="meta" id="ndi-state-${k}"></span></summary>
+    <div class="ndi-output">
+      <label class="lbl">NDIソース名<input type="text" data-ndi-name="${k}" maxlength="60" value="${esc(ndi.name)}"></label>
+      <span class="meta ndi-source" id="ndi-source-${k}"></span>
+      <div class="err" role="status" id="ndi-error-${k}"></div></div></details>`;
+}
+async function renameNdi(e){
+  const input=e.currentTarget;
+  const output=+input.dataset.ndiName, error=$('ndi-error-'+output);
+  const name=input.value.replace(/[\\/:*?"<>|\x00-\x1f\x7f]+/g,' ').trim();
+  error.textContent='';
+  if(!name){error.textContent=T('NDIソース名を入力してください');return;}
+  if(S.outputs.some((o,k)=>k!==output&&o.ndi.enabled&&o.ndi.name.toLowerCase()===name.toLowerCase())){
+    error.textContent=T('出力ごとに異なるNDIソース名を指定してください');return;
+  }
+  input.value=name;
+  if(name===S.outputs[output].ndi.name)return;
+  try{
+    const response=await post({cmd:'out_ndi_name',output,name});
+    if(!response.ok)throw new Error();
+    setTimeout(poll,60);
+  }catch(e){error.textContent=T('設定を送れませんでした');}
+}
+function updateNdi(){
+  S.outputs.forEach(({ndi},k)=>{
+    const state=$('ndi-state-'+k), label=ndi.status==='ready'?(ndi.receivers?`送信中・受信 ${ndi.receivers} 台`:''):ndiStatus[ndi.status];
+    if(!state)return;
+    if(state.textContent!==T(label))state.textContent=T(label);
+    const source=$('ndi-source-'+k);
+    if(source.textContent!==ndi.source)source.textContent=ndi.source;
+  });
 }
 
 // ---- 音声ミキサー（音声マスター → 出力ごと → レイヤーごと）----
@@ -1989,7 +2051,7 @@ async function poll(){
     }
     buildDeckTabs();
     const mkey=S.media.join('\n')+'|'+S.boot+'|'+((S.inputs||{}).mics||[]).join('|');
-    buildOuts(); buildMixer(); buildSettings();
+    buildOuts(); updateNdi(); buildMixer(); buildSettings();
     if(deckChanged||S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない
       const dragNow=gridDrag||dragActive||Date.now()-lastOver<800;
