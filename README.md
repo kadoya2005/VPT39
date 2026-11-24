@@ -179,7 +179,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 1. In Windows "Display settings", choose "Extend these displays".
 2. When VPT39 starts, a small window called "VPT39 Output 1" opens. **Drag it to the display (projector) you want to project on.**
 3. Press **Fullscreen** under **Output settings** to fill the display. With the output window focused, you can also press **F** or **F11**, or double-click the output window. Repeat the action to return to the smaller window.
-4. To add displays, open Output 2, Output 3… with "**+ Add output**", then move each one to the display you want and make it fullscreen in the same way.
+4. To add displays, open Output 2, Output 3… with "**+ Output window**", then move each one to the display you want and make it fullscreen in the same way.
 5. Choose where a layer is shown with **Layers shown** under **Output settings**, or with **Output destinations** under **Layer settings**.
 6. The mapping diagram and the four-corner adjustment are per output. For a layer shown on several outputs, switch with "Output to adjust" above the diagram (grabbing a corner on an output window also switches to that output).
 

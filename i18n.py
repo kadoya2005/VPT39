@@ -80,6 +80,22 @@ EN = {
     '\\ / : * ? " < > | は名前に使えません': '\\ / : * ? " < > | cannot be used in a name',
     '「{0}」はもうあります。いまの状態で上書きしますか？': '"{0}" already exists. Overwrite it with the current state?',
     'VPT39 を終了しますか？（設定は保存されます）': 'Quit VPT39? (The settings are saved.)',
+    'VPT39 は終了しました。このタブを閉じてください。': 'VPT39 has closed. You can close this tab.',
+    '終了できませんでした': 'Could not quit VPT39.',
+    '設定をリセット': 'Reset settings',
+    'リセットする項目を選んでください。': 'Select what to reset.',
+    '素材ファイルを削除': 'Delete media files',
+    'media・photos フォルダ内のファイルをごみ箱に移します。同梱のテスト素材と案内ファイルは残ります。':
+        'Move files in the media and photos folders to the Recycle Bin. Included test media and instruction files are kept.',
+    '設定を削除': 'Delete settings',
+    '出力・マッピング・音量などを初期化し、保存済みセッティングをごみ箱に移します。':
+        'Reset output, mapping, volume, and related settings, and move saved setups to the Recycle Bin.',
+    'コラム・レイヤー・デッキを初期化': 'Reset columns, layers, and decks',
+    '空の動画レイヤー・コラム・デッキを1つずつ表示します。': 'Start with one empty video layer, column, and deck.',
+    '選んだ項目をリセット': 'Reset selected items',
+    '選択した項目をリセットしました。バックアップ: {0}': 'Selected items reset. Backup: {0}',
+    '{0}件をごみ箱へ移せませんでした。バックアップ: {1}': 'Could not move {0} item(s) to the Recycle Bin. Backup: {1}',
+    'バックアップを作成できなかったため、リセットを中止しました: {0}': 'Reset cancelled because a backup could not be saved: {0}',
     'セッティング「{0}」に保存しました': 'Saved to the setup "{0}"',
     'セッティング「{0}」をごみ箱へ移しました': 'Moved the setup "{0}" to the Recycle Bin',
     'セッティング「{0}」を開きました': 'Opened the setup "{0}"',
@@ -276,9 +292,7 @@ EN = {
     '設定 ▾': 'Settings ▾',
     '出力設定': 'Output settings',
     'パネルの切り替え': 'Control panels',
-    'NDI出力': 'NDI output',
     'NDIソース名': 'NDI source name',
-    '映像を送信': 'Send video',
     '停止中': 'Off',
     '準備中': 'Starting',
     '送信中・受信 {#0} 台': 'Sending to {0} receivers',
@@ -398,7 +412,6 @@ EN = {
 
     # ---- 出力 ----
     '画面 {#0} 台接続中': 'Displays connected: {0}',
-    '＋出力を追加': '+ Add output',
     '＋出力ウィンドウ': '+ Output window',
     '＋NDI出力': '+ NDI output',
     '出力方式': 'Output type',
@@ -412,7 +425,7 @@ EN = {
     'ウィンドウに戻してメイン画面の中央へ': 'Back to a window in the middle of the main display',
     '手元に戻す': 'Bring back',
     'この出力を削除': 'Delete this output',
-    '{0} を削除しますか？（その出力のレイヤーは出力1に移ります）': 'Delete {0}? (Its layers move to Output 1.)',
+    '{0} を削除しますか？（ここだけに割り当てたレイヤーは出力1に移ります）': 'Delete {0}? (Layers assigned only here move to Output 1.)',
     '本番で使うプロジェクターの解像度。決めておくと、準備用の別のPC（小さいウィンドウ）でも本番と同じ大きさで描くので、四隅の位置がそのまま使える':
         'The resolution of the projector used in the show. With this set, another PC used for preparation '
         '(a small window) draws at the same size, so the corner positions carry over.',

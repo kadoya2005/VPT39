@@ -15,11 +15,13 @@ import math
 import time
 import queue
 import shutil
+import stat
 import argparse
 import threading
 import tempfile
 import subprocess
 import webbrowser
+from pathlib import Path
 from collections import Counter
 
 import glfw
@@ -443,18 +445,6 @@ class App:
                 if lid:
                     ent = self.layer_fbos.get(lid)
                     d.tex = ent[0] if ent else None
-
-    def _fix_places(self):
-        """出力を消したあと、レイヤーの出力番号を直し、重複を消す。"""
-        for x in self.proj['layers']:
-            x['output'] = self.norm_out(x.get('output', 0))
-            seen, more = {x['output']}, []
-            for m in x.get('more', []):
-                k = self.norm_out(m['output'])
-                if k not in seen:
-                    seen.add(k)
-                    more.append({'output': k, 'corners': m['corners']})
-            x['more'] = more
 
     def scan_inputs(self):
         """カメラ・音声入力・ウィンドウの一覧を裏で調べる"""
@@ -1036,6 +1026,8 @@ class App:
             self.show_setup_dialog('save' if cmd == 'setting_save_dialog' else 'open', c.get('copy') is True)
         elif cmd == 'setting_open':
             self.setting_open(c.get('name'))
+        elif cmd == 'setting_reset' and c.get('confirmed') is True:
+            self.reset_project(c.get('items'))
         elif cmd == 'setting_delete':
             self.setting_delete(c.get('name'))
         elif cmd == 'out_res' and O:
@@ -1059,19 +1051,25 @@ class App:
             i = self.outs.index(O)
             self.drag = None
             O.destroy()
+            def reindex(k):
+                return k - 1 if k > i else k
+
+            for layer in self.layers:
+                places = [(reindex(k), corners) for k, corners in self.layer_places(layer) if k != i]
+                if not places:
+                    places = [(0, layer.cfg['corners'])]
+                layer.cfg['output'], layer.cfg['corners'] = places[0]
+                layer.cfg['more'] = [{'output': k, 'corners': corners} for k, corners in places[1:]]
+            self.corner_hist = [[(lid, reindex(k)), pts, stamp]
+                                for (lid, k), pts, stamp in self.corner_hist if k != i]
             self.outs.pop(i)
             self.proj['outputs'].pop(i)
             for k, o in enumerate(self.outs):
                 o.index = k
                 o.update_title()
-            fix = lambda n: 0 if n == i else (n - 1 if n > i else n)
-            for x in self.proj['layers']:
-                x['output'] = fix(int(x.get('output', 0)))
-                for m in x.get('more', []):
-                    m['output'] = fix(int(m['output']))
             glfw.make_context_current(self.main_win)
-            self.map_out = fix(self.map_out)
-            self._fix_places()
+            self.map_out = 0 if self.map_out == i else reindex(self.map_out)
+            self.sel_corners()
             self.touch(True)
         elif cmd == 'lang':
             i18n.set_lang(c.get('value'))
@@ -1317,6 +1315,77 @@ class App:
             return
         self.open_setting_file(p)
 
+    def reset_project(self, items):
+        if not isinstance(items, list):
+            return
+        assets, settings, layers = (item in items for item in ('assets', 'settings', 'layers'))
+        if not (assets or settings or layers):
+            return
+        saved = list(self.reset_files('settings', settings_only=True)) if settings else []
+        name = 'Reset backup ' + time.strftime('%Y%m%d-%H%M%S') + '-' + new_id()
+        backup = {k: v for k, v in self.proj.items() if k not in ('setting_name', 'setting_file')}
+        try:
+            os.makedirs(self.settings_dir, exist_ok=True)
+            self._write_json(self.setting_path(name), backup)
+        except (OSError, ValueError) as ex:
+            self.message = f'バックアップを作成できなかったため、リセットを中止しました: {ex}'
+            return
+        self._settings_cache = (0.0, [])
+        if settings or layers:
+            project = backup.copy()
+            if settings:
+                project.update(outputs=[{}], master=1.0, audio_master=1.0)
+                self.blackout = self.edit = False
+                if not layers:
+                    project['layers'] = [
+                        dict(layer_defaults(c['kind'], c['name']), id=c['id'], cues=c['cues'],
+                             z_order=c['z_order']) for c in project['layers']
+                    ]
+            if layers:
+                layer = layer_defaults('video')
+                layer['cues'] = [{'file': GAP, 'mode': 'loop'}]
+                project.update(layers=[layer], column_names=[''], decks=[])
+                self.edit = False
+            self.apply_project(normalize_project(project), replace_outputs=settings)
+        elif assets:
+            for layer in self.layers:
+                layer.clear()
+                layer.release()
+        targets = saved
+        if assets:
+            targets.extend(self.reset_files('media', keep='ここに素材を入れる.txt'))
+            targets.extend(self.reset_files('photos', keep='ここに写真を入れる.txt'))
+        failed = sum(not webui._to_recycle_bin(str(path)) or path.exists() for path in targets if path.exists())
+        self.last_media_scan = 0.0
+        self.message = (f'{failed}件をごみ箱へ移せませんでした。バックアップ: {name}'
+                        if failed else f'選択した項目をリセットしました。バックアップ: {name}')
+
+    def reset_files(self, folder, keep=None, settings_only=False):
+        root = Path(self.base, folder)
+
+        def reparse(path):
+            try:
+                info = path.lstat()
+            except OSError:
+                return True
+            return stat.S_ISLNK(info.st_mode) or bool(
+                getattr(info, 'st_file_attributes', 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+
+        if not root.is_dir() or reparse(root):
+            return
+        for directory, children, files in os.walk(root):
+            at = Path(directory)
+            children[:] = [] if settings_only else [
+                child for child in children
+                if (at != root or child != 'テスト用') and not reparse(at / child)
+            ]
+            for file in files:
+                path = at / file
+                if ((at == root and file == keep) or (settings_only and path.suffix.lower() != '.json')
+                        or reparse(path)):
+                    continue
+                yield path
+
     def open_setting_file(self, p):
         n = os.path.splitext(os.path.basename(p))[0]
         if not self.valid_setting_path(p):
@@ -1357,7 +1426,7 @@ class App:
         self._settings_cache = (0.0, [])
         self.message = f'セッティング「{n}」をごみ箱へ移しました'
 
-    def apply_project(self, p):
+    def apply_project(self, p, *, replace_outputs=True):
         """別のセッティングに切り替える：レイヤーと出力ウィンドウを作り直す"""
         for L in self.layers:
             L.release()
@@ -1365,18 +1434,20 @@ class App:
             fbo.release()
             tex.release()
         self.layer_fbos = {}
-        for o in self.outs:
-            o.destroy()
+        if replace_outputs:
+            for o in self.outs:
+                o.destroy()
         self.proj = p
-        self.warnings = []
-        self._migrate_outputs()
         self.layers = [Layer(c, self) for c in self.proj['layers']]
-        self.outs = []
-        for i, oc in enumerate(self.proj['outputs']):
-            self.outs.append(OutputWindow(self, oc, i))
-        self.restore_ndi()
+        if replace_outputs:
+            self.warnings = []
+            self._migrate_outputs()
+            self.outs = []
+            for i, oc in enumerate(self.proj['outputs']):
+                self.outs.append(OutputWindow(self, oc, i))
+            self.restore_ndi()
+            self.master_eff = 0.0 if self.blackout else self.proj.get('master', 1.0)
         glfw.make_context_current(self.main_win)
-        self.master_eff = 0.0 if self.blackout else self.proj.get('master', 1.0)
         self.selected, self.map_out, self.sel_corner = 0, 0, 0
         self.corner_hist = []
         self.drag = None

@@ -3,6 +3,7 @@ import os
 import hmac
 import json
 import secrets
+import tempfile
 import threading
 from urllib.parse import urlparse, parse_qs
 from http.cookies import SimpleCookie
@@ -12,6 +13,7 @@ import thumbs
 import i18n
 
 _app = None
+_upload_lock = threading.Lock()
 
 # ---- スマホ用の受け口（LAN）の合言葉と、スマホから許す操作 ----
 # 合言葉は QR コードのアドレス（/m?k=…）に入れて渡し、スマホではクッキーに覚える。
@@ -287,10 +289,16 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(n).decode('utf-8'), parse_constant=_no_nan)
         except Exception:
             return self._send(400, b'{"ok":false}', 'application/json')
-        for c in (data if isinstance(data, list) else [data]):
-            if isinstance(c, dict) and (not lan or lan_allowed(c)):
-                _app.cmd_q.put(c)
-        self._send(200, b'{"ok":true}', 'application/json')
+        commands = [c for c in (data if isinstance(data, list) else [data])
+                    if isinstance(c, dict) and (not lan or lan_allowed(c))]
+        # 終了でサーバーが止まる前にブラウザへ応答する。
+        quitting = any(c.get('cmd') == 'quit' for c in commands)
+        if quitting:
+            self._send(200, b'{"ok":true}', 'application/json')
+        for c in commands:
+            _app.cmd_q.put(c)
+        if not quitting:
+            self._send(200, b'{"ok":true}', 'application/json')
 
 
     # ---- 素材フォルダへの取り込み・削除 ----
@@ -312,15 +320,12 @@ class Handler(BaseHTTPRequestHandler):
         folder = os.path.realpath(os.path.join(root, sub)) if sub and sub != '.' else root
         if not _inside(folder, root):
             return self._json(400, {'ok': False, 'msg': '保存先が media フォルダの外です'})
-        os.makedirs(folder, exist_ok=True)
         stem, ext = os.path.splitext(name)
-        dst, k = os.path.join(folder, name), 2
-        while os.path.exists(dst):  # 同じ名前があれば「名前 (2).mp4」に
-            dst = os.path.join(folder, f'{stem} ({k}){ext}')
-            k += 1
-        tmp = dst + '.uploading'
+        tmp = None
         try:
-            with open(tmp, 'wb') as f:
+            os.makedirs(folder, exist_ok=True)
+            with tempfile.NamedTemporaryFile(dir=folder, suffix='.uploading', delete=False) as f:
+                tmp = f.name
                 left = n
                 while left > 0:
                     chunk = self.rfile.read(min(left, 1 << 20))
@@ -328,12 +333,23 @@ class Handler(BaseHTTPRequestHandler):
                         raise IOError('途中で切れました')
                     f.write(chunk)
                     left -= len(chunk)
-            os.replace(tmp, dst)
+            with _upload_lock:
+                dst, k = os.path.join(folder, name), 2
+                while True:
+                    if not os.path.lexists(dst):
+                        try:
+                            os.rename(tmp, dst)
+                            break
+                        except FileExistsError:  # 別のプロセスが同名を作った
+                            pass
+                    dst = os.path.join(folder, f'{stem} ({k}){ext}')
+                    k += 1
         except Exception as ex:
-            try:
-                os.remove(tmp)
-            except OSError:
-                pass
+            if tmp is not None:
+                try:
+                    os.remove(tmp)
+                except OSError:
+                    pass
             return self._json(500, {'ok': False, 'msg': f'保存できませんでした: {name}（{ex}）'})
         _app.last_media_scan = 0.0  # すぐ一覧に出す
         return self._json(200, {'ok': True, 'file': os.path.relpath(dst, root).replace('\\', '/')})
@@ -629,9 +645,12 @@ overflow:auto;padding:5px;background:var(--panel2);border:1px solid var(--line);
 /* セッティングの窓（画面の上に重ねて出す）*/
 .dlg{position:fixed;inset:0;z-index:50;background:#000a;display:flex;align-items:flex-start;justify-content:center;padding:60px 16px 16px}
 .dlgbox{width:min(640px,100%);max-height:calc(100vh - 80px);overflow:auto;background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 12px 40px #000a}
-#clipdlg,#photodlg{padding:0;border:0;border-radius:16px;background:transparent;color:var(--text)}
-#clipdlg::backdrop,#photodlg::backdrop{background:#000a}
+#clipdlg,#photodlg,#resetdlg{padding:0;border:0;border-radius:16px;background:transparent;color:var(--text)}
+#clipdlg::backdrop,#photodlg::backdrop,#resetdlg::backdrop{background:#000a}
 #clipdlg .dlgbox,#photodlg .dlgbox{width:min(420px,calc(100vw - 32px))}
+#resetdlg .dlgbox{width:min(480px,calc(100vw - 32px))}
+#resetdlg label{display:flex;align-items:center;gap:8px}
+#resetdlg .hint{padding-left:24px}
 #clipdlg label,#photodlg label{display:flex;align-items:center;justify-content:space-between;gap:12px}
 #clipdlg input,#photodlg input[type=number]{width:84px}
 #clipdlg input[type=range]{width:min(160px,35vw)}
@@ -730,6 +749,20 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
 </div></div>
 <div class="childbar" id="childbar"></div>
 <div id="context-menu" class="hide" role="menu" aria-label="操作メニュー"></div>
+<dialog id="resetdlg" aria-labelledby="resettitle">
+  <form class="dlgbox" id="resetform">
+    <b id="resettitle">設定をリセット</b>
+    <div class="meta">リセットする項目を選んでください。</div>
+    <label><input name="items" type="checkbox" value="assets"> 素材ファイルを削除</label>
+    <div class="hint">media・photos フォルダ内のファイルをごみ箱に移します。同梱のテスト素材と案内ファイルは残ります。</div>
+    <label><input name="items" type="checkbox" value="settings"> 設定を削除</label>
+    <div class="hint">出力・マッピング・音量などを初期化し、保存済みセッティングをごみ箱に移します。</div>
+    <label><input name="items" type="checkbox" value="layers"> コラム・レイヤー・デッキを初期化</label>
+    <div class="hint">空の動画レイヤー・コラム・デッキを1つずつ表示します。</div>
+    <div class="row"><span class="grow"></span><button type="button" id="resetcancel">キャンセル</button>
+      <button type="submit" class="primary" id="resetapply" disabled>選んだ項目をリセット</button></div>
+  </form>
+</dialog>
 <dialog id="clipdlg" aria-labelledby="clipdlgtitle">
   <form class="dlgbox" id="clipform" novalidate>
     <b id="clipdlgtitle">クリップ設定</b>
@@ -1330,6 +1363,11 @@ settingsButton.onclick=e=>{
     ['今すぐ保存',()=>cmd({cmd:'save'})],
     ['名前を付けて保存',()=>cmd({cmd:'setting_save_dialog'})],
     ['セッティングを開く',openSettings],
+    ['設定をリセット',()=>{
+      $('resetform').reset();
+      $('resetapply').disabled=true;
+      $('resetdlg').showModal();
+    }],
     [LANG==='en'?'日本語に切り替え':'English に切り替え',()=>cmd({cmd:'lang',value:LANG==='en'?'ja':'en'})]
   ],settingsButton);
 };
@@ -1766,7 +1804,7 @@ function buildOuts(){
     cmd({cmd:'out_fps',output:+s.dataset.ofps,value:+s.value});
     s.blur();
   });
-  box.querySelectorAll('[data-orm]').forEach(b=>b.onclick=()=>{ if(confirm(`${S.outputs[+b.dataset.orm].name} を削除しますか？（その出力のレイヤーは出力1に移ります）`)) cmd({cmd:'out_remove',output:+b.dataset.orm}); });
+  box.querySelectorAll('[data-orm]').forEach(b=>b.onclick=()=>{ if(confirm(`${S.outputs[+b.dataset.orm].name} を削除しますか？（ここだけに割り当てたレイヤーは出力1に移ります）`)) cmd({cmd:'out_remove',output:+b.dataset.orm}); });
   box.querySelectorAll('[data-pl]').forEach(c=>c.onchange=()=>cmd({cmd:'place',layer:+c.dataset.pl,output:+c.dataset.po,value:c.checked}));
   $('oadd').onclick=()=>cmd({cmd:'out_add'});
   $('oaddndi').onclick=()=>cmd({cmd:'out_add',type:'ndi'});
@@ -1888,6 +1926,7 @@ function update(){
     });
   });
   const sel=S.layers[S.selected];
+  for(const id of ['mapedit','maptest','mapreset'])$(id).disabled=!sel;
   $('mtarget').textContent=sel?(sel.kind==='video'?`クリックで「L${S.selected+1} ${sel.name}」に追加`:`画像をクリックで写真ウォール「L${S.selected+1} ${sel.name}」に追加`):'レイヤーを選ぶと、クリックで追加できます';
   const tname=(S.targets.find(t=>t.output===S.map_out)||{}).name||'';
   $('mapsel').textContent=sel?`L${S.selected+1} ${sel.name}`+(S.outputs.length>1?`（${tname}・${S.size[0]}×${S.size[1]}）`:''):'';
@@ -2013,16 +2052,53 @@ $('setbrowse').onclick=()=>{
   closeSettings();
   cmd({cmd:'setting_open_dialog'});
 };
-$('quit').onclick=()=>{ if(confirm('VPT39 を終了しますか？（設定は保存されます）')) cmd({cmd:'quit'}); };
+const resetItems=()=>new FormData($('resetform')).getAll('items');
+$('resetform').onchange=()=>{$('resetapply').disabled=resetItems().length===0;};
+$('resetcancel').onclick=()=>$('resetdlg').close();
+$('resetform').onsubmit=e=>{
+  e.preventDefault();
+  const items=resetItems();
+  if(!items.length)return;
+  $('resetdlg').close();
+  cmd({cmd:'setting_reset',confirmed:true,items});
+};
+let panelEnded=false;
+function closeControlPanel(){
+  if(panelEnded)return;
+  panelEnded=true;
+  window.close();
+  if(window.closed)return;
+  const message=document.createElement('p');
+  message.className='card';
+  message.textContent=T('VPT39 は終了しました。このタブを閉じてください。');
+  document.body.replaceChildren(message);
+}
+window.addEventListener('storage',e=>{
+  if(S&&e.key==='vpt39-closed-boot'&&e.newValue===String(S.boot))closeControlPanel();
+});
+$('quit').onclick=async e=>{
+  if(!confirm('VPT39 を終了しますか？（設定は保存されます）'))return;
+  const button=e.currentTarget;
+  button.disabled=true;
+  try{
+    const response=await post({cmd:'quit'});
+    if(!response.ok)throw new Error();
+    if(S)lsSet('vpt39-closed-boot',String(S.boot));
+    closeControlPanel();
+  }catch(e){
+    button.disabled=false;
+    $('msg').textContent=T('終了できませんでした');
+  }
+};
 $('mfilter').addEventListener('input',()=>{ if(S) buildMedia(); });
 $('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
 function setThumbSize(v){document.documentElement.style.setProperty('--mt',v+'px');}
 $('msize').addEventListener('input',e=>{setThumbSize(e.target.value); lsSet('vpt39-msize-'+(VIEW||'main'),e.target.value);});
 {const v=lsGet('vpt39-msize-'+(VIEW||'main')); if(v){$('msize').value=v; setThumbSize(v);} else if(VIEW==='media'){$('msize').value=170; setThumbSize(170);}}
-$('maptest').onclick=()=>setv(S.selected,'test',!S.layers[S.selected].test);
+$('maptest').onclick=()=>{const layer=S?.layers[S.selected];if(layer)setv(S.selected,'test',!layer.test);};
 $('mapreset').onclick=()=>{ if(confirm('このレイヤーの四隅を、画面いっぱいの四角に戻しますか？')) cmd({cmd:'reset_corners',layer:S.selected,output:S.map_out}); };
 document.addEventListener('keydown',e=>{
-  if($('clipdlg').open)return;
+  if($('clipdlg').open||$('resetdlg').open)return;
   if(!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&e.key.toLowerCase()==='e'
       &&S?.edit&&$('setdlg').classList.contains('hide')&&$('landlg').classList.contains('hide')
       &&!e.target.closest('input,textarea,select,[contenteditable]')){
@@ -2036,8 +2112,10 @@ document.addEventListener('keydown',e=>{
 });
 
 async function poll(){
+  if(panelEnded)return;
   try{
     const r=await fetch('/api/state'), state=await r.json();
+    if(panelEnded)return;
     if(S&&state.boot===S.boot&&state.rev<S.rev)return;
     S=state; setLang(S.lang);
     const deckChanged=gridDeck!==null&&gridDeck!==S.active_deck;
@@ -2062,7 +2140,7 @@ async function poll(){
     if(mkind==='s') buildMedia();
     buildLset();
     update();
-  }catch(e){ $('msg').textContent='（本体と接続できません）'; if(VIEW) $('childbar').firstChild.textContent='VPT39（本体と接続できません）'; }
+  }catch(e){ if(panelEnded)return; $('msg').textContent='（本体と接続できません）'; if(VIEW) $('childbar').firstChild.textContent='VPT39（本体と接続できません）'; }
 }
 setInterval(poll,300); poll();
 </script></body></html>
