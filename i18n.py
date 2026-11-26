@@ -16,6 +16,14 @@ LANG_FILE = os.path.join(HERE, 'language.txt')
 LANGS = ('ja', 'en')
 
 EN = {
+    '素材の参照を解除': 'Remove media reference',
+    'ファイルの参照を登録できませんでした': 'Could not link the files.',
+    '動画や画像をここにドロップして追加できます。': 'Drop videos or images here to add them.',
+    '追加先のデッキまたはレイヤーが変わりました': 'The target deck or layer changed.',
+    '追加先のクリップが変わりました。もう一度操作してください': 'The target clip changed. Try again.',
+    'このレイヤーで使える動画・画像をドロップしてください': 'Drop a video or image supported by this layer.',
+    'コピーせずに {#0} 件を参照として登録しました': 'Linked {0} files.',
+    'ファイルがありません': 'File missing',
     # ---- 上のバー ----
     'VPT39 操作パネル': 'VPT39 Control Panel',
     '全レイヤー明るさ': 'All-layer brightness',
@@ -224,6 +232,7 @@ EN = {
     '空白・レイヤー・入力': 'Blank, layers, inputs',
     'テスト用': 'Test media',
     'テスト用の素材がありません': 'No test media',
+    'テスト用の素材は削除できません': 'Test media cannot be deleted.',
     '一致する素材がありません': 'No matching media',
     'フォルダで絞り込み': 'Filter by folder',
     'すべてのフォルダ': 'All folders',
@@ -306,6 +315,7 @@ EN = {
     '出力FPSの上限': 'Output FPS limit',
     '実測': 'Measured',
     '別タブで開く ↗': 'Open in new tab ↗',
+    '別ウィンドウで開く ↗': 'Open in a separate window ↗',
     '右側のパネルを閉じる': 'Close the right panel',
     'メイン画面へ': 'Main panel',
     '音量 (%)': 'Volume (%)',

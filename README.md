@@ -99,13 +99,17 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Where to put media
 
+Drop videos or images directly from Explorer onto the Windows control panel opened by `run.bat`. The media panel copies files into `media`. Dropping directly onto a clip slot links the original file at that position. Moving a linked file shows a missing-media notice on its clip.
+
+Building the Windows control panel from source requires the .NET 10 SDK and Microsoft Edge WebView2 Runtime. If the Windows control panel cannot open, the browser control panel imports dropped files into `media`.
+
 - `media` folder: videos for each song (mp4, mov and so on) and images (png, jpg). Subfolders are fine.
 - `photos` folder: photos for the photo wall. We recommend putting only photos here that a person has checked and approved.
 
 ## Panels on the right
 
 - Use the tabs on the right to switch between **Media**, **Mixer**, **Layer settings**, and **Output settings**. The toolbar’s **Settings** menu also lists the panels.
-- Use **×** in the panel header to hide the right panel. Choose a panel from **Settings** to show it again. **↗** opens the panel in another browser tab and hides it on the main screen. **Main panel** closes the separate tab and restores the panel on the original main screen.
+- Use **×** in the panel header to hide the right panel. Choose a panel from **Settings** to show it again. **↗** opens the panel in a separate VPT39 window on Windows or a separate tab in a browser. **Main panel** restores the panel on its original main screen.
 - Use **Settings** to switch between Japanese and English.
 - Choose **Save now** to save the current state immediately, or **Save as** to choose a folder and file name in the Windows save dialog.
 - Choose **Open setup** to open a setup from the `settings` folder or browse for a file elsewhere. Changes to the active setup are saved automatically.

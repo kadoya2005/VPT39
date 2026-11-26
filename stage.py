@@ -14,6 +14,7 @@ import hashlib
 import math
 import time
 import queue
+import secrets
 import shutil
 import stat
 import argparse
@@ -67,6 +68,7 @@ def default_project():
         'web_port': 8080,
         'allow_lan': False,
         'media_dir': 'media',
+        'reference_media': [],
         'master': 1.0,        # 映像の明るさ（ブラックアウトはこちらだけに効く）
         'audio_master': 1.0,  # 音声ミキサーのマスター音量
         'layers': [bg, ov, ph],
@@ -82,6 +84,10 @@ def normalize_project(p):
     for k, v in dp.items():
         if k != 'outputs':
             p.setdefault(k, v)
+    references = p['reference_media']
+    p['reference_media'] = list(dict.fromkeys(
+        path for path in references if isinstance(path, str) and os.path.isabs(path)
+    )) if isinstance(references, list) else []
     p['column_names'] = column_names(p['column_names'])
     for L in p['layers']:
         for k, v in layer_defaults(L.get('kind', 'video')).items():
@@ -210,6 +216,9 @@ class App:
         self.state_lock = threading.Lock()
         self.state_json = b'{}'
         self.media = []
+        self.missing_references = []
+        self.desktop_token = secrets.token_urlsafe(32)
+        self.desktop_process = None
         self.last_media_scan = 0.0
         self.fps = 0.0
         self.running = True
@@ -586,6 +595,15 @@ class App:
 
     def handle(self, c):
         cmd = c.get('cmd')
+        if cmd == '_desktop_reference_files':
+            self.register_reference_drop(c['target'], c['paths'])
+            return
+        if cmd == 'remove_reference':
+            references = self.proj['reference_media']
+            if c.get('file') in references:
+                references.remove(c['file'])
+                self.touch(True)
+            return
         if cmd in ('deck_add', 'deck_select', 'deck_move', 'deck_rename', 'deck_delete'):
             self.handle_deck(c)
             return
@@ -1461,6 +1479,43 @@ class App:
         self._write_json(self.project_path, self.proj)
         self.dirty = False
 
+    def register_reference_drop(self, target, paths):
+        action = target.get('action')
+        if action not in ('append', 'insert', 'replace'):
+            return
+        lid, deck_id = target.get('lid'), target.get('deck')
+        layer = self.layer_by_id(lid)
+        if layer is None or self.proj['active_deck'] != deck_id:
+            self.message = '追加先のデッキまたはレイヤーが変わりました'
+            return
+        if action == 'replace' and len(paths) != 1:
+            self.message = '差し替えるファイルを1つだけドロップしてください'
+            return
+        images_only = layer.cfg['kind'] == 'photo'
+        files = [os.path.normpath(p) for p in paths if isinstance(p, str) and os.path.isabs(p)
+                 and (is_image(p) or (not images_only and is_video(p))) and os.path.isfile(p)]
+        if not files:
+            self.message = 'このレイヤーで使える動画・画像をドロップしてください'
+            return
+        row = layer.cfg['cues']
+        cue, expected = target.get('cue'), target.get('expected')
+        if action in ('insert', 'replace') and (
+                type(cue) is not int or not 0 <= cue < len(row) or row[cue] != expected):
+            self.message = '追加先のクリップが変わりました。もう一度操作してください'
+            return
+        if action == 'replace':
+            self.handle({'cmd': 'import_cue', 'deck': deck_id, 'lid': lid, 'cue': cue,
+                         'expected': expected, 'file': files[0]})
+        elif action == 'insert':
+            for offset, file in enumerate(files):
+                self.handle({'cmd': 'add_cue', 'deck': deck_id, 'lid': lid, 'at': cue + offset,
+                             'file': file, 'column': not images_only, 'anchor': expected})
+        else:
+            row.extend({'file': path, 'mode': 'loop'} for path in files)
+            self.touch(True)
+        self.last_media_scan = 0.0
+        self.message = f'コピーせずに {len(files)} 件を参照として登録しました'
+
     # ---- 素材一覧 ----
     def scan_media(self, wait=False):
         """media フォルダの一覧。フォルダを調べるのは裏のスレッドで（Dropbox の中だと時間がかかり、映像が止まるため）"""
@@ -1468,10 +1523,15 @@ class App:
         if getattr(self, '_media_scanning', False):
             return
         root = self.resolve(self.proj['media_dir'])
+        references = {c['file'] for layer in self.layers for c in layer.cfg['cues']
+                      if c['file'] and not c['file'].startswith('@')}
+        references.update(self.proj['reference_media'])
         self._media_scanning = True
 
         def work():
             try:
+                self.missing_references = sorted(path for path in references
+                                                 if not os.path.isfile(os.path.join(root, path)))
                 out = []
                 for dp, dns, fns in os.walk(root):
                     dns.sort()
@@ -1539,6 +1599,8 @@ class App:
             'audio_master': self.proj.get('audio_master', 1.0),
             'out_warning': ' ／ '.join(self.warnings),
             'media': self.media, 'layers': ls, 'dirty': self.dirty,
+            'reference_media': self.proj['reference_media'],
+            'missing_references': self.missing_references,
             'column_names': self.proj['column_names'],
             'active_deck': self.proj['active_deck'],
             'decks': [{'id': d['id'], 'name': d['name']} for d in self.proj['decks']],
@@ -1708,6 +1770,31 @@ class App:
         self.snap_path = None
 
     # ---- メインループ ----
+    def open_control_panel(self, port):
+        url = f'http://127.0.0.1:{port}/'
+        source = Path(__file__).resolve().parent / 'desktop'
+        frozen = getattr(sys, 'frozen', False)
+        app_dir = Path(sys.executable).resolve().parent if frozen else source
+        desktop = app_dir / 'VPT39.Desktop.exe'
+        try:
+            if os.name == 'nt' and not frozen:
+                desktop = source / 'bin' / 'Release' / 'net10.0-windows' / desktop.name
+                project = source / 'VPT39.Desktop.csproj'
+                dotnet = shutil.which('dotnet')
+                if dotnet and project.is_file() and (not desktop.is_file() or any(
+                        path.stat().st_mtime_ns > desktop.stat().st_mtime_ns
+                        for path in (project, source / 'Program.cs'))):
+                    subprocess.run([dotnet, 'build', str(project), '-c', 'Release'], check=True,
+                                   timeout=120, creationflags=subprocess.CREATE_NO_WINDOW)
+            if self.running and desktop.is_file():
+                env = dict(os.environ, VPT39_DESKTOP_TOKEN=self.desktop_token)
+                self.desktop_process = subprocess.Popen([str(desktop), url], env=env)
+                return
+        except (OSError, subprocess.SubprocessError) as ex:
+            print('Windows操作画面を起動できませんでした:', ex)
+        if self.running:
+            webbrowser.open(url)
+
     def run(self):
         port = int(self.proj.get('web_port', 8080))
         port = webui.start(self, '127.0.0.1', port)  # このPCの中からはいつでも
@@ -1717,7 +1804,7 @@ class App:
         url = f'http://localhost:{port}/'
         print(tr(f'操作パネル: {url}   （出力映像の再生: {backend_name()}、出力 {len(self.outs)}）'))
         if not os.environ.get('STAGEMAPPER_NO_BROWSER'):
-            threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+            threading.Thread(target=self.open_control_panel, args=(port,), daemon=True).start()
 
         self.scan_inputs()
         last = time.perf_counter()
@@ -1791,6 +1878,8 @@ class App:
 
         if self.dirty:
             self._safe_call('保存', self.save)
+        if self.desktop_process is not None and self.desktop_process.poll() is None:
+            self.desktop_process.terminate()
         for L in self.layers:
             L.release()
         for o in self.outs:

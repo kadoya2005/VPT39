@@ -57,7 +57,7 @@ def _thumb_path(rel):
         os.path.splitdrive(root)[0].lower() else False
     if not inside:
         files = {c.get('file') for L in _app.proj['layers'] for c in L.get('cues', [])}
-        if rel not in files:
+        if rel not in files and rel not in _app.proj['reference_media']:
             return None
     return path if os.path.isfile(path) else None
 
@@ -276,6 +276,22 @@ class Handler(BaseHTTPRequestHandler):
         lan = self._via_lan()
         if lan and (p != '/api/cmd' or not self._lan_auth()):
             return self._send(403, b'{"ok":false}', 'application/json')
+        if p == '/api/reference-drop':
+            token = self.headers.get('X-VPT39-Desktop') or ''
+            if not hmac.compare_digest(token.encode('utf-8'), _app.desktop_token.encode('ascii')):
+                return self._json(403, {'ok': False})
+            try:
+                size = int(self.headers.get('Content-Length', 0))
+                if not 0 < size <= 2_000_000:
+                    raise ValueError()
+                data = json.loads(self.rfile.read(size))
+                target, paths = data['target'], data['paths']
+                if not isinstance(target, dict) or not isinstance(paths, list):
+                    raise ValueError()
+            except (ValueError, TypeError, KeyError):
+                return self._json(400, {'ok': False})
+            _app.cmd_q.put({'cmd': '_desktop_reference_files', 'target': target, 'paths': paths})
+            return self._json(200, {'ok': True})
         if p == '/api/upload':
             return self._upload()
         if p == '/api/media_delete':
@@ -290,7 +306,7 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return self._send(400, b'{"ok":false}', 'application/json')
         commands = [c for c in (data if isinstance(data, list) else [data])
-                    if isinstance(c, dict) and (not lan or lan_allowed(c))]
+                    if isinstance(c, dict) and c.get('cmd') != '_desktop_reference_files' and (not lan or lan_allowed(c))]
         # 終了でサーバーが止まる前にブラウザへ応答する。
         quitting = any(c.get('cmd') == 'quit' for c in commands)
         if quitting:
@@ -366,6 +382,8 @@ class Handler(BaseHTTPRequestHandler):
         path = os.path.realpath(os.path.join(root, rel))
         if not rel or not _inside(path, root) or path == root or not (is_video(path) or is_image(path)):
             return self._json(400, {'ok': False, 'msg': 'media フォルダの素材ではありません'})
+        if _inside(path, os.path.realpath(os.path.join(root, 'テスト用'))):
+            return self._json(403, {'ok': False, 'msg': 'テスト用の素材は削除できません'})
         if not os.path.isfile(path):
             return self._json(404, {'ok': False, 'msg': 'ファイルが見つかりません'})
         if not _to_recycle_bin(path) or os.path.exists(path):
@@ -576,6 +594,12 @@ aside{display:flex;flex-direction:column;min-width:0;min-height:0;border-left:1p
 .clip.ins.empty::before,.clip.fdrop::before{border:3px solid var(--warn);border-radius:7px;background:#ffbe381a}
 .clip .th,.mtile .th{position:relative;display:block;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;cursor:pointer}
 .th img{width:100%;height:100%;object-fit:cover;display:block}
+.missing-thumbnail{display:none;position:absolute;inset:0;align-content:center;justify-items:center;gap:4px;
+  padding:5px;text-align:center;color:#ffe2df;background:#39252b;font-size:11px;font-weight:600;line-height:1.2}
+.missing-thumbnail-icon{display:grid;place-items:center;width:19px;height:24px;border:2px solid #ffaaa6;
+  border-radius:3px;color:#ffaaa6;font-size:15px;line-height:1}
+.missing-reference .media-thumbnail{display:none}
+.missing-reference .missing-thumbnail{display:grid}
 .clip .num{position:absolute;left:4px;top:3px;font-size:11px;font-weight:700;background:#000b;padding:0 5px;border-radius:4px}
 .clip.on .num{background:var(--acc);color:#04120a}
 .clip.on.paused .num{background:var(--warn);color:#231c12}
@@ -862,6 +886,11 @@ if(VIEW){
   $('childbar').innerHTML=`<b>VPT39</b><span>${PANELS[VIEW]}</span><span class="grow"></span>
     <a class="panel-link" id="panel-return" href="/">メイン画面へ</a>`;
   $('panel-return').addEventListener('click',e=>{
+    if(window.vpt39DesktopDrop){
+      e.preventDefault();
+      window.chrome.webview.postMessage({kind:'vpt39-return-panel'});
+      return;
+    }
     const main=window.opener;
     try{
       if(!main||main.closed||main.location.origin!==location.origin||
@@ -906,13 +935,17 @@ panelTabs.forEach((tab,i)=>{
   };
 });
 showPanel();
+if(window.vpt39DesktopDrop){
+  $('panel-link').title='別ウィンドウで開く ↗';
+  $('panel-link').querySelector('.sr-only').textContent='別ウィンドウで開く ↗';
+}
 $('panel-close').onclick=()=>{
   if(curTab==='insp')cmd({cmd:'edit',value:false});
   hidePanel();
 };
 $('panel-link').addEventListener('click',hidePanel);
 $('panel-link').addEventListener('auxclick',e=>{if(e.button===1)hidePanel();});
-if(VIEW==='insp'){
+if(VIEW==='insp'&&!window.vpt39DesktopDrop){
   window.addEventListener('pagehide',()=>{
     const body=JSON.stringify({cmd:'edit',value:false});
     if(!navigator.sendBeacon('/api/cmd',body)){
@@ -951,7 +984,10 @@ const TRANS_NAME={fade:'フェード（じわっと）',cut:'静止（効果な�
   slide_up:'スライド（下から上へ）',slide_down:'スライド（上から下へ）',wipe:'ワイプ（左から順に）',zoom:'ズーム（少し寄りから）'};
 function base(f){return String(f).split(/[\\/]/).pop();}
 function isImg(f){return /\.(png|jpe?g|bmp|gif|webp)$/i.test(f);}
-function thumbImg(f){return `<img src="/thumb?f=${encodeURIComponent(f)}" loading="lazy" draggable="false" onerror="this.remove()">`;}
+function mediaThumbnail(file){
+  return `<img class="media-thumbnail" src="/thumb?f=${encodeURIComponent(file)}" alt="" loading="lazy" draggable="false" onerror="this.remove()">
+    <div class="missing-thumbnail"><span class="missing-thumbnail-icon" aria-hidden="true">!</span><span>ファイルがありません</span></div>`;
+}
 function editingIn(sel){const a=document.activeElement;return a&&a.closest&&a.closest(sel)&&(a.tagName==='SELECT'||a.tagName==='TEXTAREA'||(a.tagName==='INPUT'&&!/^(range|checkbox|button)$/.test(a.type)));}
 
 // ---- クリップのミニ操作：再生位置バーのドラッグ ----
@@ -1028,6 +1064,8 @@ function setupDnD(){
         const cue=replace?+replace.dataset.j:at, expected=replace?layer.cues[cue]:undefined;
         if(expected&&files.length!==1){alert('差し替えるファイルを1つだけドロップしてください');return;}
         if(layer.kind==='photo'&&files.some(f=>!isImg(f.name))){alert('写真ウォールに入れられるのは画像だけです');return;}
+        if(desktopReferenceDrop(files,{deck,lid:layer.id,cue,expected:layer.cues[cue],
+            action:expected?'replace':at<layer.cues.length?'insert':'append'}))return;
         const column=columnInsert(layer,at);
         let index=at;
         return uploadFiles(files,async file=>{
@@ -1245,14 +1283,19 @@ function buildMedia(){
   }else{
     box.dataset.k='';
     const q=$('mfilter').value.toLowerCase(), fd=testing?'':$('mfolder').value;
-    const media=S.media.filter(m=>isTestMedia(m)===testing);
+    const references=new Set(S.reference_media||[]);
+    const missing=new Set(S.missing_references||[]);
+    const media=[...S.media,...references].filter(m=>isTestMedia(m)===testing);
     const list=media.filter(m=>(!q||m.toLowerCase().includes(q))&&
-      (!fd||(fd==='.'?!m.includes('/'):m.startsWith(fd+'/'))));
+      (!fd||(fd==='.'?!m.includes('/')&&!references.has(m):m.startsWith(fd+'/'))));
     $('mcount').textContent=`${list.length}${list.length!==media.length?' / '+media.length:''}件`;
     const empty=q||fd?'一致する素材がありません':testing?'テスト用の素材がありません':
-      'media フォルダに素材がありません。動画や画像を入れると数秒で表示されます。';
-    box.innerHTML=list.map(m=>`<div class="mtile" draggable="true" data-media-file data-f="${esc(m)}" title="${esc(m)}">
-      <div class="th">${thumbImg(m)}<button class="del" data-del="${esc(m)}" title="この素材をごみ箱へ移す（ごみ箱から元に戻せます）">✕</button></div><div class="cn">${esc(base(m))}</div></div>`).join('')
+      '動画や画像をここにドロップして追加できます。';
+    box.innerHTML=list.map(m=>`<div class="mtile${missing.has(m)?' missing-reference':''}" draggable="true" data-media-file data-f="${esc(m)}" title="${esc(m)}">
+      <div class="th">${mediaThumbnail(m)}
+        ${testing?'':references.has(m)?`<button class="del" data-unlink="${esc(m)}" title="素材の参照を解除">✕</button>`:
+          `<button class="del" data-del="${esc(m)}" title="この素材をごみ箱へ移す（ごみ箱から元に戻せます）">✕</button>`}
+      </div><div class="cn">${esc(base(m))}</div></div>`).join('')
       ||`<div class="meta">${empty}</div>`;
   }
   box.querySelectorAll('.mtile').forEach(el=>{
@@ -1265,6 +1308,10 @@ function buildMedia(){
     el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; const s=S.layers[S.selected]; if(s&&(s.kind==='video'||isImg(el.dataset.f))) addMedia(s,el.dataset.f);});
   });
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation(); deleteMedia(b.dataset.del);});
+  box.querySelectorAll('[data-unlink]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    cmd({cmd:'remove_reference',file:b.dataset.unlink});
+  });
 }
 // 素材をごみ箱へ（クリップで使っていれば、そのことも知らせる）
 async function deleteMedia(m){
@@ -1277,10 +1324,24 @@ async function deleteMedia(m){
 }
 // パソコンのファイルを素材の欄へドロップ → media フォルダへ取り込む（いま絞り込んでいるフォルダがあればそこへ）
 function hasFiles(e){return e.dataTransfer&&[...e.dataTransfer.types].includes('Files');}
+function desktopReferenceDrop(files,target){
+  if(!window.vpt39DesktopDrop)return false;
+  try{
+    window.chrome.webview.postMessageWithAdditionalObjects({kind:'vpt39-reference-drop',target},files);
+  }catch(_){
+    $('msg').textContent=T('ファイルの参照を登録できませんでした');
+  }
+  return true;
+}
 {const pane=document.querySelector('.media');
   pane.addEventListener('dragover',e=>{ if(!hasFiles(e))return; e.preventDefault(); e.dataTransfer.dropEffect='copy'; pane.classList.add('fdrop');});
   pane.addEventListener('dragleave',e=>{ if(!pane.contains(e.relatedTarget)) pane.classList.remove('fdrop');});
-  pane.addEventListener('drop',e=>{ if(!hasFiles(e))return; e.preventDefault(); pane.classList.remove('fdrop'); uploadFiles([...e.dataTransfer.files]);});
+  pane.addEventListener('drop',e=>{
+    if(!hasFiles(e))return;
+    e.preventDefault();
+    pane.classList.remove('fdrop');
+    uploadFiles([...e.dataTransfer.files]);
+  });
 }
 // 素材の欄の外に落としても、ブラウザがそのファイルを開いて操作画面が消えないように
 document.addEventListener('dragover',e=>{ if(hasFiles(e)) e.preventDefault();});
@@ -1534,7 +1595,7 @@ function cueInfo(c){
 // 写真ウォールの行の画像（押すとその画像をすぐ出す・ドラッグで並べ替え）
 function photoTile(i,c,j){
   return `<div class="clip" id="go${i}_${j}" data-j="${j}">
-    <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（押すとすぐ出す・ドラッグで並べ替え）">${thumbImg(c.file)}<span class="num">${j+1}</span></div>
+    <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（押すとすぐ出す・ドラッグで並べ替え）">${mediaThumbnail(c.file)}<span class="num">${j+1}</span></div>
     <div class="cn"><span title="${esc(c.file)}">${esc(base(c.file))}</span></div>
   </div>`;
 }
@@ -1613,7 +1674,7 @@ function clipTile(i,c,j){
   }
   const img=isImg(c.file);
   return `<div class="clip" id="go${i}_${j}" data-j="${j}">
-    <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（クリックで再生・ドラッグで並べ替え）">${thumbImg(c.file)}<span class="num">${j+1}</span>
+    <div class="th" draggable="true" data-cue="${j}" title="${esc(c.file)}（クリックで再生・ドラッグで並べ替え）">${mediaThumbnail(c.file)}<span class="num">${j+1}</span>
       <button class="md" data-md="${j}" data-mode="${MODE_NAME[c.mode]?c.mode:'loop'}" title="終了時の動き：${MODE_NAME[c.mode]||''}（押すと切り替え）">${MODE_ICON[c.mode]||''}</button></div>
     ${img?'':`<div class="sc" title="ドラッグで再生位置を移動"><i id="sb${i}_${j}"></i></div>
     <div class="tp"><button class="tb" data-tp="restart" title="頭出し">⏮</button><button class="tb" data-tp="toggle" id="tg${i}_${j}" title="再生／一時停止">▶</button><button class="tb" data-tp="stop" title="停止（消す）">⏹</button><span class="tt" id="tt${i}_${j}"></span></div>`}
@@ -1905,6 +1966,7 @@ function update(){
   const mapLabel=T(S.edit?'編集を終了':'編集');
   if($('mapedit').textContent!==mapLabel)$('mapedit').textContent=mapLabel;
   $('msg').textContent=S.message||(S.dirty?'未保存':'');
+  const missingReferences=new Set(S.missing_references||[]);
   S.layers.forEach((L,i)=>{
     const row=$('row'+i); if(!row)return;
     row.classList.toggle('sel',i===S.selected);
@@ -1919,6 +1981,7 @@ function update(){
     const op=$('op'+i); if(document.activeElement!==op) op.value=L.opacity;
     if(L.kind==='video') L.cues.forEach((c,j)=>{
       const b=$(`go${i}_${j}`); if(!b)return;
+      b.classList.toggle('missing-reference',missingReferences.has(c.file));
       const on=L.playing===j; b.classList.toggle('on',on); b.classList.toggle('paused',on&&L.paused);
       const bar=$(`sb${i}_${j}`); if(!bar)return;
       if(!(scrub&&scrub.L===i&&scrub.j===j)) bar.style.width=(on&&L.dur>0?Math.min(100,L.pos/L.dur*100):0)+'%';
@@ -1927,6 +1990,7 @@ function update(){
     });
     if(L.kind==='photo') L.cues.forEach((c,j)=>{
       const b=$(`go${i}_${j}`); if(!b)return;
+      b.classList.toggle('missing-reference',missingReferences.has(c.file));
       const on=L.playing===j; b.classList.toggle('on',on); b.classList.toggle('paused',on&&L.photo_state==='paused');
     });
   });
@@ -2133,7 +2197,7 @@ async function poll(){
       $('deck').scrollLeft=0;
     }
     buildDeckTabs();
-    const mkey=S.media.join('\n')+'|'+S.boot+'|'+((S.inputs||{}).mics||[]).join('|');
+    const mkey=JSON.stringify([S.media,S.reference_media,S.boot,(S.inputs||{}).mics,S.missing_references]);
     buildOuts(); updateNdi(); buildMixer(); buildSettings();
     if(deckChanged||S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない

@@ -4,6 +4,8 @@ __pycache__/
 *.pyc
 .thumbs/
 /runtime/ndi/
+/desktop/bin/
+/desktop/obj/
 
 # 本番の設定・素材（人に見せないもの・大きいもの）
 project.json
