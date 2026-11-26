@@ -3,6 +3,7 @@ import os
 import time
 import ctypes
 import threading
+from contextlib import contextmanager
 from functools import lru_cache
 
 import numpy as np
@@ -567,7 +568,8 @@ except Exception:
     sd = None
 
 
-_audio_open = [0]  # 開いている音声入力の数
+_audio_open = [0]  # 使用中の PortAudio ストリームの組数
+_audio_lock = threading.Lock()
 
 
 class AudioIn:
@@ -641,8 +643,9 @@ class AudioIn:
                                        latency='low', dtype='float32', callback=on_out, extra_settings=ws)
             self.inp.start()
             self.out.start()
-            _audio_open[0] += 1
-            self._counted = True
+            with _audio_lock:
+                _audio_open[0] += 1
+                self._counted = True
         except Exception as ex:
             self.error = f'音声入力を開けません: {name}（{ex}）'
             self.release()
@@ -651,9 +654,6 @@ class AudioIn:
         self.vol = max(0.0, min(1.0, float(v)))
 
     def release(self):
-        if getattr(self, '_counted', False):
-            self._counted = False
-            _audio_open[0] -= 1
         for s in (self.inp, self.out):
             if s is not None:
                 try:
@@ -662,6 +662,10 @@ class AudioIn:
                 except Exception:
                     pass
         self.inp = self.out = None
+        with _audio_lock:
+            if getattr(self, '_counted', False):
+                self._counted = False
+                _audio_open[0] -= 1
 
 
 def _wasapi_index():
@@ -679,22 +683,46 @@ def _wasapi_default_out():
     return d if d is not None and d >= 0 else None
 
 
+@contextmanager
+def live_audio_output(callback):
+    """Pull live audio at the default device's hardware sample rate."""
+    if sd is None:
+        raise RuntimeError('sounddevice is not installed')
+    with _audio_lock:
+        _audio_open[0] += 1
+    try:
+        device = _wasapi_default_out()
+        info = sd.query_devices(device, 'output')
+        rate = int(info['default_samplerate'])
+        channels = min(2, info['max_output_channels'])
+        settings = sd.WasapiSettings(auto_convert=True) if device is not None else None
+        stream = sd.OutputStream(device=device, channels=channels, samplerate=rate,
+                                 latency='low', dtype='float32', extra_settings=settings,
+                                 callback=lambda out, frames, _time, _status: callback(out, frames, rate))
+        try:
+            stream.start()
+            yield
+        finally:
+            stream.close()
+    finally:
+        with _audio_lock:
+            _audio_open[0] -= 1
+
+
 def list_mics():
     """音声入力（WASAPI）の名前の一覧"""
     if sd is None:
         return []
-    if _audio_open[0] == 0:  # あとからつないだマイクも出るように、音声の部品を読み直す（使用中の音声がないときだけ）
-        try:
-            sd._terminate()
-            sd._initialize()
-        except Exception:
-            pass
-    k = _wasapi_index()
-    out = []
-    for d in sd.query_devices():
-        if d['max_input_channels'] > 0 and (k is None or d['hostapi'] == k):
-            out.append(d['name'])
-    return out
+    with _audio_lock:
+        if _audio_open[0] == 0:  # 後からつないだマイクを一覧に出す
+            try:
+                sd._terminate()
+                sd._initialize()
+            except Exception:
+                pass
+        k = _wasapi_index()
+        return [d['name'] for d in sd.query_devices()
+                if d['max_input_channels'] > 0 and (k is None or d['hostapi'] == k)]
 
 
 def find_mic(name):

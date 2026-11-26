@@ -58,7 +58,7 @@ class _Runtime:
         path = next((p for p in _runtime_paths() if p.is_file()), None)
         if path is None:
             raise FileNotFoundError(DLL)
-        lib = ct.CDLL(str(path))
+        self.library = lib = ct.CDLL(str(path))
         initialize = self._bind(lib, 'initialize', ct.c_bool)
         self.create = self._bind(lib, 'send_create', ct.c_void_p, ct.POINTER(_SendOptions))
         self.destroy = self._bind(lib, 'send_destroy', None, ct.c_void_p)

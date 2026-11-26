@@ -132,6 +132,7 @@ LAYER = '@layer:'     # @layer:<id> 別レイヤーの映像
 CAMERA = '@camera'    # カメラ・キャプチャーボード（vdev, adev）
 WINDOW = '@window'    # ウィンドウ取り込み（title）
 SPOUT = '@spout'      # Spout で受け取る（sender）
+NDI = '@ndi'          # NDI で受け取る（sender）
 
 
 def is_special(f):
@@ -151,6 +152,8 @@ def cue_label(cue, app=None):
         return 'ウィンドウ: ' + cue.get('title', '')
     if f == SPOUT:
         return 'Spout: ' + cue.get('sender', '')
+    if f == NDI:
+        return 'NDI: ' + cue.get('sender', '')
     return f
 
 
@@ -259,6 +262,9 @@ class Layer:
                 self.error = s.error
                 return None
             return s
+        if f == NDI:
+            from ndi_input import NdiSource
+            return NdiSource(cue.get('sender', ''))
         self.error = f'不明なクリップ: {f}'
         return None
 

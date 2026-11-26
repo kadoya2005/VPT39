@@ -35,6 +35,7 @@ from sources import backend_name, is_video, is_image, list_cameras, list_mics, l
 from outputs import OutputWindow, gl_hints, monitors, monitor_info
 import webui
 import i18n
+from ndi_input import NdiFinder
 from ndi_output import NdiSender, source_name
 from i18n import tr
 
@@ -165,6 +166,9 @@ def choose_setup_file(action, folder, suggested):
     try:
         root.withdraw()
         root.attributes('-topmost', True)
+        if action == 'folder':
+            return filedialog.askdirectory(parent=root, title=tr('素材フォルダを選択'),
+                                           initialdir=folder, mustexist=True)
         options = {'parent': root, 'initialdir': folder,
                    'filetypes': [('VPT39 JSON', '*.json')], 'defaultextension': '.json'}
         if action == 'save':
@@ -216,9 +220,12 @@ class App:
         self.state_lock = threading.Lock()
         self.state_json = b'{}'
         self.media = []
+        self.browser_folder = self.resolve(self.proj['media_dir'])
+        self.browser_listing = self.folder_listing(self.browser_folder)
         self.missing_references = []
         self.desktop_token = secrets.token_urlsafe(32)
         self.desktop_process = None
+        self._media_scanning = False
         self.last_media_scan = 0.0
         self.fps = 0.0
         self.running = True
@@ -236,6 +243,7 @@ class App:
         self.lan_urls = []
         self.web_port = 8080
         self.ndi_workers = {}
+        self.ndi_finder = None
 
         self._init_gl()
         self.outs = []
@@ -457,6 +465,8 @@ class App:
 
     def scan_inputs(self):
         """カメラ・音声入力・ウィンドウの一覧を裏で調べる"""
+        if self.ndi_finder is None or not self.ndi_finder.thread.is_alive():
+            self.ndi_finder = NdiFinder()
         if self.inputs.get('scanning'):
             return
         self.inputs['scanning'] = True
@@ -597,6 +607,17 @@ class App:
         cmd = c.get('cmd')
         if cmd == '_desktop_reference_files':
             self.register_reference_drop(c['target'], c['paths'])
+            return
+        if cmd == 'browse_media_folder':
+            direction = c.get('direction')
+            if direction == 'choose':
+                self.show_setup_dialog('folder')
+            elif direction == 'up':
+                self.set_browser_folder(os.path.dirname(self.browser_folder))
+            elif (direction == 'child' and c.get('folder') == self.browser_folder
+                  and self.browser_listing['path'] == self.browser_folder
+                  and c.get('name') in self.browser_listing['folders']):
+                self.set_browser_folder(os.path.join(self.browser_folder, c['name']))
             return
         if cmd == 'remove_reference':
             references = self.proj['reference_media']
@@ -1243,10 +1264,13 @@ class App:
     def show_setup_dialog(self, action, duplicate=False):
         if self._setup_dialog_open:
             return
-        os.makedirs(self.settings_dir, exist_ok=True)
-        current = self.active_setting_path()
-        folder = os.path.dirname(current) if current else self.settings_dir
-        suggested = os.path.basename(current) if current else ''
+        if action == 'folder':
+            folder, suggested = self.browser_folder, ''
+        else:
+            os.makedirs(self.settings_dir, exist_ok=True)
+            current = self.active_setting_path()
+            folder = os.path.dirname(current) if current else self.settings_dir
+            suggested = os.path.basename(current) if current else ''
         if duplicate and suggested:
             suggested = tr(f'{os.path.splitext(suggested)[0]} のコピー') + '.json'
         self._setup_dialog_open = True
@@ -1273,6 +1297,8 @@ class App:
         elif path:
             if action == 'open':
                 self.open_setting_file(os.path.abspath(path))
+            elif action == 'folder':
+                self.set_browser_folder(os.path.abspath(path))
             else:
                 self.save_setting_file(os.path.abspath(path))
 
@@ -1516,13 +1542,44 @@ class App:
         self.last_media_scan = 0.0
         self.message = f'コピーせずに {len(files)} 件を参照として登録しました'
 
+    def set_browser_folder(self, path):
+        if path == self.browser_folder:
+            return
+        self.browser_folder = path
+        self.browser_listing = self.folder_listing(path)
+        self.last_media_scan = 0.0
+
+    @staticmethod
+    def folder_listing(path):
+        return {'path': path, 'can_up': os.path.dirname(path) != path,
+                'folders': [], 'files': [], 'error': False}
+
+    def read_browser_folder(self, folder, media_root):
+        listing = self.folder_listing(folder)
+        files, folders = listing['files'], listing['folders']
+        in_media_root = os.path.normcase(folder) == os.path.normcase(media_root)
+        try:
+            with os.scandir(folder) as entries:
+                for entry in entries:
+                    if entry.is_dir():
+                        if entry.name != 'テスト用' or not in_media_root:
+                            folders.append(entry.name)
+                    elif entry.is_file() and (is_video(entry.name) or is_image(entry.name)):
+                        files.append(entry.path)
+        except OSError:
+            listing['error'] = True
+        folders.sort(key=str.casefold)
+        files.sort(key=str.casefold)
+        return listing
+
     # ---- 素材一覧 ----
     def scan_media(self, wait=False):
         """media フォルダの一覧。フォルダを調べるのは裏のスレッドで（Dropbox の中だと時間がかかり、映像が止まるため）"""
-        self.last_media_scan = time.time()
-        if getattr(self, '_media_scanning', False):
+        if self._media_scanning:
             return
+        self.last_media_scan = time.time()
         root = self.resolve(self.proj['media_dir'])
+        browser_folder = self.browser_folder
         references = {c['file'] for layer in self.layers for c in layer.cfg['cues']
                       if c['file'] and not c['file'].startswith('@')}
         references.update(self.proj['reference_media'])
@@ -1530,6 +1587,9 @@ class App:
 
         def work():
             try:
+                listing = self.read_browser_folder(browser_folder, root)
+                if self.browser_folder == browser_folder:
+                    self.browser_listing = listing
                 self.missing_references = sorted(path for path in references
                                                  if not os.path.isfile(os.path.join(root, path)))
                 out = []
@@ -1589,16 +1649,20 @@ class App:
                          'ndi': {'enabled': o.cfg.get('ndi_enabled') is True, 'name': self.ndi_name(o), **ndi}})
         screens = self.screens()
         targets = [{'output': k, 'name': o['name'], 'size': o['size']} for k, o in enumerate(outs)]
+        ndi_sources, ndi_error = self.ndi_finder.state if self.ndi_finder else ((), '')
+        local_outputs = {o['ndi']['source'] for o in outs}
         st = {
             'rev': self.rev, 'boot': self.boot, 'backend': backend_name(), 'fps': round(self.fps),
             'master': self.proj['master'], 'blackout': self.blackout, 'edit': self.edit,
             'selected': self.selected, 'map_out': self.map_out, 'targets': targets,
-            'inputs': dict(self.inputs),
+            'inputs': {**self.inputs, 'ndi': [name for name in ndi_sources if name not in local_outputs],
+                       'ndi_error': ndi_error},
             'size': list(self.target_size(self.map_out)) if sel else [1920, 1080],
             'outputs': outs, 'monitors': len(screens), 'screens': screens,
             'audio_master': self.proj.get('audio_master', 1.0),
             'out_warning': ' ／ '.join(self.warnings),
             'media': self.media, 'layers': ls, 'dirty': self.dirty,
+            'browser_folder': self.browser_listing,
             'reference_media': self.proj['reference_media'],
             'missing_references': self.missing_references,
             'column_names': self.proj['column_names'],
@@ -1858,9 +1922,8 @@ class App:
                     out.frame_count = 0
                 self.fps = max((out.fps for out in self.outs), default=0.0)
                 fps_t = fps_sample_at
-            if wall - self.last_media_scan > 3.0:
+            if not self._media_scanning and wall - self.last_media_scan > 3.0:
                 self._safe_call('素材の一覧', self.scan_media)
-                self.last_media_scan = wall
             if self.dirty and wall - self.last_change > 2.0:
                 if not self._safe_call('保存', self.save):
                     self.last_change = wall + 3.0  # 保存できなかった（Dropbox や他のアプリが使用中など）→ 5秒後にもう一度
@@ -1880,6 +1943,8 @@ class App:
             self._safe_call('保存', self.save)
         if self.desktop_process is not None and self.desktop_process.poll() is None:
             self.desktop_process.terminate()
+        if self.ndi_finder is not None:
+            self.ndi_finder.close()
         for L in self.layers:
             L.release()
         for o in self.outs:
@@ -1888,6 +1953,8 @@ class App:
         deadline = time.monotonic() + 1.0
         for worker in self.ndi_workers.values():
             worker.join(max(0, deadline - time.monotonic()))
+        if self.ndi_finder is not None:
+            self.ndi_finder.thread.join(max(0, deadline - time.monotonic()))
 
     def _report(self, where, ex):
         """エラーを記録（同じ場所のエラーは5秒に1回だけ表示）"""

@@ -72,7 +72,7 @@ Note: tested on Windows 11.
 | Window capture | Brings in the picture of any window on the same PC (Zoom, Discord, a browser and so on) (no audio) |
 | Spout | Receives video from TouchDesigner, Processing, OBS, VJ apps and so on, with no delay and with transparency |
 | Mapping from a phone | Turn it on with the "Phone" button in the top bar and scan the QR code that appears; a phone on the same Wi-Fi can then adjust the four corners with an arrow pad (with hold-to-repeat and undo) |
-| Adding and removing media | Drop files from your PC onto the media area to copy them into media. ✕ moves them to the Recycle Bin |
+| Browsing for media | Navigate folders and add videos or images directly from their original locations |
 | Animated images | Animated GIF, APNG and WebP, transparent PNG |
 | At the end | For each cue, choose "Loop / Hold last frame / Clear at end / Go to next (playlist)" |
 | Layer compositing | Any number of layers. Blend modes: Normal, Add, Screen, Multiply. Opacity, show/hide and stacking order can be changed |
@@ -99,11 +99,13 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ## Where to put media
 
-Drop videos or images directly from Explorer onto the Windows control panel opened by `run.bat`. The media panel copies files into `media`. Dropping directly onto a clip slot links the original file at that position. Moving a linked file shows a missing-media notice on its clip.
+In **Media → Browse folders**, click **Choose folder…** to open a folder on your PC. Open a subfolder from the list, use **↑** to go up, or filter the list by name. Drag a video or image to a clip slot or click it to add it to the selected layer. The clip links to the original file.
 
-Building the Windows control panel from source requires the .NET 10 SDK and Microsoft Edge WebView2 Runtime. If the Windows control panel cannot open, the browser control panel imports dropped files into `media`.
+In the Windows control panel opened by `run.bat`, dropping a file from Explorer onto a clip slot also links the original file. If the linked file goes missing, the clip shows a notice.
 
-- `media` folder: videos for each song (mp4, mov and so on) and images (png, jpg). Subfolders are fine.
+Building the Windows control panel from source requires the .NET 10 SDK and Microsoft Edge WebView2 Runtime. **Browse folders** also links original files in the browser control panel. Dragging from Explorer directly to a clip slot in the browser copies the file into `media`.
+
+- `media` is the starting folder. The **Test media** tab shows files from `media/テスト用`.
 - `photos` folder: photos for the photo wall. We recommend putting only photos here that a person has checked and approved.
 
 ## Panels on the right
@@ -213,6 +215,12 @@ Choose **Output windows** to switch to a local display.
 On a PC on the same network, select the source names in a receiver such as NDI Studio Monitor. Each source carries one composited video at its output's resolution and frame rate. Audio plays on the sending PC.
 
 [NDI website](https://ndi.video/) · [Runtime files and distribution terms](THIRD_PARTY.md#ndi-について)
+
+### NDI input
+
+The receiving PC uses the same NDI 6 Runtime as NDI output. Open **Media → Blank, layers, inputs** and look below **Spout** for sources on this PC or the network. Drag a source into an empty slot on a video layer, then play the clip.
+
+Incoming audio plays through the default Windows audio device and follows clip volume, audio fades, and mixer volume and mute. If an active source stops sending video, the last frame stays on screen and playback resumes when frames return from that source.
 
 ## Main settings in project.json
 

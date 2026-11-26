@@ -48,7 +48,7 @@ def lan_allowed(c):
 
 def _thumb_path(rel):
     """サムネイルを作ってよいファイルか確認して絶対パスを返す
-    （media フォルダの中か、キューに登録済みのファイルだけ）"""
+    （media 内、現在の参照フォルダの一覧、登録済みの素材に限る）"""
     if not rel or _app is None:
         return None
     path = os.path.realpath(_app.media_path(rel))
@@ -57,7 +57,7 @@ def _thumb_path(rel):
         os.path.splitdrive(root)[0].lower() else False
     if not inside:
         files = {c.get('file') for L in _app.proj['layers'] for c in L.get('cues', [])}
-        if rel not in files and rel not in _app.proj['reference_media']:
+        if rel not in files and rel not in _app.proj['reference_media'] and rel not in _app.browser_listing['files']:
             return None
     return path if os.path.isfile(path) else None
 
@@ -644,7 +644,10 @@ body.panel-closed aside{display:none}
 .media.pane.act{flex:1;min-height:0}
 .media{flex-direction:column;gap:8px}
 .mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,var(--mt,104px)),1fr));gap:8px;flex:1;min-height:60px;overflow:auto;align-content:start}
-#mfolder{max-width:130px;font-size:12px}
+.folder-address{display:flex;align-items:center;gap:6px}
+.folder-path{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.folder-row{grid-column:1/-1;display:flex;align-items:center;gap:8px;text-align:left;min-width:0}
+.folder-row span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .seg{display:flex;gap:2px;padding:2px;background:var(--surface);border-radius:999px}
 .seg button{min-height:26px;border:0;border-radius:999px;padding:3px 10px;background:transparent;color:var(--dim);font-size:12px}
 .seg button.on{background:var(--line);color:var(--text)}
@@ -655,6 +658,7 @@ body.panel-closed aside{display:none}
 .sp.camera{background:linear-gradient(135deg,#3a2a12,#241a0d)}
 .sp.window{background:linear-gradient(135deg,#12283a,#0d1a24)}
 .sp.spout{background:linear-gradient(135deg,#2a1838,#170d22)}
+.sp.ndi{background:linear-gradient(135deg,#17294b,#102b29)}
 .clip select{width:calc(100% - 8px);margin:3px 4px 0;font-size:11px;padding:1px 2px}
 .clip.empty .th{gap:6px}
 
@@ -700,10 +704,6 @@ body.child .childbar{display:flex;flex:none;gap:10px;align-items:center;padding:
 .mtile{background:var(--panel2);border:1px solid var(--line);border-radius:8px;overflow:hidden;cursor:grab;padding-bottom:3px}
 .mtile:hover{border-color:var(--edge)}
 .mtile{position:relative}
-.mtile .del{position:absolute;right:3px;top:3px;display:none;min-height:20px;padding:0 6px;font-size:11px;line-height:1.5;border:0;background:#000c;color:#fff;border-radius:5px}
-.mtile:hover .del{display:block}
-@media (hover:none){.mtile .del{display:block}}
-.media.fdrop .mgrid{outline:2px dashed var(--acc);outline-offset:-2px;background:#0f1a14}
 .mtile .cn{font-size:11px;padding:3px 5px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---- 右：レイヤー設定・マッピング ---- */
@@ -842,13 +842,17 @@ details summary{cursor:pointer;color:var(--dim);font-size:12px}
     </div>
     <div class="tabbody">
     <div class="media pane" id="media-pane" role="tabpanel" aria-labelledby="tab-media">
-      <div class="row"><div class="seg"><button id="mkf" data-media-kind="f" class="on" aria-pressed="true">ファイル</button><button id="mks" data-media-kind="s" aria-pressed="false">空白・レイヤー・入力</button><button id="mkt" data-media-kind="t" aria-pressed="false">テスト用</button></div>
+      <div class="row"><div class="seg"><button id="mkf" data-media-kind="f" class="on" aria-pressed="true">フォルダ参照</button><button id="mks" data-media-kind="s" aria-pressed="false">空白・レイヤー・入力</button><button id="mkt" data-media-kind="t" aria-pressed="false">テスト用</button></div>
         <span class="meta" id="mcount"></span><span class="grow"></span></div>
       <div class="meta" id="mtarget"></div>
       <div class="msg" id="mup"></div>
+      <div class="folder-address" id="folder-address">
+        <button type="button" id="folder-up" class="sm" title="上のフォルダへ">↑</button>
+        <span id="folder-path" class="meta folder-path"></span>
+        <button type="button" id="folder-choose" class="sm">フォルダを選ぶ…</button>
+      </div>
       <div class="row mfiles" style="flex-wrap:nowrap">
-        <select id="mfolder" title="フォルダで絞り込み"><option value="">すべてのフォルダ</option></select>
-        <input id="mfilter" class="grow" style="min-width:0" placeholder="ファイル名で絞り込み">
+        <input id="mfilter" class="grow" style="min-width:0" placeholder="ファイル・フォルダ名で絞り込み">
         <input type="range" id="msize" min="80" max="260" step="10" value="104" style="width:70px" title="サムネイルの大きさ">
       </div>
       <div class="mgrid" id="mediagrid"></div>
@@ -1232,16 +1236,6 @@ document.addEventListener('contextmenu',e=>{
 
 // ---- 素材ブラウザ ----
 const isTestMedia=m=>m.startsWith('テスト用/');
-function buildFolders(){
-  // media フォルダの中のサブフォルダ（1段目）で絞り込めるようにする
-  const sel=$('mfolder'), cur=sel.value;
-  const dirs=[...new Set(S.media.filter(m=>m.includes('/')&&!isTestMedia(m)).map(m=>m.split('/')[0]))].sort();
-  if(sel.dataset.k===dirs.join('|'))return; sel.dataset.k=dirs.join('|');
-  sel.innerHTML='<option value="">すべてのフォルダ</option>'+(dirs.length?'<option value=".">（media の直下）</option>':'')+
-    dirs.map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
-  sel.value=[...sel.options].some(o=>o.value===cur)?cur:'';
-  sel.style.display=dirs.length?'':'none';
-}
 // 素材の追加。m はファイル名か、特別な素材（空白・レイヤー映像・カメラ・ウィンドウ）の JSON
 function addMedia(layer,m,at,column){
   const c=m.startsWith('{')?JSON.parse(m):{file:m};
@@ -1263,7 +1257,7 @@ function buildMedia(){
   });
   const testing=mkind==='t';
   document.querySelector('.mfiles').classList.toggle('hide',mkind==='s');
-  $('mfolder').classList.toggle('hide',testing);
+  $('folder-address').classList.toggle('hide',mkind!=='f');
   if(mkind==='s'){
     const I=S.inputs||{};
     let h=`<div class="mh">何も映さない</div>`+specialTile({file:'@blank'},'空白','空白（何も映さない・音も止める）','blank');
@@ -1275,6 +1269,9 @@ function buildMedia(){
       ((I.windows||[]).map(n=>specialTile({file:'@window',title:n},'🗔 '+n,n,'window')).join('')||'<div class="meta" style="grid-column:1/-1">ありません</div>');
     h+=`<div class="mh">Spout</div>`+
       (I.spout||[]).map(n=>specialTile({file:'@spout',sender:n},'⇄ '+n,n,'spout')).join('');
+    h+=`<div class="mh">NDI入力</div>`+
+      (I.ndi||[]).map(n=>specialTile({file:'@ndi',sender:n},n,n,'ndi')).join('');
+    if(I.ndi_error)h+=`<div class="meta" style="grid-column:1/-1">${esc(T(I.ndi_error))}</div>`;
     $('mcount').textContent='';
     const k=JSON.stringify([S.layers.map(L=>[L.id,L.name]),I]);
     if(box.dataset.k===k)return; box.dataset.k=k;
@@ -1282,21 +1279,31 @@ function buildMedia(){
     $('rescan').onclick=()=>cmd({cmd:'scan_inputs'});
   }else{
     box.dataset.k='';
-    const q=$('mfilter').value.toLowerCase(), fd=testing?'':$('mfolder').value;
-    const references=new Set(S.reference_media||[]);
-    const missing=new Set(S.missing_references||[]);
-    const media=[...S.media,...references].filter(m=>isTestMedia(m)===testing);
-    const list=media.filter(m=>(!q||m.toLowerCase().includes(q))&&
-      (!fd||(fd==='.'?!m.includes('/')&&!references.has(m):m.startsWith(fd+'/'))));
-    $('mcount').textContent=`${list.length}${list.length!==media.length?' / '+media.length:''}件`;
-    const empty=q||fd?'一致する素材がありません':testing?'テスト用の素材がありません':
-      '動画や画像をここにドロップして追加できます。';
-    box.innerHTML=list.map(m=>`<div class="mtile${missing.has(m)?' missing-reference':''}" draggable="true" data-media-file data-f="${esc(m)}" title="${esc(m)}">
-      <div class="th">${mediaThumbnail(m)}
-        ${testing?'':references.has(m)?`<button class="del" data-unlink="${esc(m)}" title="素材の参照を解除">✕</button>`:
-          `<button class="del" data-del="${esc(m)}" title="この素材をごみ箱へ移す（ごみ箱から元に戻せます）">✕</button>`}
-      </div><div class="cn">${esc(base(m))}</div></div>`).join('')
-      ||`<div class="meta">${empty}</div>`;
+    const folder=S.browser_folder;
+    const filter=$('mfilter');
+    const path=$('folder-path');
+    if(!testing&&path.title!==folder.path){
+      if(path.title)filter.value='';
+      path.textContent=folder.path;
+      path.title=folder.path;
+    }
+    const q=filter.value.trim().toLowerCase();
+    const media=testing?S.media.filter(isTestMedia):folder.files;
+    const files=media.filter(m=>base(m).toLowerCase().includes(q));
+    const folders=testing?[]:folder.folders.filter(name=>name.toLowerCase().includes(q));
+    if(!testing)$('folder-up').disabled=!folder.can_up;
+    const count=files.length+folders.length;
+    const total=media.length+(testing?0:folder.folders.length);
+    $('mcount').textContent=`${count}${count!==total?' / '+total:''}件`;
+    const empty=!testing&&folder.error?'フォルダを開けませんでした':
+      q?'一致する素材がありません':testing?'テスト用の素材がありません':'このフォルダに動画・画像がありません';
+    const rows=folders.map(name=>`<button type="button" class="folder-row" data-folder="${esc(name)}" title="${esc(name)}"><span aria-hidden="true">📁</span><span>${esc(name)}</span></button>`);
+    const tiles=files.map(m=>`<div class="mtile" draggable="true" data-media-file data-f="${esc(m)}" title="${esc(m)}">
+      <div class="th">${mediaThumbnail(m)}</div><div class="cn">${esc(base(m))}</div></div>`);
+    box.innerHTML=rows.join('')+tiles.join('')||`<div class="meta">${T(empty)}</div>`;
+    box.querySelectorAll('[data-folder]').forEach(b=>b.onclick=()=>cmd({
+      cmd:'browse_media_folder',direction:'child',folder:folder.path,name:b.dataset.folder,
+    }));
   }
   box.querySelectorAll('.mtile').forEach(el=>{
     el.addEventListener('dragstart',e=>{
@@ -1305,24 +1312,9 @@ function buildMedia(){
       e.dataTransfer.effectAllowed='copy';dragActive=true;
     });
     el.addEventListener('dragend',endDrag);
-    el.addEventListener('click',e=>{ if(e.target.closest('.del')) return; const s=S.layers[S.selected]; if(s&&(s.kind==='video'||isImg(el.dataset.f))) addMedia(s,el.dataset.f);});
-  });
-  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=e=>{e.stopPropagation(); deleteMedia(b.dataset.del);});
-  box.querySelectorAll('[data-unlink]').forEach(b=>b.onclick=e=>{
-    e.stopPropagation();
-    cmd({cmd:'remove_reference',file:b.dataset.unlink});
+    el.addEventListener('click',()=>{ const s=S.layers[S.selected]; if(s&&(s.kind==='video'||isImg(el.dataset.f))) addMedia(s,el.dataset.f);});
   });
 }
-// 素材をごみ箱へ（クリップで使っていれば、そのことも知らせる）
-async function deleteMedia(m){
-  const other=S.other_deck_media_uses||{};
-  const used=S.layers.reduce((n,L)=>n+L.cues.filter(c=>c.file===m).length,Object.hasOwn(other,m)?other[m]:0);
-  if(!confirm(`「${base(m)}」をごみ箱へ移しますか？${used?`\n\nこの素材は ${used} 個のクリップで使っています。クリップは残りますが、再生すると「ファイルが見つかりません」になります。`:''}\n\n（ごみ箱から元に戻せます）`))return;
-  try{const r=await fetch('/api/media_delete',{method:'POST',body:JSON.stringify({file:m})}).then(r=>r.json());
-    if(!r.ok) alert(r.msg||'削除できませんでした');}catch(e){alert('削除できませんでした');}
-  setTimeout(poll,300);
-}
-// パソコンのファイルを素材の欄へドロップ → media フォルダへ取り込む（いま絞り込んでいるフォルダがあればそこへ）
 function hasFiles(e){return e.dataTransfer&&[...e.dataTransfer.types].includes('Files');}
 function desktopReferenceDrop(files,target){
   if(!window.vpt39DesktopDrop)return false;
@@ -1333,17 +1325,7 @@ function desktopReferenceDrop(files,target){
   }
   return true;
 }
-{const pane=document.querySelector('.media');
-  pane.addEventListener('dragover',e=>{ if(!hasFiles(e))return; e.preventDefault(); e.dataTransfer.dropEffect='copy'; pane.classList.add('fdrop');});
-  pane.addEventListener('dragleave',e=>{ if(!pane.contains(e.relatedTarget)) pane.classList.remove('fdrop');});
-  pane.addEventListener('drop',e=>{
-    if(!hasFiles(e))return;
-    e.preventDefault();
-    pane.classList.remove('fdrop');
-    uploadFiles([...e.dataTransfer.files]);
-  });
-}
-// 素材の欄の外に落としても、ブラウザがそのファイルを開いて操作画面が消えないように
+// アプリの外からドロップしたファイルで、ブラウザが操作画面を置き換えないように
 document.addEventListener('dragover',e=>{ if(hasFiles(e)) e.preventDefault();});
 document.addEventListener('drop',e=>{ if(hasFiles(e)) e.preventDefault();});
 let uploading=false;
@@ -1351,12 +1333,10 @@ async function uploadFiles(files,onCopied){
   if(uploading){alert('取り込み中です。終わってからもう一度ドロップしてください');return;}
   const ok=files.filter(f=>isImg(f.name)||/\.(mp4|mov|m4v|avi|mkv|webm|wmv|mpg|mpeg)$/i.test(f.name)), ng=files.length-ok.length;
   if(!ok.length){alert('動画・画像のファイルではありません');return;}
-  if(mkind==='t'&&!onCopied) selectMediaKind('f');
-  const fd=$('mfolder').value, dir=fd&&fd!=='.'?fd:'';
   uploading=true; const st=$('mup'); const errs=[];
   for(let k=0;k<ok.length;k++){const f=ok[k];
     const copied=await new Promise(res=>{const x=new XMLHttpRequest();
-      x.open('POST',`/api/upload?name=${encodeURIComponent(f.name)}&dir=${encodeURIComponent(dir)}`);
+      x.open('POST',`/api/upload?name=${encodeURIComponent(f.name)}`);
       x.upload.onprogress=ev=>{ if(ev.lengthComputable) st.textContent=`取り込み中 ${k+1}/${ok.length}：${f.name}（${Math.round(ev.loaded/ev.total*100)}%）`;};
       x.onload=()=>{try{const r=JSON.parse(x.responseText); if(r.ok)return res(r.file); errs.push(r.msg);}catch(_){errs.push(f.name+' を取り込めませんでした');} res();};
       x.onerror=()=>{errs.push(f.name+' を取り込めませんでした'); res();};
@@ -1366,7 +1346,7 @@ async function uploadFiles(files,onCopied){
       catch(_){errs.push(f.name+' を素材に保存しましたが、レイヤーに反映できませんでした');}
     }
   }
-  uploading=false; st.textContent=`取り込みました：${ok.length-errs.length} 件`+(ng?`（動画・画像でない ${ng} 件は飛ばしました）`:'')+(dir?`→ ${dir}`:'');
+  uploading=false; st.textContent=`取り込みました：${ok.length-errs.length} 件`+(ng?`（動画・画像でない ${ng} 件は飛ばしました）`:'');
   setTimeout(()=>{ if(st.textContent.startsWith('取り込みました')) st.textContent=''; },6000);
   if(errs.length) alert(errs.join('\n'));
   setTimeout(poll,400);
@@ -1590,6 +1570,7 @@ function cueInfo(c){
   if(f==='@camera') return {cls:'camera',label:'📷 '+camName(c.vdev||''),name:'カメラ'};
   if(f==='@window') return {cls:'window',label:'🗔 '+(c.title||''),name:'ウィンドウ'};
   if(f==='@spout') return {cls:'spout',label:'⇄ '+(c.sender||''),name:'Spout'};
+  if(f==='@ndi') return {cls:'ndi',label:c.sender||'',name:'NDI'};
   return null;
 }
 // 写真ウォールの行の画像（押すとその画像をすぐ出す・ドラッグで並べ替え）
@@ -1744,7 +1725,7 @@ function build(){
     d.addEventListener('mousedown',e=>{ if(e.button===0&&S.selected!==i){S.selected=i; cmd({cmd:'select',layer:i});} });
     box.appendChild(d);
   });
-  setupDnD(); setupScrub(); buildFolders(); buildMedia(); buildColumns(); lsetKey='';
+  setupDnD(); setupScrub(); buildMedia(); buildColumns(); lsetKey='';
 }
 
 // ---- 右：選んでいるレイヤーの設定 ----
@@ -2160,7 +2141,10 @@ $('quit').onclick=async e=>{
   }
 };
 $('mfilter').addEventListener('input',()=>{ if(S) buildMedia(); });
-$('mfolder').addEventListener('change',()=>{ if(S) buildMedia(); });
+$('folder-up').onclick=()=>cmd({cmd:'browse_media_folder',direction:'up'});
+$('folder-choose').onclick=()=>{
+  cmd({cmd:'browse_media_folder',direction:'choose'});
+};
 function setThumbSize(v){document.documentElement.style.setProperty('--mt',v+'px');}
 $('msize').addEventListener('input',e=>{setThumbSize(e.target.value); lsSet('vpt39-msize-'+(VIEW||'main'),e.target.value);});
 {const v=lsGet('vpt39-msize-'+(VIEW||'main')); if(v){$('msize').value=v; setThumbSize(v);} else if(VIEW==='media'){$('msize').value=170; setThumbSize(170);}}
@@ -2197,7 +2181,7 @@ async function poll(){
       $('deck').scrollLeft=0;
     }
     buildDeckTabs();
-    const mkey=JSON.stringify([S.media,S.reference_media,S.boot,(S.inputs||{}).mics,S.missing_references]);
+    const mkey=JSON.stringify([S.media,S.browser_folder,S.boot,(S.inputs||{}).mics,S.missing_references]);
     buildOuts(); updateNdi(); buildMixer(); buildSettings();
     if(deckChanged||S.rev!==rev||S.layers.length!==nlayers||mkey!==mediaKey){
       // ドラッグ中（別ウィンドウからのドラッグも）と、文字を入力している間は作り直さない
