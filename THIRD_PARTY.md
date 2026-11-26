@@ -24,6 +24,20 @@ VLC メディアプレイヤーは公式サイトから入れます。NDI ラン
 
 `runtime/ndi` に公式の `Processing.NDI.Lib.x64.dll` と `Processing.NDI.Lib.Licenses.txt` がある場合、VPT39 はその DLL を使います。このフォルダは Git の管理対象外です。NDI のファイルには VPT39 本体の MIT ライセンスとは別の条件が適用されます。
 
+EXE化した場合は、EXEの隣の `runtime/ndi`、パッケージ内の `runtime/ndi`、PCにインストール済みのランタイムを探します。インストーラーで配布する場合は、NDI出力を使うPCに [NDI公式のランタイム](https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20Runtime.exe) を導入する運用も選べます。
+
+### Windowsインストーラーへの同梱
+
+1. 配布ビルドの前に `python tools/prepare_ndi_runtime.py` を実行します。署名を確認した公式インストーラーが `runtime/ndi/NDI 6 Runtime.exe` に保存されます。
+2. Inno Setup のメインスクリプトで、同梱するファイルのパスを `NdiRuntimeSource` として定義し、`packaging/ndi-runtime.iss` を取り込みます。リポジトリ直下にメインスクリプトを置く構成では次のように指定できます。
+
+   ```iss
+   #define NdiRuntimeSource "runtime\ndi\NDI 6 Runtime.exe"
+   #include "packaging\ndi-runtime.iss"
+   ```
+
+3. 配布先では、VPT39のセットアップでNDIを選んだ場合、同梱されたNDI公式インストーラーが続けて開きます。インストール中の利用条件は公式画面で確認できます。
+
 第三者向けに DLL を同梱して配布する場合は、NDI SDK のライセンスと配布条件に従い、第三者ライブラリのライセンス文書も添付してください。
 
 [NDI公式サイト](https://ndi.video/) · [SDKライセンス](https://docs.ndi.video/all/developing-with-ndi/sdk/licensing) · [配布条件](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution) · [第三者ライブラリ](https://docs.ndi.video/all/developing-with-ndi/sdk/3rd-party-rights)

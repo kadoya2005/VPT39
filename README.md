@@ -200,7 +200,7 @@ Use `setup.bat` to install libraries. When VPT39 starts, the control panel opens
 
 ### NDI output
 
-1. When copying VPT39 to another sending PC, include the `runtime/ndi` folder. VPT39 loads the NDI runtime from that folder. For a Git checkout without that folder, use the [NDI 6 Runtime](https://ndi.link/NDIRedistV6) or [NDI Tools](https://ndi.video/tools/).
+1. Install the [NDI 6 Runtime](https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20Runtime.exe) on the sending PC, then start VPT39. If the runtime is missing, NDI sender settings shows the download link. VPT39 also supports a runtime placed in `runtime/ndi`.
 2. In **Output settings**, choose **+ NDI output** to send without a local window, or change an existing output's type to **NDI only**.
 3. Enter the source name under **NDI sender settings**. It takes effect when the field loses focus or you press Enter. Assign layers to each named source using the layer's **Output destinations** or the layer checklist in **Output settings**.
 

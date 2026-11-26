@@ -1823,6 +1823,10 @@ function ndiSettings(ndi,k,open){
     <div class="ndi-output">
       <label class="lbl">NDIソース名<input type="text" data-ndi-name="${k}" maxlength="60" value="${esc(ndi.name)}"></label>
       <span class="meta ndi-source" id="ndi-source-${k}"></span>
+      <div class="hide" id="ndi-install-${k}">
+        <a class="panel-link" href="https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20Runtime.exe" target="_blank" rel="noopener noreferrer">NDI 6 Runtime をダウンロード</a>
+        <div class="hint">インストール後に VPT39 を起動し直してください。</div>
+      </div>
       <div class="err" role="status" id="ndi-error-${k}"></div></div></details>`;
 }
 async function renameNdi(e){
@@ -1846,6 +1850,7 @@ function updateNdi(){
   S.outputs.forEach(({ndi},k)=>{
     const state=$('ndi-state-'+k), label=ndi.status==='ready'?(ndi.receivers?`送信中・受信 ${ndi.receivers} 台`:''):ndiStatus[ndi.status];
     if(!state)return;
+    $('ndi-install-'+k).classList.toggle('hide',ndi.status!=='missing');
     if(state.textContent!==T(label))state.textContent=T(label);
     const source=$('ndi-source-'+k);
     if(source.textContent!==ndi.source)source.textContent=ndi.source;

@@ -297,6 +297,8 @@ EN = {
     '準備中': 'Starting',
     '送信中・受信 {#0} 台': 'Sending to {0} receivers',
     'NDI 6 Runtime が見つかりません': 'NDI 6 Runtime was not found',
+    'NDI 6 Runtime をダウンロード': 'Download NDI 6 Runtime',
+    'インストール後に VPT39 を起動し直してください。': 'Restart VPT39 after installation.',
     'NDI送信を開始できませんでした': 'Could not start NDI output',
     'NDIソース名を入力してください': 'Enter an NDI source name',
     '出力ごとに異なるNDIソース名を指定してください': 'Use a different NDI source name for each output',

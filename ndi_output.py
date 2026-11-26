@@ -4,6 +4,7 @@ import ctypes as ct
 import os
 from pathlib import Path
 import re
+import sys
 import threading
 
 import numpy as np
@@ -38,12 +39,16 @@ class _VideoFrame(ct.Structure):
 
 
 def _runtime_paths():
-    yield Path(__file__).resolve().parent / 'runtime' / 'ndi' / DLL
+    module_dir = Path(__file__).resolve().parent
+    app_dir = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else module_dir
+    for directory in dict.fromkeys((app_dir, module_dir)):
+        yield directory / 'runtime' / 'ndi' / DLL
     runtime = os.environ.get('NDI_RUNTIME_DIR_V6')
     if runtime and Path(runtime).is_absolute():
         yield Path(runtime) / DLL
     root = Path(os.environ.get('ProgramFiles', r'C:\Program Files')) / 'NDI'
     yield root / 'NDI 6 Runtime' / 'v6' / DLL
+    yield root / 'NDI 6 Runtime' / DLL
     yield root / 'NDI 6 Tools' / 'Runtime' / DLL
     yield root / 'NDI 6 Tools' / 'Studio Monitor' / DLL
 
