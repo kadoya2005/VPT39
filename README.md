@@ -84,7 +84,17 @@ Note: tested on Windows 11.
 | Setup | Save each venue or show's running order, clips, mapping, volume and output settings to a folder you choose. Manage files in VPT39's `settings` folder from the setup list |
 | Show resolution | Set the resolution of the show projector for each output. Even if you prepare on another PC in a small window, it can be used as it is in the show |
 
-## Setup (Windows, first time only)
+## Windows installer
+
+The installer supports x64 PCs running Windows 10 22H2 or Windows 11. Run `VPT39-Setup-…-x64.exe`, then launch **VPT39** from the Start menu. Administrator privileges are required. Setup uses official installers for missing VLC (64-bit) and WebView2 components. Internet access is required if either is missing. Select the optional **NDI 6 Runtime** task to install NDI® support.
+
+NDI® is a registered trademark of Vizrt NDI AB. [NDI website](https://ndi.video/)
+
+The installed app stores settings and test media in `%LOCALAPPDATA%\VPT39`. Use **Open setup** to open an existing settings JSON. When moving to another PC, copy linked media too and replace clips whose source paths have changed.
+
+To build the setup, install `requirements.txt` and `pyinstaller==6.22.0` into a 64-bit Python 3.13 virtual environment. Install the .NET 10 SDK and Inno Setup 6. Run `.\.venv\Scripts\python.exe tools\build_windows.py --version 0.1.0 --refresh-ndi` from the repository root. The installer is written to `dist`.
+
+## Source setup (Windows, first time only)
 
 1. Install **Python 3.13 (64-bit)**. During installation, check "Add python.exe to PATH" (Spout does not work with 3.14 or later. See chapter 2 of manual\en\guide.pdf for illustrations).
 2. Install **VLC media player (64-bit)**. It is needed to play videos with sound. Without it, only the picture is played.

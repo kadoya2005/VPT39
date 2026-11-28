@@ -6,6 +6,8 @@ __pycache__/
 /runtime/ndi/
 /desktop/bin/
 /desktop/obj/
+/build/
+/dist/
 
 # 本番の設定・素材（人に見せないもの・大きいもの）
 project.json

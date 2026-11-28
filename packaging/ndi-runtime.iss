@@ -6,7 +6,7 @@
 #endif
 
 [Tasks]
-Name: "ndiruntime"; Description: "Install NDI 6 Runtime for video output"; Check: IsWin64
+Name: "ndiruntime"; Description: "{cm:InstallNdi}"; Flags: unchecked
 
 [Files]
 Source: "{#NdiRuntimeSource}"; DestDir: "{tmp}"; DestName: "NDI 6 Runtime.exe"; Flags: deleteafterinstall; Tasks: ndiruntime

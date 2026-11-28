@@ -82,7 +82,17 @@ VPT の「四隅変形マッピング」と、VJアプリのような「キュ�
 | セッティング | 会場・公演ごとに、曲順・クリップ・マッピング・音量・出力の設定を選んだ場所に保存。VPT39 の `settings` フォルダ内は一覧で管理 |
 | 本番の解像度 | 出力ごとに本番のプロジェクターの解像度を決めておける。別のPCで小さいウィンドウのまま準備しても、そのまま本番で使える |
 
-## セットアップ（Windows、最初の1回だけ）
+## Windows インストーラー
+
+配布版は Windows 10 22H2／Windows 11 の x64 PC 向けです。`VPT39-Setup-…-x64.exe` を実行し、インストール後はスタートメニューの「VPT39」から起動します。インストールには管理者権限が必要です。VLC（64bit）や WebView2 が入っていない場合は、公式のインストーラーで準備します。この場合はインターネット接続が必要です。NDI® を使う場合は、セットアップ中に「NDI 6 Runtime」を選択できます。
+
+NDI® is a registered trademark of Vizrt NDI AB. [NDI公式サイト](https://ndi.video/)
+
+配布版では設定やテスト用の素材を `%LOCALAPPDATA%\VPT39` に保存します。既存のセッティングは、以前のフォルダにある JSON を「セッティングを開く」から選べます。別PCに移すときは、直接参照している素材も移し、参照先が変わったクリップを差し替えてください。
+
+配布用にビルドするPCでは、Python 3.13（64bit）の `.venv` に `requirements.txt` と `pyinstaller==6.22.0` をインストールし、.NET 10 SDK と Inno Setup 6 を用意します。リポジトリのルートで `.\.venv\Scripts\python.exe tools\build_windows.py --version 0.1.0 --refresh-ndi` を実行すると、`dist` にインストーラーが出ます。
+
+## ソース版のセットアップ（Windows、最初の1回だけ）
 
 1. **Python 3.13（64bit）** をインストールします。インストール時に「Add python.exe to PATH」にチェックを入れてください（3.14 以降では Spout が使えません。図解は manual\guide.pdf の2章）。
 2. **VLC メディアプレイヤー（64bit）** をインストールします。音声付きで再生するために必要です。入れていない場合は映像だけ再生されます。

@@ -1,7 +1,7 @@
 # VPT39 が使っている部品とライセンス
 
-Python の部品は `setup.bat` を実行すると、公式の配布元（PyPI）から入ります。
-VLC メディアプレイヤーは公式サイトから入れます。NDI ランタイムの同梱については下記を参照してください。
+ソース版は `setup.bat` で Python の部品を PyPI から導入し、VLC メディアプレイヤーは公式サイトから入れます。
+Windows インストーラーには Python と .NET のランタイム、対応する部品のライセンス文書を含めています。VLC が無い場合は、セットアップが VideoLAN の公式 MSI をダウンロードし、SHA-256 を検証してインストールします。配布版の動画再生とサムネイル生成には VLC を使用します。WebView2 が無い場合は、Microsoft の Evergreen Bootstrapper がランタイムを導入します。
 
 | 部品 | 使いみち | ライセンス |
 |---|---|---|
@@ -15,12 +15,14 @@ VLC メディアプレイヤーは公式サイトから入れます。NDI ラン
 | sounddevice | カメラ・キャプチャーボードの音声 | MIT |
 | windows-capture | ウィンドウ取り込み | MIT |
 | SpoutGL | Spout の受け取り | BSD-3-Clause |
-| NDI 6 Runtime（任意） | NDI 映像送信 | [NDI の配布条件](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution) |
+| NDI 6 Runtime（任意） | NDI 入出力 | [NDI の配布条件](https://docs.ndi.video/all/developing-with-ndi/sdk/software-distribution) |
 | pygrabber / comtypes | カメラの一覧 | MIT |
 | qrcode | スマホで開くアドレスの QR コード | BSD |
 | imageio-ffmpeg（tools のみ） | テスト用素材を作るときだけ | BSD-2-Clause（中の ffmpeg は GPL。VPT39 本体は使わない） |
 
 ## NDI について
+
+NDI® is a registered trademark of Vizrt NDI AB.
 
 `runtime/ndi` に公式の `Processing.NDI.Lib.x64.dll` と `Processing.NDI.Lib.Licenses.txt` がある場合、VPT39 はその DLL を使います。このフォルダは Git の管理対象外です。NDI のファイルには VPT39 本体の MIT ライセンスとは別の条件が適用されます。
 

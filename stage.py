@@ -38,6 +38,7 @@ import i18n
 from ndi_input import NdiFinder
 from ndi_output import NdiSender, source_name
 from i18n import tr
+from app_paths import APP_DIR, DATA_DIR, FROZEN
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -1147,12 +1148,12 @@ class App:
                 sub += '\n' + '、'.join(m['outputs'])
             items.append({'rect': m['rect'], 'label': str(k + 1), 'sub': '\n'.join(tr(x) for x in sub.split('\n'))})
         exe = sys.executable
-        if exe.lower().endswith('python.exe'):
+        entry = ['--identify'] if FROZEN else [os.path.join(HERE, 'identify.py')]
+        if not FROZEN and exe.lower().endswith('python.exe'):
             w = exe[:-len('python.exe')] + 'pythonw.exe'
             exe = w if os.path.exists(w) else exe
         try:
-            subprocess.Popen([exe, os.path.join(HERE, 'identify.py'),
-                              json.dumps(items, ensure_ascii=False), '4'])
+            subprocess.Popen([exe, *entry, json.dumps(items, ensure_ascii=False), '4'])
         except OSError as ex:
             self.message = f'識別を表示できませんでした（{ex}）'
 
@@ -1837,11 +1838,10 @@ class App:
     def open_control_panel(self, port):
         url = f'http://127.0.0.1:{port}/'
         source = Path(__file__).resolve().parent / 'desktop'
-        frozen = getattr(sys, 'frozen', False)
-        app_dir = Path(sys.executable).resolve().parent if frozen else source
+        app_dir = APP_DIR / 'desktop' if FROZEN else source
         desktop = app_dir / 'VPT39.Desktop.exe'
         try:
-            if os.name == 'nt' and not frozen:
+            if os.name == 'nt' and not FROZEN:
                 desktop = source / 'bin' / 'Release' / 'net10.0-windows' / desktop.name
                 project = source / 'VPT39.Desktop.csproj'
                 dotnet = shutil.which('dotnet')
@@ -2041,11 +2041,25 @@ def lan_ips():
 
 
 def main():
+    if FROZEN and sys.argv[1:2] == ['--identify']:
+        from identify import main as identify_main
+        sys.argv.pop(1)
+        identify_main()
+        return
     ap = argparse.ArgumentParser(description='VPT39')
-    ap.add_argument('project', nargs='?', default=os.path.join(HERE, 'project.json'))
-    ap.add_argument('--window', action='store_true', help='この回だけ全部の出力をウィンドウで開く（リハ・テスト用）')
+    ap.add_argument('project', nargs='?', default=str(DATA_DIR / 'project.json'))
+    mode = ap.add_mutually_exclusive_group()
+    mode.add_argument('--window', dest='window', action='store_true', help='全部の出力をウィンドウで開く')
+    mode.add_argument('--fullscreen', dest='window', action='store_false', help='保存した全画面設定で開く')
+    ap.set_defaults(window=FROZEN)
     ap.add_argument('--display', type=int, default=None, help='（旧オプション・無視されます）')
     args = ap.parse_args()
+    if FROZEN:
+        for folder in ('media', 'photos'):
+            samples = APP_DIR / 'samples' / folder / 'テスト用'
+            destination = Path(args.project).resolve().parent / folder / 'テスト用'
+            if samples.is_dir() and not destination.exists():
+                shutil.copytree(samples, destination)
     App(args.project, args).run()
 
 

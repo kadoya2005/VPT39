@@ -7,12 +7,12 @@
 - 出力ウィンドウの題名・識別の表示など Python で作る文は tr() で置き換える
 - 選んだ言語は language.txt に保存（ない場合は Windows の表示言語で決める）
 """
-import os
 import re
 import json
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-LANG_FILE = os.path.join(HERE, 'language.txt')
+from app_paths import DATA_DIR
+
+LANG_FILE = DATA_DIR / 'language.txt'
 LANGS = ('ja', 'en')
 
 EN = {
@@ -621,6 +621,7 @@ def set_lang(v):
         return
     _lang = v
     try:
+        LANG_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(LANG_FILE, 'w', encoding='utf-8') as f:
             f.write(v + '\n')
     except OSError as ex:

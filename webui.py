@@ -1245,6 +1245,7 @@ function addMedia(layer,m,at,column){
 }
 let mkind=VIEW==='media'?'f':(lsGet('vpt39-mkind')||'f');
 const mediaKindButtons=document.querySelectorAll('[data-media-kind]');
+const ndiCredit='<a class="panel-link" href="https://ndi.video/" target="_blank" rel="noopener noreferrer">NDI®</a><small class="meta">NDI® is a registered trademark of Vizrt NDI AB</small>';
 function specialTile(c,label,title,cls){
   return `<div class="mtile" draggable="true" data-f="${esc(JSON.stringify(c))}" title="${esc(title)}"><div class="th"><div class="sp ${cls}">${esc(label)}</div></div><div class="cn">${esc(title)}</div></div>`;
 }
@@ -1269,7 +1270,7 @@ function buildMedia(){
       ((I.windows||[]).map(n=>specialTile({file:'@window',title:n},'🗔 '+n,n,'window')).join('')||'<div class="meta" style="grid-column:1/-1">ありません</div>');
     h+=`<div class="mh">Spout</div>`+
       (I.spout||[]).map(n=>specialTile({file:'@spout',sender:n},'⇄ '+n,n,'spout')).join('');
-    h+=`<div class="mh">NDI入力</div>`+
+    h+=`<div class="mh"><span>NDI入力</span>${ndiCredit}</div>`+
       (I.ndi||[]).map(n=>specialTile({file:'@ndi',sender:n},n,n,'ndi')).join('');
     if(I.ndi_error)h+=`<div class="meta" style="grid-column:1/-1">${esc(T(I.ndi_error))}</div>`;
     $('mcount').textContent='';
@@ -1869,7 +1870,8 @@ function ndiSettings(ndi,k,open){
         <a class="panel-link" href="https://downloads.ndi.tv/SDK/NDI_SDK/NDI%206%20Runtime.exe" target="_blank" rel="noopener noreferrer">NDI 6 Runtime をダウンロード</a>
         <div class="hint">インストール後に VPT39 を起動し直してください。</div>
       </div>
-      <div class="err" role="status" id="ndi-error-${k}"></div></div></details>`;
+      <div class="err" role="status" id="ndi-error-${k}"></div>
+      <div class="row">${ndiCredit}</div></div></details>`;
 }
 async function renameNdi(e){
   const input=e.currentTarget;
